@@ -1,0 +1,47 @@
+# SIFT1M experiment configuration
+
+# Dataset configuration
+dataset: "sift1m"  # SIFT1M dataset
+data_dir: "data"
+force_download: false
+
+# Experiment parameters
+n_queries: 1000  # Number of test queries to run
+topk: 100  # Number of nearest neighbors to retrieve
+repeat: 1  # Number of times to repeat experiment
+
+# Algorithm configurations
+algorithms:
+  exact:
+    type: "ExactSearch"
+    metric: "l2"
+
+  ivf_flat:
+    type: "ApproximateSearch"
+    index_type: "IVF1000,Flat"
+    metric: "l2"
+    nprobe: 100
+
+  ivf_pq:
+    type: "ApproximateSearch"
+    index_type: "IVF1000,PQ16"
+    metric: "l2"
+    nprobe: 100
+
+  hnsw_small:
+    type: "HNSW"
+    M: 16
+    efConstruction: 200
+    efSearch: 100
+    metric: "l2"
+
+  hnsw_large:
+    type: "HNSW"
+    M: 32
+    efConstruction: 400
+    efSearch: 200
+    metric: "l2"
+
+# Additional parameters
+seed: 42  # Random seed for reproducibility
+output_prefix: "sift1m"  # Prefix for output files

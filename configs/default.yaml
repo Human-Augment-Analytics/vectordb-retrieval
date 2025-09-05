@@ -1,0 +1,47 @@
+# Default experiment configuration
+
+# Dataset configuration
+dataset: "random"  # Use random dataset for testing
+data_dir: "data"
+force_download: false
+
+# Experiment parameters
+n_queries: 1000  # Number of test queries to run
+topk: 100  # Number of nearest neighbors to retrieve
+repeat: 1  # Number of times to repeat experiment
+
+# Algorithm configurations
+algorithms:
+  exact:
+    type: "ExactSearch"
+    metric: "l2"
+
+  ivf_flat:
+    type: "ApproximateSearch"
+    index_type: "IVF100,Flat"
+    metric: "l2"
+    nprobe: 10
+
+  ivf_pq:
+    type: "ApproximateSearch"
+    index_type: "IVF100,PQ16"
+    metric: "l2"
+    nprobe: 10
+
+  hnsw_small:
+    type: "HNSW"
+    M: 8
+    efConstruction: 100
+    efSearch: 50
+    metric: "l2"
+
+  hnsw_large:
+    type: "HNSW"
+    M: 16
+    efConstruction: 200
+    efSearch: 100
+    metric: "l2"
+
+# Additional parameters
+seed: 42  # Random seed for reproducibility
+output_prefix: "experiment"  # Prefix for output files

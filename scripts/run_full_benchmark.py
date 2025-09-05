@@ -1,0 +1,293 @@
+#!/usr/bin/env python
+"""
+Full Benchmark Runner for Vector Retrieval Algorithms
+
+This script provides a comprehensive experimental loop for evaluating
+vector retrieval algorithms with retrieval guarantees across multiple
+datasets and configurations.
+"""
+
+import os
+import sys
+import argparse
+import logging
+import yaml
+import json
+import time
+from datetime import datetime
+from pathlib import Path
+from typing import Dict, List, Any, Optional
+
+# Add src to path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
+from src.experiments import ExperimentRunner, ExperimentConfig
+from src.algorithms import ExactSearch, ApproximateSearch, HNSW
+from src.benchmark.dataset import Dataset
+
+class FullBenchmarkRunner:
+    """
+    Comprehensive benchmark runner for vector retrieval algorithms.
+    """
+    
+    def __init__(self, output_dir: str = "benchmark_results"):
+        """
+        Initialize the benchmark runner.
+        
+        Args:
+            output_dir: Directory to save all benchmark results
+        """
+        self.output_dir = output_dir
+        self.benchmark_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.results_dir = os.path.join(output_dir, f"benchmark_{self.benchmark_id}")
+        
+        # Create output directories
+        os.makedirs(self.results_dir, exist_ok=True)
+        
+        # Set up logging
+        log_file = os.path.join(self.results_dir, "benchmark.log")
+        logging.basicConfig(
+            level=logging.INFO,
+            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+            handlers=[
+                logging.FileHandler(log_file),
+                logging.StreamHandler()
+            ]
+        )
+        self.logger = logging.getLogger("FullBenchmark")
+        
+        self.all_results = {}
+        
+    def load_benchmark_config(self, config_file: str) -> Dict[str, Any]:
+        """
+        Load benchmark configuration from YAML file.
+        
+        Args:
+            config_file: Path to benchmark configuration file
+            
+        Returns:
+            Dictionary containing benchmark configuration
+        """
+        with open(config_file, 'r') as f:
+            config = yaml.safe_load(f)
+        
+        self.logger.info(f"Loaded benchmark configuration from {config_file}")
+        return config
+    
+    def run_single_experiment(self, dataset_name: str, config_dict: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Run a single experiment with given dataset and configuration.
+        
+        Args:
+            dataset_name: Name of the dataset to use
+            config_dict: Configuration dictionary for the experiment
+            
+        Returns:
+            Dictionary containing experiment results
+        """
+        self.logger.info(f"Running experiment on dataset: {dataset_name}")
+        
+        # Create experiment configuration
+        config_dict['dataset'] = dataset_name
+        config = ExperimentConfig(**config_dict)
+        
+        # Create experiment-specific output directory
+        exp_output_dir = os.path.join(self.results_dir, f"{dataset_name}")
+        os.makedirs(exp_output_dir, exist_ok=True)
+        
+        # Create and run experiment
+        runner = ExperimentRunner(config, output_dir=exp_output_dir)
+        
+        try:
+            # Load dataset
+            runner.load_dataset()
+            
+            # Get vector dimension
+            dimension = runner.dataset.train_vectors.shape[1]
+            
+            # Register algorithms
+            for alg_name, alg_config in config.algorithms.items():
+                alg_type = alg_config.pop("type")
+                
+                if alg_type == "ExactSearch":
+                    algorithm = ExactSearch(dimension=dimension, **alg_config)
+                elif alg_type == "ApproximateSearch":
+                    algorithm = ApproximateSearch(dimension=dimension, **alg_config)
+                elif alg_type == "HNSW":
+                    algorithm = HNSW(dimension=dimension, **alg_config)
+                else:
+                    self.logger.warning(f"Unknown algorithm type: {alg_type}. Skipping.")
+                    continue
+                
+                # Restore the type
+                alg_config["type"] = alg_type
+                
+                # Register algorithm
+                runner.register_algorithm(algorithm)
+            
+            # Run experiment
+            results = runner.run()
+            
+            self.logger.info(f"Experiment completed for {dataset_name}")
+            return results
+            
+        except Exception as e:
+            self.logger.error(f"Error running experiment on {dataset_name}: {str(e)}")
+            return {"error": str(e)}
+    
+    def run_benchmark_suite(self, config_file: str):
+        """
+        Run the complete benchmark suite.
+        
+        Args:
+            config_file: Path to benchmark configuration file
+        """
+        self.logger.info(f"Starting full benchmark suite: {self.benchmark_id}")
+        
+        # Load configuration
+        benchmark_config = self.load_benchmark_config(config_file)
+        
+        # Extract datasets and base configuration
+        datasets = benchmark_config.get('datasets', ['random'])
+        base_config = {k: v for k, v in benchmark_config.items() if k != 'datasets'}
+        
+        # Run experiments for each dataset
+        for dataset_name in datasets:
+            self.logger.info(f"=" * 60)
+            self.logger.info(f"Running benchmark on dataset: {dataset_name}")
+            self.logger.info(f"=" * 60)
+            
+            start_time = time.time()
+            results = self.run_single_experiment(dataset_name, base_config.copy())
+            end_time = time.time()
+            
+            # Store results with timing information
+            self.all_results[dataset_name] = {
+                'results': results,
+                'experiment_time': end_time - start_time,
+                'timestamp': datetime.now().isoformat()
+            }
+            
+            self.logger.info(f"Dataset {dataset_name} completed in {end_time - start_time:.2f} seconds")
+        
+        # Generate summary report
+        self.generate_summary_report()
+        
+        self.logger.info(f"Full benchmark suite completed: {self.benchmark_id}")
+    
+    def generate_summary_report(self):
+        """
+        Generate a comprehensive summary report of all benchmark results.
+        """
+        self.logger.info("Generating summary report...")
+        
+        # Save raw results
+        results_file = os.path.join(self.results_dir, "all_results.json")
+        with open(results_file, 'w') as f:
+            json.dump(self.all_results, f, indent=2, default=str)
+        
+        # Generate summary statistics
+        summary_file = os.path.join(self.results_dir, "benchmark_summary.md")
+        with open(summary_file, 'w') as f:
+            f.write(f"# Benchmark Summary Report\n\n")
+            f.write(f"**Benchmark ID:** {self.benchmark_id}\n")
+            f.write(f"**Generated:** {datetime.now().isoformat()}\n\n")
+            
+            f.write("## Datasets Evaluated\n\n")
+            for dataset_name, data in self.all_results.items():
+                f.write(f"### {dataset_name}\n")
+                f.write(f"- **Experiment Time:** {data['experiment_time']:.2f} seconds\n")
+                f.write(f"- **Timestamp:** {data['timestamp']}\n")
+                
+                if 'error' in data['results']:
+                    f.write(f"- **Status:** ERROR - {data['results']['error']}\n")
+                else:
+                    f.write(f"- **Status:** SUCCESS\n")
+                    f.write(f"- **Algorithms Evaluated:** {len(data['results'])}\n")
+                    
+                    # Add algorithm performance summary
+                    f.write("\n#### Algorithm Performance\n\n")
+                    f.write("| Algorithm | Recall@10 | QPS | Mean Query Time (ms) |\n")
+                    f.write("|-----------|-----------|-----|---------------------|\n")
+                    
+                    for alg_name, metrics in data['results'].items():
+                        if isinstance(metrics, dict):
+                            recall = metrics.get('recall@10', 'N/A')
+                            qps = metrics.get('qps', 'N/A')
+                            query_time = metrics.get('mean_query_time', 'N/A')
+                            f.write(f"| {alg_name} | {recall} | {qps} | {query_time} |\n")
+                
+                f.write("\n")
+        
+        self.logger.info(f"Summary report saved to {summary_file}")
+
+def create_default_benchmark_config():
+    """
+    Create a default benchmark configuration file.
+    """
+    config = {
+        'datasets': ['random', 'sift1m'],
+        'n_queries': 1000,
+        'topk': 100,
+        'repeat': 1,
+        'algorithms': {
+            'exact': {
+                'type': 'ExactSearch',
+                'metric': 'l2'
+            },
+            'ivf_flat': {
+                'type': 'ApproximateSearch',
+                'index_type': 'IVF100,Flat',
+                'metric': 'l2',
+                'nprobe': 10
+            },
+            'hnsw': {
+                'type': 'HNSW',
+                'M': 16,
+                'efConstruction': 200,
+                'efSearch': 100,
+                'metric': 'l2'
+            }
+        },
+        'seed': 42,
+        'output_prefix': 'benchmark'
+    }
+    
+    config_file = 'configs/benchmark_config.yaml'
+    os.makedirs('configs', exist_ok=True)
+    
+    with open(config_file, 'w') as f:
+        yaml.dump(config, f, default_flow_style=False)
+    
+    print(f"Default benchmark configuration created: {config_file}")
+    return config_file
+
+def main():
+    parser = argparse.ArgumentParser(description="Run full benchmark suite for vector retrieval algorithms")
+    parser.add_argument("--config", type=str, help="Path to benchmark configuration file")
+    parser.add_argument("--output-dir", type=str, default="benchmark_results", 
+                       help="Directory to save benchmark results")
+    parser.add_argument("--create-config", action="store_true", 
+                       help="Create default benchmark configuration file")
+    
+    args = parser.parse_args()
+    
+    if args.create_config:
+        config_file = create_default_benchmark_config()
+        print(f"Use: python {__file__} --config {config_file}")
+        return
+    
+    if not args.config:
+        print("Error: --config is required. Use --create-config to generate a default configuration.")
+        return
+    
+    if not os.path.exists(args.config):
+        print(f"Error: Configuration file not found: {args.config}")
+        return
+    
+    # Run benchmark suite
+    runner = FullBenchmarkRunner(output_dir=args.output_dir)
+    runner.run_benchmark_suite(args.config)
+
+if __name__ == "__main__":
+    main()

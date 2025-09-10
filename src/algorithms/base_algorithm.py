@@ -23,6 +23,8 @@ class BaseAlgorithm(ABC):
         self.metadata = None
         self.index_built = False
         self.config = kwargs
+        self.build_time = -1.0
+        self.index_memory_usage = -1.0
 
     @abstractmethod
     def build_index(self, vectors: np.ndarray, metadata: Optional[List[Dict[str, Any]]] = None) -> None:

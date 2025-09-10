@@ -76,12 +76,22 @@ class ExperimentRunner:
             start_time = time.time()
             algorithm.build_index(train_vectors)
             build_time = time.time() - start_time
-            self.logger.info(f"Index built in {build_time:.2f} seconds")
 
-            # Store build time in results
+            # Store build time
+            algorithm.build_time = build_time
+            self.logger.info(f"Index for {name} built in {build_time:.2f} seconds")
+
+            # Estimate memory usage (baseline: size of raw vectors).
+            # A more accurate measure would require algorithm-specific implementation.
+            memory_usage_mb = train_vectors.nbytes / (1024 * 1024)
+            algorithm.index_memory_usage = memory_usage_mb
+            self.logger.info(f"Estimated base memory usage for {name} index: {memory_usage_mb:.2f} MB")
+
+            # Store build time and memory usage in results
             if name not in self.results:
                 self.results[name] = {}
             self.results[name]['build_time'] = build_time
+            self.results[name]['index_memory_usage_mb'] = memory_usage_mb
 
     def _run_searches(self, test_vectors: np.ndarray, k: int):
         """

@@ -2,6 +2,7 @@ import numpy as np
 import os
 import pickle
 import requests
+import zipfile
 from typing import Dict, List, Tuple, Any, Optional
 import logging
 from tqdm import tqdm
@@ -18,11 +19,11 @@ class Dataset:
             "size": 1_000_000,
             "url": "http://corpus-texmex.irisa.fr/"
         },
-        "glove25": {
-            "description": "GloVe word embeddings - 25d version",
-            "dimensions": 25,
-            "size": 1_183_514,
-            "url": "https://nlp.stanford.edu/projects/glove/"
+        "glove50": {
+            "description": "GloVe word embeddings from glove.6B.zip (50d)",
+            "dimensions": 50,
+            "size": 400000,
+            "url": "http://nlp.stanford.edu/data/glove.6B.zip"
         },
         "random": {
             "description": "Randomly generated vectors for testing",
@@ -65,8 +66,8 @@ class Dataset:
         # Implement dataset-specific download logic
         if self.name == "sift1m":
             self._download_sift1m()
-        elif self.name == "glove25":
-            self._download_glove25()
+        elif self.name == "glove50":
+            self._download_glove()
 
     def _download_sift1m(self):
         """
@@ -113,13 +114,45 @@ class Dataset:
                     os.remove(file_path)
                 raise
 
-    def _download_glove25(self):
+    def _download_glove(self):
         """
-        Download GloVe 25d dataset.
+        Download GloVe 50d dataset.
         """
-        # For now, we'll implement a placeholder
-        # In practice, you'd download from the GloVe website
-        print("GloVe download not implemented yet - using placeholder")
+        url = "http://nlp.stanford.edu/data/glove.6B.zip"
+        zip_path = os.path.join(self.data_dir, "glove.6B.zip")
+        
+        if os.path.exists(zip_path):
+            print(f"File {zip_path} already exists, skipping download.")
+        else:
+            print(f"Downloading GloVe dataset from {url}")
+            try:
+                response = requests.get(url, stream=True)
+                response.raise_for_status()
+                
+                total_size = int(response.headers.get('content-length', 0))
+                with open(zip_path, 'wb') as f, tqdm(
+                    desc="glove.6B.zip",
+                    total=total_size,
+                    unit='B',
+                    unit_scale=True,
+                    unit_divisor=1024,
+                ) as pbar:
+                    for chunk in response.iter_content(chunk_size=8192):
+                        if chunk:
+                            f.write(chunk)
+                            pbar.update(len(chunk))
+                print(f"Successfully downloaded {zip_path}")
+            except Exception as e:
+                print(f"Error downloading GloVe dataset: {str(e)}")
+                if os.path.exists(zip_path):
+                    os.remove(zip_path)
+                raise
+
+        # Unzip the file
+        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+            print(f"Extracting {zip_path}...")
+            zip_ref.extractall(self.data_dir)
+            print("Extraction complete.")
 
     def load(self, force_download: bool = False) -> None:
         """
@@ -201,8 +234,8 @@ class Dataset:
         # Implementation depends on dataset format
         if self.name == "sift1m":
             self._process_sift1m()
-        elif self.name == "glove25":
-            self._process_glove25()
+        elif self.name == "glove50":
+            self._process_glove()
 
     def _read_fvecs(self, filename: str) -> np.ndarray:
         """
@@ -293,12 +326,43 @@ class Dataset:
         print(f"  Query vectors: {self.test_vectors.shape}")
         print(f"  Ground truth: {self.ground_truth.shape}")
 
-    def _process_glove25(self) -> None:
+    def _process_glove(self) -> None:
         """
         Process GloVe dataset.
         """
-        # Placeholder for GloVe processing
-        print("GloVe processing not implemented yet")
+        txt_file = os.path.join(self.data_dir, "glove.6B.50d.txt")
+        if not os.path.exists(txt_file):
+            raise FileNotFoundError(f"glove.6B.50d.txt not found. Please run download first.")
+
+        print("Processing GloVe dataset from text file...")
+        vectors = []
+        with open(txt_file, 'r', encoding='utf-8') as f:
+            for line in tqdm(f, desc="Reading GloVe vectors"):
+                parts = line.split()
+                vector = np.array([float(x) for x in parts[1:]], dtype=np.float32)
+                vectors.append(vector)
+        
+        all_vectors = np.array(vectors)
+        
+        # Use a random subset as queries and the rest as the base set
+        np.random.seed(42)
+        test_size = 1000
+        if all_vectors.shape[0] <= test_size:
+            raise ValueError("Dataset is too small to create a test split.")
+            
+        test_indices = np.random.choice(all_vectors.shape[0], test_size, replace=False)
+        train_indices = np.setdiff1d(np.arange(all_vectors.shape[0]), test_indices)
+
+        self.test_vectors = all_vectors[test_indices]
+        self.train_vectors = all_vectors[train_indices]
+
+        # Compute ground truth for the test set
+        print("Computing ground truth for GloVe...")
+        k = 100  # Number of nearest neighbors for ground truth
+        self.ground_truth = np.zeros((self.test_vectors.shape[0], k), dtype=np.int32)
+        for i in tqdm(range(self.test_vectors.shape[0]), desc="Computing GloVe ground truth"):
+            distances = np.linalg.norm(self.train_vectors - self.test_vectors[i], axis=1)
+            self.ground_truth[i] = np.argsort(distances)[:k]
 
     def get_train_test_split(self, test_ratio: float = 0.1, 
                            seed: int = 42) -> Tuple[np.ndarray, np.ndarray]:

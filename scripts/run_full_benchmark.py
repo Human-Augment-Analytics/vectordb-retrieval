@@ -21,7 +21,8 @@ from typing import Dict, List, Any, Optional
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from src.experiments import ExperimentRunner, ExperimentConfig
+from src.experiments.experiment_runner import ExperimentRunner
+from src.experiments.config import ExperimentConfig
 from src.algorithms import ExactSearch, ApproximateSearch, HNSW
 from src.benchmark.dataset import Dataset
 
@@ -109,12 +110,13 @@ class FullBenchmarkRunner:
             for alg_name, alg_config in config.algorithms.items():
                 alg_type = alg_config.pop("type")
                 
+                # Dynamically find algorithm class if needed, or use if/else
                 if alg_type == "ExactSearch":
-                    algorithm = ExactSearch(dimension=dimension, **alg_config)
+                    algorithm = ExactSearch(name=alg_name, dimension=dimension, **alg_config)
                 elif alg_type == "ApproximateSearch":
-                    algorithm = ApproximateSearch(dimension=dimension, **alg_config)
+                    algorithm = ApproximateSearch(name=alg_name, dimension=dimension, **alg_config)
                 elif alg_type == "HNSW":
-                    algorithm = HNSW(dimension=dimension, **alg_config)
+                    algorithm = HNSW(name=alg_name, dimension=dimension, **alg_config)
                 else:
                     self.logger.warning(f"Unknown algorithm type: {alg_type}. Skipping.")
                     continue
@@ -132,7 +134,7 @@ class FullBenchmarkRunner:
             return results
             
         except Exception as e:
-            self.logger.error(f"Error running experiment on {dataset_name}: {str(e)}")
+            self.logger.error(f"Error running experiment on {dataset_name}: {str(e)}", exc_info=True)
             return {"error": str(e)}
     
     def run_benchmark_suite(self, config_file: str):
@@ -207,15 +209,25 @@ class FullBenchmarkRunner:
                     
                     # Add algorithm performance summary
                     f.write("\n#### Algorithm Performance\n\n")
-                    f.write("| Algorithm | Recall@10 | QPS | Mean Query Time (ms) |\n")
-                    f.write("|-----------|-----------|-----|---------------------|\n")
+                    f.write("| Algorithm | Recall@10 | QPS | Mean Query Time (ms) | Build Time (s) | Index Memory (MB) |\n")
+                    f.write("|-----------|-----------|-----|----------------------|----------------|-------------------|\n")
                     
                     for alg_name, metrics in data['results'].items():
                         if isinstance(metrics, dict):
                             recall = metrics.get('recall@10', 'N/A')
                             qps = metrics.get('qps', 'N/A')
                             query_time = metrics.get('mean_query_time', 'N/A')
-                            f.write(f"| {alg_name} | {recall} | {qps} | {query_time} |\n")
+                            build_time = metrics.get('build_time', 'N/A')
+                            memory_usage = metrics.get('index_memory_usage_mb', 'N/A')
+
+                            # Formatting
+                            recall_str = f"{recall:.4f}" if isinstance(recall, float) else str(recall)
+                            qps_str = f"{qps:.2f}" if isinstance(qps, float) else str(qps)
+                            query_time_str = f"{query_time:.2f}" if isinstance(query_time, float) else str(query_time)
+                            build_time_str = f"{build_time:.2f}" if isinstance(build_time, float) else str(build_time)
+                            memory_usage_str = f"{memory_usage:.2f}" if isinstance(memory_usage, float) else str(memory_usage)
+
+                            f.write(f"| {alg_name} | {recall_str} | {qps_str} | {query_time_str} | {build_time_str} | {memory_usage_str} |\n")
                 
                 f.write("\n")
         
@@ -226,7 +238,7 @@ def create_default_benchmark_config():
     Create a default benchmark configuration file.
     """
     config = {
-        'datasets': ['random', 'sift1m'],
+        'datasets': ['random', 'sift1m', 'glove50'],
         'n_queries': 1000,
         'topk': 100,
         'repeat': 1,

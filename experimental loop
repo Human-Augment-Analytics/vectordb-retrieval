@@ -1,6 +1,14 @@
-Literature Review
-1. SOTA methods for VectorDB
-2. Theoretically analyzed methods for VectorDB
+•	Project
+o	VectorDB recall guarantee
+o	No resource guarantee (easier to measure, hard to get both guarantees without solving old open problems)
+o	First stab:
+	Tree with exponentially decaying distances between parents and children
+o	Metrics:
+	Recall (intersection between true top-k vectors and returned “top-k” vectors)
+	Compute-cost (latency)
+	Number of vector similarity computations
+
+
 Code infrastructure
 1. Core experimental loop
 2. Baseline methods

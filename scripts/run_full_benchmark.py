@@ -22,6 +22,11 @@ from typing import Dict, List, Any, Optional
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
+# Ensure we are using appropriate numeric libraries for the current platform
+from src.utils.compat import ensure_arm_compatible_blas
+
+ensure_arm_compatible_blas()
+
 # Import the BenchmarkRunner
 from src.benchmark.runner import BenchmarkRunner
 

@@ -123,7 +123,7 @@ class BenchmarkRunner:
                 # Register algorithms
                 for alg_name, alg_config in experiment_config.algorithms.items():
                     alg_type = alg_config.pop("type")
-                    algorithm = get_algorithm_instance(alg_type, dimension, **alg_config)
+                    algorithm = get_algorithm_instance(alg_type, dimension, name=alg_name, **alg_config)
                     runner.register_algorithm(alg_name, algorithm)
                     alg_config["type"] = alg_type  # Restore the type for future reference
 

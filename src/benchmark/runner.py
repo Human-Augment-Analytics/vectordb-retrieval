@@ -11,6 +11,7 @@ from typing import Dict, List, Any, Optional
 from ..experiments.config import ExperimentConfig
 from ..experiments.experiment_runner import ExperimentRunner
 from ..algorithms import get_algorithm_instance
+from ..utils import ensure_arm_compatible_blas
 
 class BenchmarkRunner:
     """
@@ -25,6 +26,9 @@ class BenchmarkRunner:
             config_file: Path to the benchmark configuration file
             output_dir: Directory to store benchmark results
         """
+        # Check BLAS compatibility on ARM systems before heavy imports
+        ensure_arm_compatible_blas()
+
         self.config_file = config_file
         self.timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         self.output_dir = os.path.join(output_dir, f"benchmark_{self.timestamp}")

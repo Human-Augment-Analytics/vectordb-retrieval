@@ -31,6 +31,8 @@ class ExperimentRunner:
         self.algorithms = {}
         self.results = {}
         self.experiment_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.results = {}
+        self.experiment_id = datetime.now().strftime("%Y%m%d_%H%M%S")
 
         # Set up logging
         os.makedirs(output_dir, exist_ok=True)
@@ -154,6 +156,8 @@ class ExperimentRunner:
         self.output_dir = output_dir
         self.dataset = None
         self.algorithms = {}
+        self.results = {}
+        self.experiment_id = datetime.now().strftime("%Y%m%d_%H%M%S")
         self.logger = logging.getLogger("experiment_runner")
 
         # Create output directory
@@ -269,15 +273,13 @@ class ExperimentRunner:
         # Run search for each query
         self.logger.info(f"Running {len(test_queries)} queries with k={self.config.topk}")
         query_times = []
-        all_results = []
-
         # Batch search for faster execution if supported
         start_time = time.time()
-        batch_results = algorithm.batch_search(test_queries, self.config.topk)
+        distances, indices = algorithm.batch_search(test_queries, self.config.topk)
         total_time = time.time() - start_time
 
         # Store individual results for analysis
-        all_results = batch_results
+        all_results = indices
 
         # Calculate metrics
         qps = len(test_queries) / total_time

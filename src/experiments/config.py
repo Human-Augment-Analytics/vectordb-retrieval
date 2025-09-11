@@ -1,4 +1,5 @@
 import yaml
+import copy
 from typing import Dict, Any, List, Optional
 
 class ExperimentConfig:
@@ -24,11 +25,12 @@ class ExperimentConfig:
         self.repeat = kwargs.get("repeat", 1)  # Number of times to repeat experiment
 
         # Algorithm configurations
-        self.algorithms = kwargs.get("algorithms", {
+        default_algorithms = {
             "exact": {"type": "ExactSearch", "metric": "l2"},
             "approx": {"type": "ApproximateSearch", "index_type": "IVF100,Flat", "metric": "l2", "nprobe": 10},
             "hnsw": {"type": "HNSW", "M": 16, "efConstruction": 200, "efSearch": 100, "metric": "l2"}
-        })
+        }
+        self.algorithms = copy.deepcopy(kwargs.get("algorithms", default_algorithms))
 
         # Additional parameters
         self.seed = kwargs.get("seed", 42)  # Random seed for reproducibility

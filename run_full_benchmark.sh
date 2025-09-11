@@ -1,0 +1,1 @@
+python scripts/run_full_benchmark.py --config configs/benchmark_config.yaml

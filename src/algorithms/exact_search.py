@@ -1,49 +1,44 @@
+import faiss
 import numpy as np
 from typing import List, Dict, Any, Tuple, Optional
 from .base_algorithm import BaseAlgorithm
 
 class ExactSearch(BaseAlgorithm):
     """
-    Exact search algorithm using brute force approach.
-    This serves as a baseline for accuracy comparison.
+    Exact nearest neighbor search using Faiss IndexFlatL2.
+    This provides the ground truth for comparison.
     """
 
-    def __init__(self, dimension: int, metric: str = "l2", **kwargs):
+    def __init__(self, name: str, dimension: int, metric: str = 'l2', **kwargs):
         """
-        Initialize the exact search algorithm.
+        Initialize the ExactSearch algorithm.
 
         Args:
+            name: Name of the algorithm instance
             dimension: Dimensionality of the vectors
-            metric: Distance metric to use ('l2', 'cosine', 'dot')
+            metric: Distance metric ('l2' or 'ip')
             **kwargs: Additional parameters
         """
-        super().__init__("ExactSearch", dimension, metric=metric, **kwargs)
-        self.metric = metric
+        super().__init__(name, dimension, **kwargs)
+        self.metric = faiss.METRIC_L2 if metric == 'l2' else faiss.METRIC_INNER_PRODUCT
+        self.index = None
 
     def build_index(self, vectors: np.ndarray, metadata: Optional[List[Dict[str, Any]]] = None) -> None:
         """
-        Store the vectors for brute force search.
+        Build the Faiss index.
 
         Args:
             vectors: Vectors to index (n_vectors, dimension)
-            metadata: Optional metadata for each vector
+            metadata: Optional metadata (not used by this algorithm)
         """
-        if vectors.shape[1] != self.dimension:
-            raise ValueError(f"Expected vectors of dimension {self.dimension}, got {vectors.shape[1]}")
-
-        self.vectors = vectors
-        self.metadata = metadata
-
-        # Normalize vectors if using cosine similarity
-        if self.metric == "cosine":
-            norms = np.linalg.norm(self.vectors, axis=1, keepdims=True)
-            self.vectors = self.vectors / norms
-
+        self.vectors = vectors.astype(np.float32)
+        self.index = faiss.IndexFlat(self.dimension, self.metric)
+        self.index.add(self.vectors)
         self.index_built = True
 
     def search(self, query: np.ndarray, k: int = 10) -> Tuple[np.ndarray, np.ndarray]:
         """
-        Search for k nearest neighbors using brute force.
+        Search the index for the k nearest neighbors.
 
         Args:
             query: Query vector (dimension,)
@@ -53,39 +48,17 @@ class ExactSearch(BaseAlgorithm):
             Tuple of (distances, indices)
         """
         if not self.index_built:
-            raise RuntimeError("Index not built. Call build_index() first.")
-
-        if query.shape[0] != self.dimension:
-            raise ValueError(f"Expected query of dimension {self.dimension}, got {query.shape[0]}")
-
-        # Reshape query to (1, dimension) if needed
-        if len(query.shape) == 1:
-            query = query.reshape(1, -1)
-
-        # Calculate distances based on the metric
-        if self.metric == "l2":
-            distances = np.linalg.norm(self.vectors - query, axis=1)
-        elif self.metric == "cosine":
-            # Normalize query
-            query_norm = query / np.linalg.norm(query, axis=1, keepdims=True)
-            # Cosine distance = 1 - cosine similarity
-            distances = 1 - np.dot(self.vectors, query_norm.T).flatten()
-        elif self.metric == "dot":
-            # Negative dot product (higher is better, so we negate to get distances)
-            distances = -np.dot(self.vectors, query.T).flatten()
-        else:
-            raise ValueError(f"Unsupported metric: {self.metric}")
-
-        # Get top k indices
-        if k > len(distances):
-            k = len(distances)
-
-        indices = np.argsort(distances)[:k]
-        return distances[indices], indices
+            raise RuntimeError("Index has not been built yet.")
+            
+        # Faiss expects a 2D array for queries
+        query_vector = np.array([query], dtype=np.float32)
+        distances, indices = self.index.search(query_vector, k)
+        
+        return distances[0], indices[0]
 
     def batch_search(self, queries: np.ndarray, k: int = 10) -> Tuple[np.ndarray, np.ndarray]:
         """
-        Search for k nearest neighbors for multiple queries.
+        Batch search for k nearest neighbors.
 
         Args:
             queries: Query vectors (n_queries, dimension)
@@ -95,15 +68,6 @@ class ExactSearch(BaseAlgorithm):
             Tuple of (distances, indices)
         """
         if not self.index_built:
-            raise RuntimeError("Index not built. Call build_index() first.")
-
-        n_queries = queries.shape[0]
-        distances = np.zeros((n_queries, k))
-        indices = np.zeros((n_queries, k), dtype=np.int64)
-
-        for i in range(n_queries):
-            d, idx = self.search(queries[i], k=k)
-            distances[i] = d
-            indices[i] = idx
-
-        return distances, indices
+            raise RuntimeError("Index has not been built yet.")
+            
+        return self.index.search(queries.astype(np.float32), k)

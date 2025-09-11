@@ -9,12 +9,13 @@ class HNSW(BaseAlgorithm):
     HNSW is a graph-based algorithm that creates a multi-layer structure for efficient search.
     """
 
-    def __init__(self, dimension: int, M: int = 16, efConstruction: int = 200, 
+    def __init__(self, name: str, dimension: int, M: int = 16, efConstruction: int = 200, 
                  efSearch: int = 100, metric: str = "l2", **kwargs):
         """
         Initialize the HNSW algorithm.
 
         Args:
+            name: Name of the algorithm instance
             dimension: Dimensionality of the vectors
             M: Maximum number of connections per element (default: 16)
             efConstruction: Controls index build quality/time (default: 200)
@@ -22,13 +23,20 @@ class HNSW(BaseAlgorithm):
             metric: Distance metric to use ('l2', 'cosine', 'dot')
             **kwargs: Additional parameters
         """
-        super().__init__("HNSW", dimension, M=M, efConstruction=efConstruction, 
-                         efSearch=efSearch, metric=metric, **kwargs)
+        super().__init__(name, dimension, **kwargs)
         self.M = M
         self.efConstruction = efConstruction
         self.efSearch = efSearch
         self.metric = metric
         self.index = None
+        
+        # Manually add HNSW specific parameters to the config
+        self.config.update({
+            'M': self.M,
+            'efConstruction': self.efConstruction,
+            'efSearch': self.efSearch,
+            'metric': self.metric
+        })
 
     def build_index(self, vectors: np.ndarray, metadata: Optional[List[Dict[str, Any]]] = None) -> None:
         """

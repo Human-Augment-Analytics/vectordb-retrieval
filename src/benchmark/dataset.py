@@ -6,6 +6,8 @@ import zipfile
 from typing import Dict, List, Tuple, Any, Optional
 import logging
 from tqdm import tqdm
+from ftplib import FTP
+from urllib.parse import urlparse
 
 class Dataset:
     """
@@ -71,54 +73,70 @@ class Dataset:
 
     def _download_sift1m(self):
         """
-        Download SIFT1M dataset from the official source.
+        Download SIFT1M dataset from the official source using FTP.
         """
-        base_url = "ftp://ftp.irisa.fr/local/texmex/corpus/"
+        base_url = self.AVAILABLE_DATASETS['sift1m']['url']
         files = [
-            "sift_base.fvecs",  # 1M base vectors
-            "sift_query.fvecs", # 10K query vectors
-            "sift_groundtruth.ivecs"  # Ground truth
+            "sift_base.fvecs",
+            "sift_query.fvecs",
+            "sift_groundtruth.ivecs"
         ]
-        
-        for filename in files:
-            file_path = os.path.join(self.data_dir, filename)
-            if os.path.exists(file_path):
-                print(f"File {filename} already exists, skipping download")
-                continue
-                
-            url = base_url + filename
-            print(f"Downloading {filename} from {url}")
-            
-            try:
-                response = requests.get(url, stream=True)
-                response.raise_for_status()
-                
-                total_size = int(response.headers.get('content-length', 0))
-                with open(file_path, 'wb') as f, tqdm(
-                    desc=filename,
-                    total=total_size,
-                    unit='B',
-                    unit_scale=True,
-                    unit_divisor=1024,
-                ) as pbar:
-                    for chunk in response.iter_content(chunk_size=8192):
-                        if chunk:
-                            f.write(chunk)
-                            pbar.update(len(chunk))
-                            
-                print(f"Successfully downloaded {filename}")
-                
-            except Exception as e:
-                print(f"Error downloading {filename}: {str(e)}")
-                if os.path.exists(file_path):
-                    os.remove(file_path)
-                raise
+
+        try:
+            parsed_url = urlparse(base_url)
+            ftp_host = parsed_url.hostname
+            ftp_path = parsed_url.path
+
+            with FTP(ftp_host) as ftp:
+                ftp.login()  # Anonymous login
+                ftp.cwd(ftp_path)
+
+                for filename in files:
+                    file_path = os.path.join(self.data_dir, filename)
+                    if os.path.exists(file_path):
+                        print(f"File {filename} already exists, skipping download")
+                        continue
+
+                    print(f"Downloading {filename} from {base_url + filename}")
+
+                    try:
+                        # Try to get file size for progress bar
+                        try:
+                            total_size = ftp.size(filename)
+                            with open(file_path, 'wb') as f, tqdm(
+                                desc=filename,
+                                total=total_size,
+                                unit='B',
+                                unit_scale=True,
+                                unit_divisor=1024,
+                            ) as pbar:
+                                def callback(chunk):
+                                    f.write(chunk)
+                                    pbar.update(len(chunk))
+                                
+                                ftp.retrbinary(f'RETR {filename}', callback)
+                        except Exception as size_error:
+                            # If SIZE command fails, download without progress bar
+                            print(f"Warning: Could not get file size for {filename} ({str(size_error)}). Downloading without progress bar...")
+                            with open(file_path, 'wb') as f:
+                                ftp.retrbinary(f'RETR {filename}', f.write)
+
+                        print(f"Successfully downloaded {filename}")
+
+                    except Exception as e:
+                        print(f"Error downloading {filename}: {str(e)}")
+                        if os.path.exists(file_path):
+                            os.remove(file_path)
+                        raise
+        except Exception as e:
+            print(f"FTP connection failed for {base_url}: {str(e)}")
+            raise
 
     def _download_glove(self):
         """
         Download GloVe 50d dataset.
         """
-        url = "http://nlp.stanford.edu/data/glove.6B.zip"
+        url = self.AVAILABLE_DATASETS['glove50']['url']
         zip_path = os.path.join(self.data_dir, "glove.6B.zip")
         
         if os.path.exists(zip_path):
@@ -143,7 +161,7 @@ class Dataset:
                             pbar.update(len(chunk))
                 print(f"Successfully downloaded {zip_path}")
             except Exception as e:
-                print(f"Error downloading GloVe dataset: {str(e)}")
+                print(f"Error downloading GloVe dataset from {url}: {str(e)}")
                 if os.path.exists(zip_path):
                     os.remove(zip_path)
                 raise
@@ -196,7 +214,7 @@ class Dataset:
         print(f"Dataset loaded: {self.name}")
         print(f"  Train vectors: {self.train_vectors.shape}")
         print(f"  Test vectors: {self.test_vectors.shape}")
-        print(f"  Ground truth: {self.ground_truth.shape}")
+        print(f"  Ground truth: {self.ground_truth.shape if self.ground_truth is not None else 'N/A'}")
 
     def _generate_random_dataset(self, dimensions: int = 128, 
                                  train_size: int = 10_000, 

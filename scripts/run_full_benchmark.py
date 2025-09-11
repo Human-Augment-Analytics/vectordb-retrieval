@@ -14,6 +14,7 @@ import logging
 import yaml
 import json
 import time
+import copy
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Any, Optional
@@ -21,10 +22,8 @@ from typing import Dict, List, Any, Optional
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from src.experiments.experiment_runner import ExperimentRunner
-from src.experiments.config import ExperimentConfig
-from src.algorithms import ExactSearch, ApproximateSearch, HNSW
-from src.benchmark.dataset import Dataset
+# Import the BenchmarkRunner
+from src.benchmark.runner import BenchmarkRunner
 
 class FullBenchmarkRunner:
     """
@@ -107,7 +106,8 @@ class FullBenchmarkRunner:
             dimension = runner.dataset.train_vectors.shape[1]
             
             # Register algorithms
-            for alg_name, alg_config in config.algorithms.items():
+            for alg_name, alg_config_orig in config.algorithms.items():
+                alg_config = alg_config_orig.copy()
                 alg_type = alg_config.pop("type")
                 
                 # Dynamically find algorithm class if needed, or use if/else
@@ -120,9 +120,6 @@ class FullBenchmarkRunner:
                 else:
                     self.logger.warning(f"Unknown algorithm type: {alg_type}. Skipping.")
                     continue
-                
-                # Restore the type
-                alg_config["type"] = alg_type
                 
                 # Register algorithm
                 runner.register_algorithm(algorithm)
@@ -160,7 +157,8 @@ class FullBenchmarkRunner:
             self.logger.info(f"=" * 60)
             
             start_time = time.time()
-            results = self.run_single_experiment(dataset_name, base_config.copy())
+            # Use deepcopy to prevent mutation of config between runs
+            results = self.run_single_experiment(dataset_name, copy.deepcopy(base_config))
             end_time = time.time()
             
             # Store results with timing information
@@ -210,7 +208,7 @@ class FullBenchmarkRunner:
                     # Add algorithm performance summary
                     f.write("\n#### Algorithm Performance\n\n")
                     f.write("| Algorithm | Recall@10 | QPS | Mean Query Time (ms) | Build Time (s) | Index Memory (MB) |\n")
-                    f.write("|-----------|-----------|-----|----------------------|----------------|-------------------|\n")
+                    f.write("|-----------|-----------|-----|----------------------|----------------|-------------------|")
                     
                     for alg_name, metrics in data['results'].items():
                         if isinstance(metrics, dict):
@@ -233,73 +231,87 @@ class FullBenchmarkRunner:
         
         self.logger.info(f"Summary report saved to {summary_file}")
 
-def create_default_benchmark_config():
-    """
-    Create a default benchmark configuration file.
-    """
-    config = {
-        'datasets': ['random', 'sift1m', 'glove50'],
-        'n_queries': 1000,
-        'topk': 100,
-        'repeat': 1,
-        'algorithms': {
-            'exact': {
-                'type': 'ExactSearch',
-                'metric': 'l2'
+    def create_default_benchmark_config():
+        """
+        Create a default benchmark configuration file.
+        """
+        config = {
+            'datasets': ['random', 'sift1m', 'glove50'],
+            'n_queries': 1000,
+            'topk': 100,
+            'repeat': 1,
+            'algorithms': {
+                'exact': {
+                    'type': 'ExactSearch',
+                    'metric': 'l2'
+                },
+                'ivf_flat': {
+                    'type': 'ApproximateSearch',
+                    'index_type': 'IVF100,Flat',
+                    'metric': 'l2',
+                    'nprobe': 10
+                },
+                'hnsw': {
+                    'type': 'HNSW',
+                    'M': 16,
+                    'efConstruction': 200,
+                    'efSearch': 100,
+                    'metric': 'l2'
+                }
             },
-            'ivf_flat': {
-                'type': 'ApproximateSearch',
-                'index_type': 'IVF100,Flat',
-                'metric': 'l2',
-                'nprobe': 10
-            },
-            'hnsw': {
-                'type': 'HNSW',
-                'M': 16,
-                'efConstruction': 200,
-                'efSearch': 100,
-                'metric': 'l2'
-            }
-        },
-        'seed': 42,
-        'output_prefix': 'benchmark'
-    }
-    
-    config_file = 'configs/benchmark_config.yaml'
-    os.makedirs('configs', exist_ok=True)
-    
-    with open(config_file, 'w') as f:
-        yaml.dump(config, f, default_flow_style=False)
-    
-    print(f"Default benchmark configuration created: {config_file}")
-    return config_file
+            'seed': 42,
+            'output_prefix': 'benchmark'
+        }
+
+        config_file = 'configs/benchmark_config.yaml'
+        os.makedirs('configs', exist_ok=True)
+
+        with open(config_file, 'w') as f:
+            yaml.dump(config, f, default_flow_style=False)
+
+        print(f"Default benchmark configuration created: {config_file}")
+        return config_file
 
 def main():
-    parser = argparse.ArgumentParser(description="Run full benchmark suite for vector retrieval algorithms")
+    """
+    Main entry point for the benchmark runner.
+    """
+    parser = argparse.ArgumentParser(description="Run vector retrieval benchmark suite")
     parser.add_argument("--config", type=str, help="Path to benchmark configuration file")
-    parser.add_argument("--output-dir", type=str, default="benchmark_results", 
-                       help="Directory to save benchmark results")
-    parser.add_argument("--create-config", action="store_true", 
-                       help="Create default benchmark configuration file")
-    
+    parser.add_argument("--create-config", action="store_true", help="Create default benchmark configuration")
+    parser.add_argument("--output-dir", type=str, default="benchmark_results", help="Directory to save results")
     args = parser.parse_args()
-    
+
+    # Create default configuration if requested
     if args.create_config:
         config_file = create_default_benchmark_config()
-        print(f"Use: python {__file__} --config {config_file}")
-        return
-    
+        print(f"You can now edit {config_file} and run the benchmark with --config {config_file}")
+        return 0
+
+    # Ensure config file is provided
     if not args.config:
-        print("Error: --config is required. Use --create-config to generate a default configuration.")
-        return
-    
+        print("Error: --config argument is required unless --create-config is specified")
+        parser.print_help()
+        return 1
+
+    # Check if config file exists
     if not os.path.exists(args.config):
-        print(f"Error: Configuration file not found: {args.config}")
-        return
-    
-    # Run benchmark suite
-    runner = FullBenchmarkRunner(output_dir=args.output_dir)
-    runner.run_benchmark_suite(args.config)
+        print(f"Error: Config file not found: {args.config}")
+        return 1
+
+    # Create output directory
+    os.makedirs(args.output_dir, exist_ok=True)
+
+    # Run the benchmark
+    try:
+        benchmark = BenchmarkRunner(args.config, args.output_dir)
+        benchmark.run()
+        print(f"Benchmark completed successfully. Results saved to {benchmark.output_dir}")
+        return 0
+    except Exception as e:
+        print(f"Error running benchmark: {str(e)}")
+        logging.error("Benchmark failed", exc_info=True)
+        return 1
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

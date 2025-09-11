@@ -1,0 +1,24 @@
+datasets:
+- random
+- sift1m
+- glove50
+n_queries: 1000
+topk: 100
+repeat: 1
+algorithms:
+  exact:
+    type: ExactSearch
+    metric: l2
+  ivf_flat:
+    type: ApproximateSearch
+    index_type: IVF100,Flat
+    metric: l2
+    nprobe: 10
+  hnsw:
+    type: HNSW
+    M: 16
+    efConstruction: 200
+    efSearch: 100
+    metric: l2
+seed: 42
+output_prefix: benchmark

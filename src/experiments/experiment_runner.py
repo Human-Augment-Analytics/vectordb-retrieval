@@ -126,6 +126,266 @@ class ExperimentRunner:
             search_results[name] = (indices, query_times)
             qps = 1.0 / np.mean(query_times)  # Queries per second
             self.logger.info(f"Search completed: {qps:.2f} queries per second")
+import os
+import time
+import json
+import logging
+import numpy as np
+from typing import Dict, List, Any, Optional
+
+from .config import ExperimentConfig
+from ..benchmark.dataset import Dataset
+from ..algorithms.base import BaseAlgorithm
+
+class ExperimentRunner:
+    """
+    Runs experiments for a specific dataset and multiple algorithms.
+    """
+
+    def __init__(self, config: ExperimentConfig, output_dir: str = "results"):
+        """
+        Initialize the experiment runner.
+
+        Args:
+            config: Experiment configuration
+            output_dir: Directory to save results
+        """
+        self.config = config
+        self.output_dir = output_dir
+        self.dataset = None
+        self.algorithms = {}
+        self.logger = logging.getLogger("experiment_runner")
+
+        # Create output directory
+        os.makedirs(self.output_dir, exist_ok=True)
+
+    def load_dataset(self) -> None:
+        """
+        Load the dataset based on configuration.
+        """
+        self.logger.info(f"Loading dataset: {self.config.dataset}")
+        self.dataset = Dataset(self.config.dataset, self.config.data_dir)
+        self.dataset.load(force_download=self.config.force_download)
+
+    def register_algorithm(self, name: str, algorithm: BaseAlgorithm) -> None:
+        """
+        Register an algorithm for benchmarking.
+
+        Args:
+            name: Name of the algorithm
+            algorithm: Algorithm instance
+        """
+        self.algorithms[name] = algorithm
+        self.logger.info(f"Registered algorithm: {name}")
+
+    def run(self) -> Dict[str, Dict[str, Any]]:
+        """
+        Run the experiment for all registered algorithms.
+
+        Returns:
+            Dictionary with results for each algorithm
+        """
+        if self.dataset is None:
+            self.load_dataset()
+
+        # Set random seed for reproducibility
+        np.random.seed(self.config.seed)
+
+        # Get train and test data
+        train_data = self.dataset.train_vectors
+        test_queries = self.dataset.test_vectors
+        ground_truth = self.dataset.ground_truth
+
+        # Limit number of queries if specified
+        if self.config.n_queries and self.config.n_queries < len(test_queries):
+            self.logger.info(f"Using {self.config.n_queries} out of {len(test_queries)} available queries")
+            query_indices = np.random.choice(len(test_queries), self.config.n_queries, replace=False)
+            test_queries = test_queries[query_indices]
+            if ground_truth is not None:
+                ground_truth = ground_truth[query_indices]
+
+        # Run experiments for each algorithm
+        results = {}
+        for alg_name, algorithm in self.algorithms.items():
+            self.logger.info(f"Running experiment for algorithm: {alg_name}")
+            alg_results = self._run_algorithm_experiment(alg_name, algorithm, train_data, test_queries, ground_truth)
+            results[alg_name] = alg_results
+
+            # Save individual results
+            results_file = os.path.join(self.output_dir, f"{alg_name}_results.json")
+            with open(results_file, 'w') as f:
+                json.dump(alg_results, f, indent=2)
+
+        # Save combined results
+        combined_results_file = os.path.join(self.output_dir, f"{self.config.output_prefix}_all_results.json")
+        with open(combined_results_file, 'w') as f:
+            json.dump(results, f, indent=2)
+
+        return results
+
+    def _run_algorithm_experiment(self, 
+                                  alg_name: str, 
+                                  algorithm: BaseAlgorithm, 
+                                  train_data: np.ndarray, 
+                                  test_queries: np.ndarray, 
+                                  ground_truth: Optional[np.ndarray]) -> Dict[str, Any]:
+        """
+        Run experiment for a specific algorithm.
+
+        Args:
+            alg_name: Name of the algorithm
+            algorithm: Algorithm instance
+            train_data: Training data vectors
+            test_queries: Test query vectors
+            ground_truth: Ground truth nearest neighbors (optional)
+
+        Returns:
+            Dictionary with experiment results
+        """
+        # Initialize result dictionary
+        results = {
+            "algorithm": alg_name,
+            "parameters": algorithm.get_parameters(),
+            "dataset": self.config.dataset,
+            "n_train": len(train_data),
+            "n_test": len(test_queries),
+            "dimensions": train_data.shape[1],
+            "topk": self.config.topk
+        }
+
+        # Build index and measure time
+        self.logger.info(f"Building index for {alg_name}")
+        start_time = time.time()
+        algorithm.build_index(train_data)
+        build_time = time.time() - start_time
+        results["build_time_s"] = build_time
+        self.logger.info(f"Index built in {build_time:.2f} seconds")
+
+        # Get index memory usage if available
+        memory_usage = algorithm.get_memory_usage()
+        results["index_memory_mb"] = memory_usage
+        self.logger.info(f"Index memory usage: {memory_usage:.2f} MB")
+
+        # Run search for each query
+        self.logger.info(f"Running {len(test_queries)} queries with k={self.config.topk}")
+        query_times = []
+        all_results = []
+
+        # Batch search for faster execution if supported
+        start_time = time.time()
+        batch_results = algorithm.batch_search(test_queries, self.config.topk)
+        total_time = time.time() - start_time
+
+        # Store individual results for analysis
+        all_results = batch_results
+
+        # Calculate metrics
+        qps = len(test_queries) / total_time
+        mean_query_time_ms = (total_time / len(test_queries)) * 1000
+
+        results["qps"] = qps
+        results["mean_query_time_ms"] = mean_query_time_ms
+        results["total_query_time_s"] = total_time
+
+        self.logger.info(f"Search completed: {qps:.2f} QPS, {mean_query_time_ms:.2f} ms per query")
+
+        # Calculate recall if ground truth is available
+        if ground_truth is not None:
+            recall = self._calculate_recall(all_results, ground_truth)
+            results["recall"] = recall
+            self.logger.info(f"Recall@{self.config.topk}: {recall:.4f}")
+
+        return results
+
+    def _calculate_recall(self, results: List[np.ndarray], ground_truth: np.ndarray) -> float:
+        """
+        Calculate recall@k metric.
+
+        Args:
+            results: List of result indices for each query
+            ground_truth: Ground truth indices
+
+        Returns:
+            Recall@k value
+        """
+        recall_sum = 0.0
+        k = min(self.config.topk, ground_truth.shape[1])
+
+        for i, (result, gt) in enumerate(zip(results, ground_truth)):
+            # Convert result to set for faster intersection
+            result_set = set(result[:k])
+            gt_set = set(gt[:k])
+
+            # Calculate recall for this query
+            intersection = len(result_set.intersection(gt_set))
+            recall = intersection / len(gt_set)
+            recall_sum += recall
+
+        # Average recall across all queries
+        return recall_sum / len(results)
+
+    def _build_indices(self, train_vectors: np.ndarray):
+        """
+        Build indices for all registered algorithms.
+
+        Args:
+            train_vectors: Training vectors to index
+        """
+        for name, algorithm in self.algorithms.items():
+            self.logger.info(f"Building index for {name}...")
+            start_time = time.time()
+            algorithm.build_index(train_vectors)
+            build_time = time.time() - start_time
+
+            # Store build time
+            algorithm.build_time = build_time
+            self.logger.info(f"Index for {name} built in {build_time:.2f} seconds")
+
+            # Estimate memory usage (baseline: size of raw vectors).
+            # A more accurate measure would require algorithm-specific implementation.
+            memory_usage_mb = train_vectors.nbytes / (1024 * 1024)
+            algorithm.index_memory_usage = memory_usage_mb
+            self.logger.info(f"Estimated base memory usage for {name} index: {memory_usage_mb:.2f} MB")
+
+            # Store build time and memory usage in results
+            if name not in self.results:
+                self.results[name] = {}
+            self.results[name]['build_time'] = build_time
+            self.results[name]['index_memory_usage_mb'] = memory_usage_mb
+
+    def _run_searches(self, test_vectors: np.ndarray, k: int):
+        """
+        Run search for all test vectors against all algorithms.
+
+        Args:
+            test_vectors: Test vectors to search for
+            k: Number of nearest neighbors to retrieve
+
+        Returns:
+            Dictionary mapping algorithm names to (indices, query_times)
+        """
+        search_results = {}
+
+        for name, algorithm in self.algorithms.items():
+            self.logger.info(f"Running searches for {name}...")
+            n_queries = len(test_vectors)
+            indices = np.zeros((n_queries, k), dtype=np.int32)
+            query_times = np.zeros(n_queries)
+
+            for i in range(n_queries):
+                start_time = time.time()
+                _, idx = algorithm.search(test_vectors[i], k=k)
+                query_times[i] = time.time() - start_time
+                indices[i] = idx
+
+                # Log progress
+                if (i+1) % 100 == 0 or i+1 == n_queries:
+                    self.logger.info(f"  {i+1}/{n_queries} queries processed")
+
+            # Store search results
+            search_results[name] = (indices, query_times)
+            qps = 1.0 / np.mean(query_times)  # Queries per second
+            self.logger.info(f"Search completed: {qps:.2f} queries per second")
 
         return search_results
 

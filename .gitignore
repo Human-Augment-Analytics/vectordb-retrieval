@@ -26,9 +26,9 @@ coverage.xml
 .ipynb_checkpoints
 
 # Data files
-data/
-*.npy
-*.pkl
+#data/
+#*.npy
+#*.pkl
 
 # Logs
 logs/
@@ -43,4 +43,4 @@ logs/
 # Results
 results/
 charts/
-figures/
+figures/!/data/

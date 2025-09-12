@@ -51,7 +51,12 @@ This will create `configs/benchmark_config.yaml`. You can edit this file to cust
 Once the configuration is ready, launch the benchmark suite:
 
 ```bash
-python scripts/run_full_benchmark.py --config configs/benchmark_config.yaml
+#below is WIP
+python scripts/run_full_benchmark.py --config configs/benchmark_config.yaml   
+
+#below works
+python scripts/run_full_benchmark.py --config configs/benchmark_config_test1.yaml 
+
 ```
 
 The script will automatically download the required datasets if they are not found locally, run all experiments, and save the results to the `benchmark_results/` directory.

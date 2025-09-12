@@ -90,3 +90,20 @@ To add a new algorithm for benchmarking:
     - `search(self, query, k)`: To find the `k` nearest neighbors for a single query vector.
     - `batch_search(self, queries, k)`: To find neighbors for a batch of query vectors.
 4.  Add your new algorithm to the `algorithms` section in your `benchmark_config.yaml` file.
+
+
+## Git LFS Data Files
+
+This repository uses Git LFS for managing large data files needed for the project. The following files are tracked using Git LFS:
+
+- data/glove50/glove.6B.zip
+- data/glove50/glove50_processed.pkl
+- data/random/random_processed.pkl
+
+If you have cloned the repository, please ensure that Git LFS is installed. You can download and install it from https://git-lfs.github.com/.
+
+After cloning the repository, run the following command to fetch the large files:
+
+    git lfs pull
+
+Please ensure Git LFS is properly configured before proceeding with development.

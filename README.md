@@ -111,7 +111,7 @@ Please ensure Git LFS is properly configured before proceeding with development.
 
 ## Data Files Download
 
-Please note that when you run the script `run_fill_benchmark.py`, the necessary data files will automatically be downloaded to your local `data/` directory if they are not already present.
+Please note that when you run the script `run_full_benchmark.py`, the necessary data files will automatically be downloaded to your local `data/` directory if they are not already present.
 
 Additionally, you can utilize Git LFS to pull the latest datasets directly from the repository. The datasets for `glove50` and `random` are now tracked with Git LFS. To download these files using Git LFS, run the following command:
 

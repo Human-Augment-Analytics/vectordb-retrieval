@@ -1,6 +1,6 @@
 import yaml
 import copy
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any
 
 class ExperimentConfig:
     """
@@ -32,6 +32,9 @@ class ExperimentConfig:
         }
         self.algorithms = copy.deepcopy(kwargs.get("algorithms", default_algorithms))
 
+        # Dataset-wide metric preference (optional)
+        self.metric = kwargs.get("metric")
+
         # Additional parameters
         self.seed = kwargs.get("seed", 42)  # Random seed for reproducibility
         self.output_prefix = kwargs.get("output_prefix", "experiment")  # Prefix for output files
@@ -59,7 +62,7 @@ class ExperimentConfig:
         Returns:
             Dictionary representation of configuration
         """
-        return {
+        config_dict = {
             "dataset": self.dataset,
             "data_dir": self.data_dir,
             "force_download": self.force_download,
@@ -70,6 +73,11 @@ class ExperimentConfig:
             "seed": self.seed,
             "output_prefix": self.output_prefix
         }
+
+        if self.metric is not None:
+            config_dict["metric"] = self.metric
+
+        return config_dict
 
     def save(self, output_file: str) -> None:
         """

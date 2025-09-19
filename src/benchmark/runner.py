@@ -3,10 +3,10 @@ import json
 import logging
 import time
 import datetime
-import numpy as np
+import copy
 import yaml
 from pathlib import Path
-from typing import Dict, List, Any, Optional
+from typing import Dict, Any, Tuple
 
 from ..experiments.config import ExperimentConfig
 from ..experiments.experiment_runner import ExperimentRunner
@@ -85,21 +85,52 @@ class BenchmarkRunner:
         start_time = time.time()
 
         # Run for each dataset
-        for dataset_name in self.config.get('datasets', ['random']):
+        datasets_config = self.config.get('datasets', ['random'])
+
+        for dataset_entry in datasets_config:
+            dataset_name, dataset_options = self._normalize_dataset_entry(dataset_entry)
             self.logger.info(f"Running benchmark for dataset: {dataset_name}")
 
-            # Create experiment config for this dataset
-            experiment_config = ExperimentConfig(
+            dataset_metric = dataset_options.get('metric')
+            dataset_algorithms_override = dataset_options.get('algorithms', {})
+
+            # Apply dataset-specific overrides while keeping base algorithm definitions intact.
+            base_algorithms = copy.deepcopy(self.config.get('algorithms', {}))
+            algorithms_for_dataset: Dict[str, Dict[str, Any]] = {}
+
+            for alg_name, alg_config in base_algorithms.items():
+                merged_config = copy.deepcopy(alg_config)
+                override_config = dataset_algorithms_override.get(alg_name, {})
+                merged_config.update(copy.deepcopy(override_config))
+
+                if dataset_metric is not None:
+                    merged_config['metric'] = dataset_metric
+
+                algorithms_for_dataset[alg_name] = merged_config
+
+            # Include overrides for algorithms defined only at the dataset level.
+            for alg_name, override_config in dataset_algorithms_override.items():
+                if alg_name not in algorithms_for_dataset:
+                    merged_override = copy.deepcopy(override_config)
+                    if dataset_metric is not None and 'metric' not in merged_override:
+                        merged_override['metric'] = dataset_metric
+                    algorithms_for_dataset[alg_name] = merged_override
+
+            experiment_kwargs = dict(
                 dataset=dataset_name,
                 data_dir=self.config.get('data_dir', 'data'),
                 force_download=self.config.get('force_download', False),
-                n_queries=self.config.get('n_queries', 1000),
-                topk=self.config.get('topk', 100),
-                repeat=self.config.get('repeat', 1),
-                algorithms=self.config.get('algorithms', {}),
-                seed=self.config.get('seed', 42),
-                output_prefix=f"{dataset_name}_{self.timestamp}"
+                n_queries=dataset_options.get('n_queries', self.config.get('n_queries', 1000)),
+                topk=dataset_options.get('topk', self.config.get('topk', 100)),
+                repeat=dataset_options.get('repeat', self.config.get('repeat', 1)),
+                algorithms=algorithms_for_dataset,
+                seed=dataset_options.get('seed', self.config.get('seed', 42)),
+                output_prefix=dataset_options.get('output_prefix', f"{dataset_name}_{self.timestamp}")
             )
+
+            if dataset_metric is not None:
+                experiment_kwargs['metric'] = dataset_metric
+            experiment_config = ExperimentConfig(**experiment_kwargs)
 
             # Run experiments for this dataset
             dataset_output_dir = os.path.join(self.output_dir, dataset_name)
@@ -122,10 +153,10 @@ class BenchmarkRunner:
 
                 # Register algorithms
                 for alg_name, alg_config in experiment_config.algorithms.items():
-                    alg_type = alg_config.pop("type")
-                    algorithm = get_algorithm_instance(alg_type, dimension, name=alg_name, **alg_config)
+                    alg_config_copy = copy.deepcopy(alg_config)
+                    alg_type = alg_config_copy.pop("type")
+                    algorithm = get_algorithm_instance(alg_type, dimension, name=alg_name, **alg_config_copy)
                     runner.register_algorithm(alg_name, algorithm)
-                    alg_config["type"] = alg_type  # Restore the type for future reference
 
                 # Run the experiment
                 self.logger.info(f"Running experiments for dataset: {dataset_name}")
@@ -156,6 +187,18 @@ class BenchmarkRunner:
         self.logger.info(f"Benchmark completed in {end_time - start_time:.2f} seconds")
 
         return self.all_results
+
+    def _normalize_dataset_entry(self, entry: Any) -> Tuple[str, Dict[str, Any]]:
+        """Convert dataset configuration entries into a uniform structure."""
+        if isinstance(entry, str):
+            return entry, {}
+        if isinstance(entry, dict):
+            if 'name' not in entry:
+                raise ValueError("Dataset configuration entries must include a 'name' key")
+            name = entry['name']
+            options = {k: v for k, v in entry.items() if k != 'name'}
+            return name, options
+        raise ValueError("Dataset configuration entries must be strings or dictionaries")
 
     def _generate_summary_report(self) -> None:
         """

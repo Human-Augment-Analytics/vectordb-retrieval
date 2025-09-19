@@ -74,9 +74,9 @@ An example of the performance table from the summary report:
 #### Algorithm Performance
 
 | Algorithm | Recall@10 | QPS | Mean Query Time (ms) | Build Time (s) | Index Memory (MB) |
-|-----------|-----------|-----|----------------------|----------------|-------------------|
-| exact     | 1.0000    | 1.83| 545.39               | 0.01           | 500.00            |
-| hnsw      | 0.9850    | 95.4| 10.48                | 5.23           | 500.00            |
+|-----------|-----------|-----|---------------------|----------------|-------------------|
+| exact     | 1.0000    | 1.83| 545.39              | 0.01           | 500.00            |
+| hnsw      |   | |                 |            |       |
 
 
 ## Adding New Algorithms

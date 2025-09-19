@@ -19,3 +19,5 @@ Metrics:
 Recall (intersection between true top-k vectors and returned “top-k” vectors)
 Compute-cost (latency)
 Number of vector similarity computations
+
+

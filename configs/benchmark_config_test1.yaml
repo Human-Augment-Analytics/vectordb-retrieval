@@ -8,5 +8,11 @@ algorithms:
   exact:
     type: ExactSearch
     metric: l2
+#  hnsw:
+#    type: HNSW
+#    M: 16
+#    efConstruction: 200
+#    efSearch: 100
+#    metric: l2
 seed: 42
 output_prefix: benchmark

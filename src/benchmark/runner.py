@@ -156,7 +156,7 @@ class BenchmarkRunner:
                     alg_config_copy = copy.deepcopy(alg_config)
                     alg_type = alg_config_copy.pop("type")
                     algorithm = get_algorithm_instance(alg_type, dimension, name=alg_name, **alg_config_copy)
-                    runner.register_algorithm(alg_name, algorithm)
+                    runner.register_algorithm(algorithm, name=alg_name)
 
                 # Run the experiment
                 self.logger.info(f"Running experiments for dataset: {dataset_name}")

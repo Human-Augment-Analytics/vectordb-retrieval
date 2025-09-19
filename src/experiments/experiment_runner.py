@@ -1,469 +1,232 @@
-import numpy as np
-import time
-import os
-from typing import Dict, List, Any, Optional, Type
-import matplotlib.pyplot as plt
-from datetime import datetime
-import yaml
+"""Core experiment execution utilities."""
+
+from __future__ import annotations
+
+import json
 import logging
+import os
+import time
+from datetime import datetime
+from typing import Dict, Any, Optional, Tuple
+
+import numpy as np
+import yaml
+
+from .config import ExperimentConfig
 from ..algorithms.base_algorithm import BaseAlgorithm
 from ..benchmark.dataset import Dataset
 from ..benchmark.evaluation import Evaluator
-from .config import ExperimentConfig
+
 
 class ExperimentRunner:
-    """
-    Class for running vector retrieval algorithm experiments.
-    This is the core experimental loop for comparing different algorithms.
-    """
+    """Execute vector-retrieval experiments for a dataset and algorithm set."""
 
-    def __init__(self, config: ExperimentConfig, output_dir: str = "results"):
-        """
-        Initialize the experiment runner.
-
-        Args:
-            config: Configuration for the experiment
-            output_dir: Directory to save results
-        """
+    def __init__(self, config: ExperimentConfig, output_dir: str = "results") -> None:
         self.config = config
         self.output_dir = output_dir
-        self.dataset = None
-        self.algorithms = {}
-        self.results = {}
-        self.experiment_id = datetime.now().strftime("%Y%m%d_%H%M%S")
-        self.results = {}
+        self.dataset: Optional[Dataset] = None
+        self.algorithms: Dict[str, BaseAlgorithm] = {}
+        self.results: Dict[str, Dict[str, Any]] = {}
         self.experiment_id = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-        # Set up logging
-        os.makedirs(output_dir, exist_ok=True)
-        log_file = os.path.join(output_dir, f"experiment_{self.experiment_id}.log")
-        logging.basicConfig(level=logging.INFO,
-                          format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-                          handlers=[logging.FileHandler(log_file),
-                                   logging.StreamHandler()])
-        self.logger = logging.getLogger("ExperimentRunner")
-
-        # Log configuration
-        self.logger.info(f"Initializing experiment {self.experiment_id}")
-        self.logger.info(f"Configuration: {config}")
-
-    def load_dataset(self):
-        """
-        Load the dataset specified in the configuration.
-        """
-        self.logger.info(f"Loading dataset: {self.config.dataset}")
-        self.dataset = Dataset(self.config.dataset, self.config.data_dir)
-        self.dataset.load(force_download=self.config.force_download)
-
-    def register_algorithm(self, algorithm: BaseAlgorithm):
-        """
-        Register an algorithm to be included in the experiment.
-
-        Args:
-            algorithm: Algorithm to register
-        """
-        name = algorithm.get_name()
-        self.logger.info(f"Registering algorithm: {name}")
-        self.algorithms[name] = algorithm
-
-    def _build_indices(self, train_vectors: np.ndarray):
-        """
-        Build indices for all registered algorithms.
-
-        Args:
-            train_vectors: Training vectors to index
-        """
-        for name, algorithm in self.algorithms.items():
-            self.logger.info(f"Building index for {name}...")
-            start_time = time.time()
-            algorithm.build_index(train_vectors)
-            build_time = time.time() - start_time
-
-            # Store build time
-            algorithm.build_time = build_time
-            self.logger.info(f"Index for {name} built in {build_time:.2f} seconds")
-
-            # Estimate memory usage (baseline: size of raw vectors).
-            # A more accurate measure would require algorithm-specific implementation.
-            memory_usage_mb = train_vectors.nbytes / (1024 * 1024)
-            algorithm.index_memory_usage = memory_usage_mb
-            self.logger.info(f"Estimated base memory usage for {name} index: {memory_usage_mb:.2f} MB")
-
-            # Store build time and memory usage in results
-            if name not in self.results:
-                self.results[name] = {}
-            self.results[name]['build_time'] = build_time
-            self.results[name]['index_memory_usage_mb'] = memory_usage_mb
-
-    def _run_searches(self, test_vectors: np.ndarray, k: int):
-        """
-        Run search for all test vectors against all algorithms.
-
-        Args:
-            test_vectors: Test vectors to search for
-            k: Number of nearest neighbors to retrieve
-
-        Returns:
-            Dictionary mapping algorithm names to (indices, query_times)
-        """
-        search_results = {}
-
-        for name, algorithm in self.algorithms.items():
-            self.logger.info(f"Running searches for {name}...")
-            n_queries = len(test_vectors)
-            indices = np.zeros((n_queries, k), dtype=np.int32)
-            query_times = np.zeros(n_queries)
-
-            for i in range(n_queries):
-                start_time = time.time()
-                _, idx = algorithm.search(test_vectors[i], k=k)
-                query_times[i] = time.time() - start_time
-                indices[i] = idx
-
-                # Log progress
-                if (i+1) % 100 == 0 or i+1 == n_queries:
-                    self.logger.info(f"  {i+1}/{n_queries} queries processed")
-
-            # Store search results
-            search_results[name] = (indices, query_times)
-            qps = 1.0 / np.mean(query_times)  # Queries per second
-            self.logger.info(f"Search completed: {qps:.2f} queries per second")
-import os
-import time
-import json
-import logging
-import numpy as np
-from typing import Dict, List, Any, Optional
-
-from .config import ExperimentConfig
-from ..benchmark.dataset import Dataset
-from ..algorithms.base import BaseAlgorithm
-
-class ExperimentRunner:
-    """
-    Runs experiments for a specific dataset and multiple algorithms.
-    """
-
-    def __init__(self, config: ExperimentConfig, output_dir: str = "results"):
-        """
-        Initialize the experiment runner.
-
-        Args:
-            config: Experiment configuration
-            output_dir: Directory to save results
-        """
-        self.config = config
-        self.output_dir = output_dir
-        self.dataset = None
-        self.algorithms = {}
-        self.results = {}
-        self.experiment_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+        os.makedirs(self.output_dir, exist_ok=True)
         self.logger = logging.getLogger("experiment_runner")
 
-        # Create output directory
-        os.makedirs(self.output_dir, exist_ok=True)
-
+    # ------------------------------------------------------------------
+    # Dataset & algorithm registration
+    # ------------------------------------------------------------------
     def load_dataset(self) -> None:
-        """
-        Load the dataset based on configuration.
-        """
+        """Load the dataset defined in the configuration if not already loaded."""
+        if self.dataset is not None:
+            return
+
         self.logger.info(f"Loading dataset: {self.config.dataset}")
-        self.dataset = Dataset(self.config.dataset, self.config.data_dir)
-        self.dataset.load(force_download=self.config.force_download)
+        dataset = Dataset(self.config.dataset, self.config.data_dir)
+        dataset.load(force_download=self.config.force_download)
+        self.dataset = dataset
 
-    def register_algorithm(self, name: str, algorithm: BaseAlgorithm) -> None:
-        """
-        Register an algorithm for benchmarking.
+    def register_algorithm(self, algorithm: BaseAlgorithm, name: Optional[str] = None) -> None:
+        """Register an algorithm implementation for the current experiment."""
+        if not isinstance(algorithm, BaseAlgorithm):
+            raise TypeError("algorithm must inherit from BaseAlgorithm")
 
-        Args:
-            name: Name of the algorithm
-            algorithm: Algorithm instance
-        """
-        self.algorithms[name] = algorithm
-        self.logger.info(f"Registered algorithm: {name}")
+        algorithm_name = name or algorithm.get_name()
+        if not algorithm_name:
+            raise ValueError("Algorithm name must be provided")
 
+        # Keep the algorithm's internal name synchronized with registration name.
+        if getattr(algorithm, "name", None) != algorithm_name:
+            setattr(algorithm, "name", algorithm_name)
+
+        self.algorithms[algorithm_name] = algorithm
+        self.logger.info(f"Registered algorithm: {algorithm_name}")
+
+    # ------------------------------------------------------------------
+    # Core execution flow
+    # ------------------------------------------------------------------
     def run(self) -> Dict[str, Dict[str, Any]]:
-        """
-        Run the experiment for all registered algorithms.
+        """Run all registered algorithms and return their evaluation metrics."""
+        if not self.algorithms:
+            raise RuntimeError("No algorithms registered for the experiment")
 
-        Returns:
-            Dictionary with results for each algorithm
-        """
-        if self.dataset is None:
-            self.load_dataset()
+        self.load_dataset()
+        assert self.dataset is not None  # mypy guard
 
-        # Set random seed for reproducibility
         np.random.seed(self.config.seed)
 
-        # Get train and test data
-        train_data = self.dataset.train_vectors
+        train_vectors = self.dataset.train_vectors
         test_queries = self.dataset.test_vectors
         ground_truth = self.dataset.ground_truth
 
-        # Limit number of queries if specified
-        if self.config.n_queries and self.config.n_queries < len(test_queries):
-            self.logger.info(f"Using {self.config.n_queries} out of {len(test_queries)} available queries")
-            query_indices = np.random.choice(len(test_queries), self.config.n_queries, replace=False)
-            test_queries = test_queries[query_indices]
-            if ground_truth is not None:
-                ground_truth = ground_truth[query_indices]
+        if train_vectors is None or test_queries is None:
+            raise RuntimeError("Dataset did not provide train/test vectors")
 
-        # Run experiments for each algorithm
-        results = {}
-        for alg_name, algorithm in self.algorithms.items():
-            self.logger.info(f"Running experiment for algorithm: {alg_name}")
-            alg_results = self._run_algorithm_experiment(alg_name, algorithm, train_data, test_queries, ground_truth)
-            results[alg_name] = alg_results
+        test_queries, ground_truth = self._select_query_subset(test_queries, ground_truth)
 
-            # Save individual results
-            results_file = os.path.join(self.output_dir, f"{alg_name}_results.json")
-            with open(results_file, 'w') as f:
-                json.dump(alg_results, f, indent=2)
+        algorithm_outputs: Dict[str, Tuple[np.ndarray, np.ndarray]] = {}
+        self.results = {}
 
-        # Save combined results
-        combined_results_file = os.path.join(self.output_dir, f"{self.config.output_prefix}_all_results.json")
-        with open(combined_results_file, 'w') as f:
-            json.dump(results, f, indent=2)
+        for name, algorithm in self.algorithms.items():
+            self.logger.info(f"Running experiment for algorithm: {name}")
+            metrics, indices, query_times = self._run_single_algorithm(
+                name, algorithm, train_vectors, test_queries
+            )
+            self.results[name] = metrics
+            algorithm_outputs[name] = (indices, query_times)
 
-        return results
-
-    def _run_algorithm_experiment(self, 
-                                  alg_name: str, 
-                                  algorithm: BaseAlgorithm, 
-                                  train_data: np.ndarray, 
-                                  test_queries: np.ndarray, 
-                                  ground_truth: Optional[np.ndarray]) -> Dict[str, Any]:
-        """
-        Run experiment for a specific algorithm.
-
-        Args:
-            alg_name: Name of the algorithm
-            algorithm: Algorithm instance
-            train_data: Training data vectors
-            test_queries: Test query vectors
-            ground_truth: Ground truth nearest neighbors (optional)
-
-        Returns:
-            Dictionary with experiment results
-        """
-        # Initialize result dictionary
-        results = {
-            "algorithm": alg_name,
-            "parameters": algorithm.get_parameters(),
-            "dataset": self.config.dataset,
-            "n_train": len(train_data),
-            "n_test": len(test_queries),
-            "dimensions": train_data.shape[1],
-            "topk": self.config.topk
-        }
-
-        # Build index and measure time
-        self.logger.info(f"Building index for {alg_name}")
-        start_time = time.time()
-        algorithm.build_index(train_data)
-        build_time = time.time() - start_time
-        results["build_time_s"] = build_time
-        self.logger.info(f"Index built in {build_time:.2f} seconds")
-
-        # Get index memory usage if available
-        memory_usage = algorithm.get_memory_usage()
-        results["index_memory_mb"] = memory_usage
-        self.logger.info(f"Index memory usage: {memory_usage:.2f} MB")
-
-        # Run search for each query
-        self.logger.info(f"Running {len(test_queries)} queries with k={self.config.topk}")
-        query_times = []
-        # Batch search for faster execution if supported
-        start_time = time.time()
-        distances, indices = algorithm.batch_search(test_queries, self.config.topk)
-        total_time = time.time() - start_time
-
-        # Store individual results for analysis
-        all_results = indices
-
-        # Calculate metrics
-        qps = len(test_queries) / total_time
-        mean_query_time_ms = (total_time / len(test_queries)) * 1000
-
-        results["qps"] = qps
-        results["mean_query_time_ms"] = mean_query_time_ms
-        results["total_query_time_s"] = total_time
-
-        self.logger.info(f"Search completed: {qps:.2f} QPS, {mean_query_time_ms:.2f} ms per query")
-
-        # Calculate recall if ground truth is available
+        evaluator: Optional[Evaluator] = None
         if ground_truth is not None:
-            recall = self._calculate_recall(all_results, ground_truth)
-            results["recall"] = recall
-            self.logger.info(f"Recall@{self.config.topk}: {recall:.4f}")
+            evaluator = Evaluator(ground_truth)
+            for name, (indices, query_times) in algorithm_outputs.items():
+                metrics = evaluator.evaluate(name, indices, query_times)
+                self.results[name].update(metrics)
 
-        return results
+                topk_key = f"recall@{self.config.topk}"
+                if topk_key in metrics:
+                    self.results[name]["recall"] = metrics[topk_key]
 
-    def _calculate_recall(self, results: List[np.ndarray], ground_truth: np.ndarray) -> float:
-        """
-        Calculate recall@k metric.
+        for name in self.results:
+            self._save_algorithm_results(name, self.results[name])
 
-        Args:
-            results: List of result indices for each query
-            ground_truth: Ground truth indices
+        self._save_combined_results()
 
-        Returns:
-            Recall@k value
-        """
-        recall_sum = 0.0
-        k = min(self.config.topk, ground_truth.shape[1])
-
-        for i, (result, gt) in enumerate(zip(results, ground_truth)):
-            # Convert result to set for faster intersection
-            result_set = set(result[:k])
-            gt_set = set(gt[:k])
-
-            # Calculate recall for this query
-            intersection = len(result_set.intersection(gt_set))
-            recall = intersection / len(gt_set)
-            recall_sum += recall
-
-        # Average recall across all queries
-        return recall_sum / len(results)
-
-    def _build_indices(self, train_vectors: np.ndarray):
-        """
-        Build indices for all registered algorithms.
-
-        Args:
-            train_vectors: Training vectors to index
-        """
-        for name, algorithm in self.algorithms.items():
-            self.logger.info(f"Building index for {name}...")
-            start_time = time.time()
-            algorithm.build_index(train_vectors)
-            build_time = time.time() - start_time
-
-            # Store build time
-            algorithm.build_time = build_time
-            self.logger.info(f"Index for {name} built in {build_time:.2f} seconds")
-
-            # Estimate memory usage (baseline: size of raw vectors).
-            # A more accurate measure would require algorithm-specific implementation.
-            memory_usage_mb = train_vectors.nbytes / (1024 * 1024)
-            algorithm.index_memory_usage = memory_usage_mb
-            self.logger.info(f"Estimated base memory usage for {name} index: {memory_usage_mb:.2f} MB")
-
-            # Store build time and memory usage in results
-            if name not in self.results:
-                self.results[name] = {}
-            self.results[name]['build_time'] = build_time
-            self.results[name]['index_memory_usage_mb'] = memory_usage_mb
-
-    def _run_searches(self, test_vectors: np.ndarray, k: int):
-        """
-        Run search for all test vectors against all algorithms.
-
-        Args:
-            test_vectors: Test vectors to search for
-            k: Number of nearest neighbors to retrieve
-
-        Returns:
-            Dictionary mapping algorithm names to (indices, query_times)
-        """
-        search_results = {}
-
-        for name, algorithm in self.algorithms.items():
-            self.logger.info(f"Running searches for {name}...")
-            n_queries = len(test_vectors)
-            indices = np.zeros((n_queries, k), dtype=np.int32)
-            query_times = np.zeros(n_queries)
-
-            for i in range(n_queries):
-                start_time = time.time()
-                _, idx = algorithm.search(test_vectors[i], k=k)
-                query_times[i] = time.time() - start_time
-                indices[i] = idx
-
-                # Log progress
-                if (i+1) % 100 == 0 or i+1 == n_queries:
-                    self.logger.info(f"  {i+1}/{n_queries} queries processed")
-
-            # Store search results
-            search_results[name] = (indices, query_times)
-            qps = 1.0 / np.mean(query_times)  # Queries per second
-            self.logger.info(f"Search completed: {qps:.2f} queries per second")
-
-        return search_results
-
-    def run(self):
-        """
-        Run the experiment and evaluate all algorithms.
-        """
-        self.logger.info("Starting experiment...")
-
-        # Load dataset if not already loaded
-        if self.dataset is None:
-            self.load_dataset()
-
-        # Get train and test vectors
-        train_vectors, test_vectors = self.dataset.get_train_test_split()
-        ground_truth = self.dataset.get_ground_truth()
-
-        # Build indices for all algorithms
-        self._build_indices(train_vectors)
-
-        # Run searches
-        k = self.config.topk  # Number of results to retrieve
-        search_results = self._run_searches(test_vectors[:self.config.n_queries], k)
-
-        # Evaluate results
-        evaluator = Evaluator(ground_truth[:self.config.n_queries])
-        for name, (indices, query_times) in search_results.items():
-            self.logger.info(f"Evaluating {name}...")
-            metrics = evaluator.evaluate(name, indices, query_times)
-            self.results[name].update(metrics)
-            self.logger.info(f"Evaluation metrics: {metrics}")
-
-        # Print summary of results
-        evaluator.print_results()
-
-        # Generate plots
-        self._generate_plots(evaluator)
-
-        # Save results
-        self._save_results()
+        if evaluator is not None:
+            evaluator.print_results()
+            self._generate_plots(evaluator)
 
         self.logger.info("Experiment completed successfully.")
         return self.results
 
-    def _generate_plots(self, evaluator: Evaluator):
-        """
-        Generate plots for the experiment results.
+    # ------------------------------------------------------------------
+    # Helpers
+    # ------------------------------------------------------------------
+    def _select_query_subset(
+        self, queries: np.ndarray, ground_truth: Optional[np.ndarray]
+    ) -> Tuple[np.ndarray, Optional[np.ndarray]]:
+        """Apply the n_queries limit while keeping ground-truth aligned."""
+        n_available = len(queries)
+        target = min(self.config.n_queries, n_available) if self.config.n_queries else n_available
 
-        Args:
-            evaluator: Evaluator with results
-        """
+        if target >= n_available:
+            return queries, ground_truth
+
+        indices = np.random.choice(n_available, target, replace=False)
+        queries_subset = queries[indices]
+        ground_truth_subset = ground_truth[indices] if ground_truth is not None else None
+
+        self.logger.info(f"Using {target}/{n_available} queries for evaluation")
+        return queries_subset, ground_truth_subset
+
+    def _run_single_algorithm(
+        self,
+        name: str,
+        algorithm: BaseAlgorithm,
+        train_vectors: np.ndarray,
+        test_queries: np.ndarray,
+    ) -> Tuple[Dict[str, Any], np.ndarray, np.ndarray]:
+        """Train the algorithm, execute queries, and collect core metrics."""
+        # Build phase
+        build_start = time.time()
+        algorithm.build_index(train_vectors)
+        build_time = time.time() - build_start
+
+        memory_usage_mb = self._estimate_memory_usage(algorithm, train_vectors)
+
+        # Search phase
+        k = self.config.topk
+        indices = np.zeros((len(test_queries), k), dtype=np.int64)
+        query_times = np.zeros(len(test_queries), dtype=float)
+
+        total_query_time = 0.0
+        for idx, query in enumerate(test_queries):
+            single_start = time.time()
+            _, single_indices = algorithm.search(query, k=k)
+            query_duration = time.time() - single_start
+            query_times[idx] = query_duration
+            indices[idx] = single_indices
+            total_query_time += query_duration
+
+        total_query_time = max(total_query_time, query_times.sum())
+        mean_query_time_ms = (
+            (total_query_time / max(len(test_queries), 1)) * 1000.0
+            if len(test_queries) > 0
+            else 0.0
+        )
+
+        qps = len(test_queries) / total_query_time if total_query_time > 0 else 0.0
+
+        metrics: Dict[str, Any] = {
+            "algorithm": name,
+            "parameters": algorithm.get_parameters(),
+            "dataset": self.config.dataset,
+            "n_train": int(train_vectors.shape[0]),
+            "n_test": int(len(test_queries)),
+            "dimensions": int(train_vectors.shape[1]),
+            "topk": self.config.topk,
+            "build_time_s": float(build_time),
+            "index_memory_mb": float(memory_usage_mb),
+            "qps": float(qps),
+            "mean_query_time_ms": float(mean_query_time_ms),
+            "total_query_time_s": float(total_query_time),
+            "timestamp": datetime.now().isoformat(),
+        }
+
+        return metrics, indices, query_times
+
+    def _estimate_memory_usage(self, algorithm: BaseAlgorithm, train_vectors: np.ndarray) -> float:
+        """Return algorithm-reported memory when available, otherwise estimate."""
+        if hasattr(algorithm, "get_memory_usage"):
+            try:
+                usage = algorithm.get_memory_usage()
+                if usage is not None:
+                    return float(usage)
+            except Exception:
+                pass
+
+        # Fallback: size of the raw training vectors in MB.
+        return float(train_vectors.nbytes) / (1024.0 * 1024.0)
+
+    def _save_algorithm_results(self, name: str, metrics: Dict[str, Any]) -> None:
+        path = os.path.join(self.output_dir, f"{name}_results.json")
+        with open(path, "w") as handle:
+            json.dump(metrics, handle, indent=2)
+
+    def _save_combined_results(self) -> None:
+        combined_path = os.path.join(
+            self.output_dir, f"{self.config.output_prefix}_all_results.json"
+        )
+        with open(combined_path, "w") as handle:
+            json.dump(self.results, handle, indent=2)
+
+        config_path = os.path.join(
+            self.output_dir, f"{self.config.output_prefix}_{self.experiment_id}_config.yaml"
+        )
+        with open(config_path, "w") as handle:
+            yaml.safe_dump(self.config.to_dict(), handle)
+
+    def _generate_plots(self, evaluator: Evaluator) -> None:
         plots_dir = os.path.join(self.output_dir, f"plots_{self.experiment_id}")
         os.makedirs(plots_dir, exist_ok=True)
 
-        # Recall vs QPS plot
-        recall_plot_file = os.path.join(plots_dir, "recall_vs_qps.png")
-        evaluator.plot_recall_vs_qps(output_file=recall_plot_file)
-
-        # Additional plots can be added here
-
-    def _save_results(self):
-        """
-        Save experiment results to disk.
-        """
-        # Create results directory
-        results_dir = os.path.join(self.output_dir, f"experiment_{self.experiment_id}")
-        os.makedirs(results_dir, exist_ok=True)
-
-        # Save results as YAML
-        results_file = os.path.join(results_dir, "results.yaml")
-        with open(results_file, 'w') as f:
-            yaml.dump(self.results, f)
-
-        # Save configuration
-        config_file = os.path.join(results_dir, "config.yaml")
-        with open(config_file, 'w') as f:
-            yaml.dump(self.config.to_dict(), f)
-
-        self.logger.info(f"Results saved to {results_dir}")
+        plot_path = os.path.join(plots_dir, "recall_vs_qps.png")
+        evaluator.plot_recall_vs_qps(output_file=plot_path)

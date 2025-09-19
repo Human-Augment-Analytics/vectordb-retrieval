@@ -4,6 +4,7 @@
 dataset: "random"  # Use random dataset for testing
 data_dir: "data"
 force_download: false
+metric: "l2"  # Distance metric shared across algorithms
 
 # Experiment parameters
 n_queries: 1000  # Number of test queries to run
@@ -14,18 +15,15 @@ repeat: 1  # Number of times to repeat experiment
 algorithms:
   exact:
     type: "ExactSearch"
-    metric: "l2"
 
   ivf_flat:
     type: "ApproximateSearch"
     index_type: "IVF100,Flat"
-    metric: "l2"
     nprobe: 10
 
   ivf_pq:
     type: "ApproximateSearch"
     index_type: "IVF100,PQ16"
-    metric: "l2"
     nprobe: 10
 
   hnsw_small:
@@ -33,14 +31,12 @@ algorithms:
     M: 8
     efConstruction: 100
     efSearch: 50
-    metric: "l2"
 
   hnsw_large:
     type: "HNSW"
     M: 16
     efConstruction: 200
     efSearch: 100
-    metric: "l2"
 
 # Additional parameters
 seed: 42  # Random seed for reproducibility

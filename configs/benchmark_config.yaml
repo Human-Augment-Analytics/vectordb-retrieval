@@ -1,22 +1,22 @@
 algorithms:
   exact:
-    metric: l2
     type: ExactSearch
   hnsw:
     M: 16
     efConstruction: 200
     efSearch: 100
-    metric: l2
     type: HNSW
   ivf_flat:
     index_type: IVF100,Flat
-    metric: l2
     nprobe: 10
     type: ApproximateSearch
 datasets:
-- random
-- sift1m
-- glove50
+  - name: random
+    metric: l2
+  - name: sift1m
+    metric: l2
+  - name: glove50
+    metric: l2
 n_queries: 1000
 output_prefix: benchmark
 repeat: 1

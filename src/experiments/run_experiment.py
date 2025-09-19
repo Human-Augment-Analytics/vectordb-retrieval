@@ -2,34 +2,13 @@
 import argparse
 import logging
 import os
-import numpy as np
 import sys
 import yaml
+import copy
 
 from .config import ExperimentConfig
 from .experiment_runner import ExperimentRunner
-from ..algorithms import BaseAlgorithm, ExactSearch, ApproximateSearch, HNSW
-
-def get_algorithm(algorithm_type: str, dimension: int, **params) -> BaseAlgorithm:
-    """
-    Create an algorithm instance based on type and parameters.
-
-    Args:
-        algorithm_type: Type of algorithm to create
-        dimension: Dimensionality of vectors
-        **params: Algorithm-specific parameters
-
-    Returns:
-        Algorithm instance
-    """
-    if algorithm_type == "ExactSearch":
-        return ExactSearch(dimension=dimension, **params)
-    elif algorithm_type == "ApproximateSearch":
-        return ApproximateSearch(dimension=dimension, **params)
-    elif algorithm_type == "HNSW":
-        return HNSW(dimension=dimension, **params)
-    else:
-        raise ValueError(f"Unknown algorithm type: {algorithm_type}")
+from ..algorithms import get_algorithm_instance
 
 def main():
     # Parse command line arguments
@@ -63,10 +42,10 @@ def main():
 
     # Register algorithms
     for alg_name, alg_config in config.algorithms.items():
-        alg_type = alg_config.pop("type")
-        algorithm = get_algorithm(alg_type, dimension, **alg_config)
-        runner.register_algorithm(algorithm)
-        alg_config["type"] = alg_type  # Restore the type for future reference
+        alg_config_copy = copy.deepcopy(alg_config)
+        alg_type = alg_config_copy.pop("type")
+        algorithm = get_algorithm_instance(alg_type, dimension, name=alg_name, **alg_config_copy)
+        runner.register_algorithm(algorithm, name=alg_name)
 
     # Run the experiment
     try:

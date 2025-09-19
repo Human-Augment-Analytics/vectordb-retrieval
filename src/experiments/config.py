@@ -34,6 +34,10 @@ class ExperimentConfig:
 
         # Dataset-wide metric preference (optional)
         self.metric = kwargs.get("metric")
+        if self.metric is not None:
+            for alg_config in self.algorithms.values():
+                if isinstance(alg_config, dict):
+                    alg_config.setdefault("metric", self.metric)
 
         # Additional parameters
         self.seed = kwargs.get("seed", 42)  # Random seed for reproducibility

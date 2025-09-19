@@ -236,6 +236,7 @@ class FullBenchmarkRunner:
         
         self.logger.info(f"Summary report saved to {summary_file}")
 
+    @staticmethod
     def create_default_benchmark_config():
         """
         Create a default benchmark configuration file.
@@ -289,7 +290,7 @@ def main():
 
     # Create default configuration if requested
     if args.create_config:
-        config_file = create_default_benchmark_config()
+        config_file = FullBenchmarkRunner.create_default_benchmark_config()
         print(f"You can now edit {config_file} and run the benchmark with --config {config_file}")
         return 0
 

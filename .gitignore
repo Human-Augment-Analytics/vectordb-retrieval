@@ -42,6 +42,7 @@ logs/
 *.swo
 
 # Results
+benchmark_results/
 results/
 charts/
 figures/!/data/

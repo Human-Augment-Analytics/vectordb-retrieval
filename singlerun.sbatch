@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH -J Testrun                              # Job name
 #SBATCH --cpus-per-task=16                      # Number of CPU
-#SBATCH -t0:60:00                               # Duration
+#SBATCH -t 0:60:00                              # Duration
 #SBATCH --output=Report-%j.log                  # Combined output and error messages file
 #SBATCH --mail-type=BEGIN,END,FAIL              # Mail preferences
 set -xeu

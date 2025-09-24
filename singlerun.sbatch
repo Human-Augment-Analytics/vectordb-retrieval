@@ -18,7 +18,7 @@ set -xeu
 # Specify the path to your repository directory.
 REPO_DIR="$HOME/vectordb-retrieval"
 # Specify the name for the virtual environment directory.
-VENV_DIR="~/scratch/vector-db-venv"
+VENV_DIR="$HOME/scratch/vector-db-venv"
 ###########################################################
 
 # Check if uv is installed, and install it if not using the curl method.

@@ -6,7 +6,6 @@
 #SBATCH --mail-type=BEGIN,END,FAIL              # Mail preferences
 set -xeu
 
-#!/bin/bash
 # A script to set up a uv virtual environment and install dependencies.
 # This script is designed for environments where uv is installed via a curl command.
 

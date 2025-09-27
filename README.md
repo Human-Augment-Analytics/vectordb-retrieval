@@ -34,6 +34,17 @@ conda activate vectordb-env
 pip install -r requirements.txt
 ```
 
+## Testing
+
+Fast smoke checks are available via `pytest`. This runs lightweight algorithm/indexer tests without needing full dataset downloads.
+
+```bash
+pytest
+
+# Skip FAISS-dependent tests if the backend is unavailable
+pytest -m "not requires_faiss"
+```
+
 ## Running the Benchmark
 
 The primary way to run experiments is using the full benchmark runner script.

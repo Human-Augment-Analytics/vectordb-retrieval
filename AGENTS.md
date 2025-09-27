@@ -1,7 +1,7 @@
 # Repository Guidelines
 
 ## Purpose & Scope
-This is a research repository for developing vector retrieval algorithms with retrieval guarantees (e.g., formal/empirical recall bounds). Contributions should highlight the guarantee type, assumptions (distribution, metric, parameters), and how to reproduce the evidence (configs + commands).
+This is a research repository for benchmarking the existing vector DB retrieval algorithms and developing vector retrieval algorithms with retrieval guarantees (e.g., formal/empirical recall bounds). Contributions should highlight the guarantee type, assumptions (distribution, metric, parameters), and how to reproduce the evidence (configs + commands).
 
 ## Project Structure & Module Organization
 - `src/algorithms/`: Vector search implementations (e.g., `ExactSearch`, `HNSW`, FAISS wrappers).
@@ -9,8 +9,8 @@ This is a research repository for developing vector retrieval algorithms with re
 - `src/experiments/`: Config parsing and `ExperimentRunner` glue code.
 - `scripts/`: Entry scripts for full suites and comparisons.
 - `configs/`: YAML configs (e.g., `default.yaml`, `benchmark_config.yaml`).
-- `data/`: Downloaded/processed datasets (tracked via Git LFS for some files).
-- `benchmark_results/`: Generated reports and logs.
+- `/storage/ice-shared/cs8903onl/vectordb-retrieval/datasets/`: Downloaded/processed datasets (tracked via Git LFS for some files).
+- `/storage/ice-shared/cs8903onl/vectordb-retrieval/results/`: Generated reports and logs.
 
 ## Build, Test, and Development Commands
 - Create env and install deps: `pip install -r requirements.txt`.
@@ -26,7 +26,8 @@ This is a research repository for developing vector retrieval algorithms with re
 - Keep algorithms small and composable; prefer pure functions in `utils/`.
 
 ## Testing Guidelines
-- No unit test harness yet; use smoke runs:
+- A `pytest` framework is in place. To run the tests, execute `pytest` from the project root.
+- Use smoke runs for quick validation:
   - Fast check: `python scripts/run_full_benchmark.py --config configs/benchmark_config_test1.yaml`.
   - Single run: `python -m src.experiments.run_experiment --config configs/default.yaml`.
 - Reproducibility: keep `seed` in configs; avoid nondeterministic ops.
@@ -38,7 +39,7 @@ This is a research repository for developing vector retrieval algorithms with re
 - Keep changes focused; update configs and README when behavior/CLI changes.
 
 ## Security & Configuration Tips
-- Large files via Git LFS; do not commit raw datasets. Run `git lfs pull` after clone if needed.
+
 - Prefer `faiss-cpu` (default). Document any BLAS/OMP tweaks and hardware in PRs.
 - Do not store secrets or API keys in YAML configs.
 

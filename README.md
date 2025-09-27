@@ -6,6 +6,7 @@ This repository provides a comprehensive framework for researching, benchmarking
 
 - **Extensible Algorithm Framework**: Easily add new vector search algorithms by inheriting from a `BaseAlgorithm` class.
 - **Automated Benchmark Suite**: A single script (`scripts/run_full_benchmark.py`) to run a full suite of experiments across multiple datasets.
+- **Modular Index/Search Pipelines**: Combine any indexing strategy with any search strategy through declarative config (e.g., pair FAISS HNSW indexing with linear or FAISS searchers).
 - **Standard Datasets**: Built-in support for benchmark datasets like SIFT1M, GloVe, and MS MARCO (via TF-IDF projection), with automated download and preprocessing.
 - **Comprehensive Metrics**: Tracks key performance indicators including recall, queries per second (QPS), index build time, and index memory usage.
 - **Automated Reporting**: Automatically generates detailed Markdown summary reports and raw JSON results for each benchmark run.
@@ -71,6 +72,10 @@ The script will automatically download the required datasets if they are not fou
 ### Dataset-specific Options
 
 Dataset entries can carry bespoke options via the `dataset_options` key. For example, the MS MARCO configuration in `configs/benchmark_config.yaml` limits the number of passages and queries that are vectorised with TF-IDF, routes processed caches to the writable results folder, and points at the shared v2.1 parquet files. Tweak those knobs (`base_limit`, `query_limit`, `vectorizer_max_features`, `cache_dir`, etc.) to balance fidelity and runtime for your environment.
+
+### Modular Indexing & Searching
+
+Each benchmark configuration can declare reusable `indexers` and `searchers`, then mix-and-match them per algorithm via references. For example, `exact` uses the `brute_force_l2` indexer together with the `linear_l2` searcher, while the MS MARCO override swaps in cosine-compatible variants. This structure lets you explore new combinations (e.g., FAISS IVF indexer + linear searcher) without touching code—just add a new entry under `algorithms` with the desired `indexer_ref` / `searcher_ref` or inline overrides.
 
 ## Benchmark Results
 

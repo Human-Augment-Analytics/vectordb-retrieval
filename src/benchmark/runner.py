@@ -95,6 +95,10 @@ class BenchmarkRunner:
 
             dataset_metric = dataset_options.get('metric')
             dataset_algorithms_override = dataset_options.get('algorithms', {})
+            dataset_specific_options = copy.deepcopy(
+                dataset_options.get('dataset_options') or dataset_options.get('options') or {}
+            )
+            dataset_data_dir = dataset_options.get('data_dir', self.config.get('data_dir', 'data'))
 
             # Apply dataset-specific overrides while keeping base algorithm definitions intact.
             base_algorithms = copy.deepcopy(self.config.get('algorithms', {}))
@@ -120,7 +124,7 @@ class BenchmarkRunner:
 
             experiment_kwargs = dict(
                 dataset=dataset_name,
-                data_dir=self.config.get('data_dir', 'data'),
+                data_dir=dataset_data_dir,
                 force_download=self.config.get('force_download', False),
                 n_queries=dataset_options.get('n_queries', self.config.get('n_queries', 1000)),
                 topk=dataset_options.get('topk', self.config.get('topk', 100)),
@@ -132,6 +136,8 @@ class BenchmarkRunner:
 
             if dataset_metric is not None:
                 experiment_kwargs['metric'] = dataset_metric
+            if dataset_specific_options:
+                experiment_kwargs['dataset_options'] = dataset_specific_options
             experiment_config = ExperimentConfig(**experiment_kwargs)
 
             # Run experiments for this dataset

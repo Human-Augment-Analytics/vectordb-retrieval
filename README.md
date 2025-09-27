@@ -6,7 +6,7 @@ This repository provides a comprehensive framework for researching, benchmarking
 
 - **Extensible Algorithm Framework**: Easily add new vector search algorithms by inheriting from a `BaseAlgorithm` class.
 - **Automated Benchmark Suite**: A single script (`scripts/run_full_benchmark.py`) to run a full suite of experiments across multiple datasets.
-- **Standard Datasets**: Built-in support for standard benchmark datasets like SIFT1M and GloVe, with automated download and preprocessing.
+- **Standard Datasets**: Built-in support for benchmark datasets like SIFT1M, GloVe, and MS MARCO (via TF-IDF projection), with automated download and preprocessing.
 - **Comprehensive Metrics**: Tracks key performance indicators including recall, queries per second (QPS), index build time, and index memory usage.
 - **Automated Reporting**: Automatically generates detailed Markdown summary reports and raw JSON results for each benchmark run.
 
@@ -64,8 +64,13 @@ The script will automatically download the required datasets if they are not fou
 > **PACE deployment note:** the repository configuration (`configs/benchmark_config.yaml`) points to the shared storage locations:
 > - Datasets: `/storage/ice-shared/cs8903onl/vectordb-retrieval/datasets`
 > - Benchmark results: `/storage/ice-shared/cs8903onl/vectordb-retrieval/results`
+> - MS MARCO parquet files (v2.1): `/storage/ice-shared/cs8903onl/vectordb-retrieval/datasets/msmarco/v2.1`
 >
 > Adjust those paths if you are running on a different machine or prefer a different layout.
+
+### Dataset-specific Options
+
+Dataset entries can carry bespoke options via the `dataset_options` key. For example, the MS MARCO configuration in `configs/benchmark_config.yaml` limits the number of passages and queries that are vectorised with TF-IDF and points at the shared v2.1 parquet files. Tweak those knobs (`base_limit`, `query_limit`, `vectorizer_max_features`, etc.) to balance fidelity and runtime for your environment.
 
 ## Benchmark Results
 

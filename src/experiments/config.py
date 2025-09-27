@@ -18,6 +18,7 @@ class ExperimentConfig:
         self.dataset = kwargs.get("dataset", "random")
         self.data_dir = kwargs.get("data_dir", "data")
         self.force_download = kwargs.get("force_download", False)
+        self.dataset_options = copy.deepcopy(kwargs.get("dataset_options", {}))
 
         # Experiment parameters
         self.n_queries = kwargs.get("n_queries", 1000)  # Number of test queries to run
@@ -70,6 +71,7 @@ class ExperimentConfig:
             "dataset": self.dataset,
             "data_dir": self.data_dir,
             "force_download": self.force_download,
+            "dataset_options": self.dataset_options,
             "n_queries": self.n_queries,
             "topk": self.topk,
             "repeat": self.repeat,

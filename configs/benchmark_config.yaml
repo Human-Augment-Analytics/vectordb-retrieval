@@ -17,6 +17,17 @@ datasets:
     metric: l2
   - name: glove50
     metric: l2
+  - name: msmarco
+    metric: cosine
+    dataset_options:
+      version: v2.1
+      base_split: train
+      query_split: validation
+      base_limit: 8000
+      query_limit: 2000
+      max_passages_per_query: 5
+      vectorizer_max_features: 768
+      ground_truth_k: 10
 output_dir: /storage/ice-shared/cs8903onl/vectordb-retrieval/results
 data_dir: /storage/ice-shared/cs8903onl/vectordb-retrieval/datasets
 n_queries: 1000

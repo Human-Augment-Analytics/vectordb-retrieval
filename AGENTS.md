@@ -42,6 +42,14 @@ This is a research repository for developing vector retrieval algorithms with re
 - Prefer `faiss-cpu` (default). Document any BLAS/OMP tweaks and hardware in PRs.
 - Do not store secrets or API keys in YAML configs.
 
+## PACE Cluster Usage (SLURM)
+- Submit long runs with SLURM (`sbatch singlerun.sbatch`) on the PACE cluster; adjust `REPO_DIR` and `VENV_DIR` in the script to match your home paths.
+- `singlerun.sbatch` ensures `uv` is available, provisions a virtualenv, installs `requirements.txt`, then launches `python scripts/run_full_benchmark.py --config configs/benchmark_config.yaml` under the new environment.
+- Keep walltime/CPU settings in sync with project needs; request more resources via the `#SBATCH` lines and notify maintainers if configs require different quotas.
+- Cluster-specific environment modules (e.g., GCC, OpenBLAS) should be loaded inside the script before dependency installation; document any additions in PR descriptions.
+- For interactive debugging use `srun --pty bash` with matching module loads, then reuse `uv` environments instead of re-installing requirements each run.
+- Monitor jobs with `squeue -u $USER` and collect logs from `Report-<jobid>.log` to attach to experiment summaries.
+
 ## Agent-Specific Instructions
 - Treat this AGENTS.md as authoritative for the entire repo tree.
 - Do not rename top-level dirs or public APIs without updating configs, scripts, and README.

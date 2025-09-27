@@ -1,15 +1,62 @@
-algorithms:
-  exact:
-    type: ExactSearch
-  hnsw:
+indexers:
+  brute_force_l2:
+    type: BruteForceIndexer
+    metric: l2
+  brute_force_cosine:
+    type: BruteForceIndexer
+    metric: cosine
+  hnsw_l2:
+    type: HNSWIndexer
     M: 16
     efConstruction: 200
     efSearch: 100
-    type: HNSW
-  ivf_flat:
+    metric: l2
+  hnsw_cosine:
+    type: HNSWIndexer
+    M: 16
+    efConstruction: 200
+    efSearch: 100
+    metric: cosine
+  faiss_ivf_l2:
+    type: FaissIVFIndexer
     index_type: IVF100,Flat
+    metric: l2
     nprobe: 10
-    type: ApproximateSearch
+  faiss_ivf_cosine:
+    type: FaissIVFIndexer
+    index_type: IVF100,Flat
+    metric: cosine
+    nprobe: 10
+
+searchers:
+  linear_l2:
+    type: LinearSearcher
+    metric: l2
+  linear_cosine:
+    type: LinearSearcher
+    metric: cosine
+  faiss_l2:
+    type: FaissSearcher
+    metric: l2
+    nprobe: 10
+  faiss_cosine:
+    type: FaissSearcher
+    metric: cosine
+    nprobe: 32
+
+algorithms:
+  exact:
+    indexer_ref: brute_force_l2
+    searcher_ref: linear_l2
+    metric: l2
+  hnsw:
+    indexer_ref: hnsw_l2
+    searcher_ref: faiss_l2
+    metric: l2
+  ivf_flat:
+    indexer_ref: faiss_ivf_l2
+    searcher_ref: faiss_l2
+    metric: l2
 datasets:
   - name: random
     metric: l2
@@ -25,6 +72,16 @@ datasets:
       vectorizer_max_features: 768
       ground_truth_k: 10
       cache_dir: /storage/ice-shared/cs8903onl/vectordb-retrieval/results/cache
+    algorithms:
+      exact:
+        indexer_ref: brute_force_cosine
+        searcher_ref: linear_cosine
+      hnsw:
+        indexer_ref: hnsw_cosine
+        searcher_ref: faiss_cosine
+      ivf_flat:
+        indexer_ref: faiss_ivf_cosine
+        searcher_ref: faiss_cosine
 output_dir: /storage/ice-shared/cs8903onl/vectordb-retrieval/results
 data_dir: /storage/ice-shared/cs8903onl/vectordb-retrieval/datasets
 n_queries: 1000

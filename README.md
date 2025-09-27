@@ -19,8 +19,8 @@ This repository provides a comprehensive framework for researching, benchmarking
 - `scripts/`: High-level scripts for automating experiments.
   - `run_full_benchmark.py`: The main entry point for running the full benchmark suite.
 - `configs/`: Directory for experiment configuration files (in YAML format).
-- `data/`: Default directory for storing downloaded and processed datasets.
-- `benchmark_results/`: Default output directory for benchmark reports and raw results.
+- `data/`: Default directory for storing downloaded and processed datasets (configurable via `data_dir`).
+- `benchmark_results/`: Default output directory for benchmark reports and raw results (configurable via `output_dir`).
 
 ## Setup
 
@@ -59,7 +59,13 @@ python scripts/run_full_benchmark.py --config configs/benchmark_config_test1.yam
 
 ```
 
-The script will automatically download the required datasets if they are not found locally, run all experiments, and save the results to the `benchmark_results/` directory.
+The script will automatically download the required datasets if they are not found in the configured `data_dir`, run all experiments, and save the results under the configured `output_dir`.
+
+> **PACE deployment note:** the repository configuration (`configs/benchmark_config.yaml`) points to the shared storage locations:
+> - Datasets: `/storage/ice-shared/cs8903onl/vectordb-retrieval/datasets`
+> - Benchmark results: `/storage/ice-shared/cs8903onl/vectordb-retrieval/results`
+>
+> Adjust those paths if you are running on a different machine or prefer a different layout.
 
 ## Benchmark Results
 
@@ -111,7 +117,7 @@ Please ensure Git LFS is properly configured before proceeding with development.
 
 ## Data Files Download
 
-Please note that when you run the script `run_full_benchmark.py`, the necessary data files will automatically be downloaded to your local `data/` directory if they are not already present.
+Please note that when you run the script `run_full_benchmark.py`, the necessary data files will automatically be downloaded to the configured `data_dir` (the repository default targets the shared PACE dataset folder) if they are not already present.
 
 Additionally, you can utilize Git LFS to pull the latest datasets directly from the repository. The datasets for `glove50` and `random` are now tracked with Git LFS. To download these files using Git LFS, run the following command:
 

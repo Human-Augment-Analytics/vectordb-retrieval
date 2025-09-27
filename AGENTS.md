@@ -54,4 +54,4 @@ This is a research repository for developing vector retrieval algorithms with re
 - Treat this AGENTS.md as authoritative for the entire repo tree.
 - Do not rename top-level dirs or public APIs without updating configs, scripts, and README.
 - When adding algorithms, place them in `src/algorithms/`, document guarantees in class docstrings, and add a minimal config example under `configs/`.
-- Prefer `python -m src.experiments.run_experiment` or `scripts/run_full_benchmark.py` for runnable examples; keep changes surgical and reproducible.
+- Prefer `/home/hice1/pli396/miniconda3/envs/vectordb-retrieval/bin/python  scripts/run_full_benchmark.py --config configs/benchmark_config_test1.yaml` for runnable examples; keep changes surgical and reproducible.

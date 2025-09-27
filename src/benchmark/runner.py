@@ -27,7 +27,13 @@ class BenchmarkRunner:
         """
         self.config_file = config_file
         self.timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        self.output_dir = os.path.join(output_dir, f"benchmark_{self.timestamp}")
+
+        # Load configuration early so we can honor repository-level paths.
+        with open(config_file, 'r') as f:
+            self.config = json.load(f) if config_file.endswith('.json') else yaml.safe_load(f)
+
+        base_output_dir = self.config.get('output_dir', output_dir)
+        self.output_dir = os.path.join(base_output_dir, f"benchmark_{self.timestamp}")
 
         # Create output directory
         os.makedirs(self.output_dir, exist_ok=True)
@@ -35,10 +41,6 @@ class BenchmarkRunner:
         # Set up logging
         self.log_file = os.path.join(self.output_dir, "benchmark.log")
         self.logger = self._setup_logging()
-
-        # Load configuration
-        with open(config_file, 'r') as f:
-            self.config = json.load(f) if config_file.endswith('.json') else yaml.safe_load(f)
 
         self.logger.info(f"Loaded benchmark configuration from {config_file}")
         self.logger.info(f"Output directory: {self.output_dir}")

@@ -17,6 +17,8 @@ datasets:
     metric: l2
   - name: glove50
     metric: l2
+output_dir: /storage/ice-shared/cs8903onl/vectordb-retrieval/results
+data_dir: /storage/ice-shared/cs8903onl/vectordb-retrieval/datasets
 n_queries: 1000
 output_prefix: benchmark
 repeat: 1

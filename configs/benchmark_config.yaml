@@ -13,8 +13,8 @@ algorithms:
 datasets:
   - name: random
     metric: l2
-  - name: sift1m
-    metric: l2
+#  - name: sift1m
+#    metric: l2
   - name: glove50
     metric: l2
   - name: msmarco

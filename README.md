@@ -70,7 +70,7 @@ The script will automatically download the required datasets if they are not fou
 
 ### Dataset-specific Options
 
-Dataset entries can carry bespoke options via the `dataset_options` key. For example, the MS MARCO configuration in `configs/benchmark_config.yaml` limits the number of passages and queries that are vectorised with TF-IDF and points at the shared v2.1 parquet files. Tweak those knobs (`base_limit`, `query_limit`, `vectorizer_max_features`, etc.) to balance fidelity and runtime for your environment.
+Dataset entries can carry bespoke options via the `dataset_options` key. For example, the MS MARCO configuration in `configs/benchmark_config.yaml` limits the number of passages and queries that are vectorised with TF-IDF, routes processed caches to the writable results folder, and points at the shared v2.1 parquet files. Tweak those knobs (`base_limit`, `query_limit`, `vectorizer_max_features`, `cache_dir`, etc.) to balance fidelity and runtime for your environment.
 
 ## Benchmark Results
 

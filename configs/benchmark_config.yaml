@@ -28,6 +28,7 @@ datasets:
       max_passages_per_query: 5
       vectorizer_max_features: 768
       ground_truth_k: 10
+      cache_dir: /storage/ice-shared/cs8903onl/vectordb-retrieval/results/cache
 output_dir: /storage/ice-shared/cs8903onl/vectordb-retrieval/results
 data_dir: /storage/ice-shared/cs8903onl/vectordb-retrieval/datasets
 n_queries: 1000

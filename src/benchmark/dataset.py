@@ -60,8 +60,18 @@ class Dataset:
         self.info = self.AVAILABLE_DATASETS.get(name, {})
         self.options = options or {}
 
+        cache_dir_option = self.options.get("cache_dir")
+        if cache_dir_option:
+            if os.path.isabs(cache_dir_option):
+                self.cache_dir = cache_dir_option
+            else:
+                self.cache_dir = os.path.join(self.data_dir, cache_dir_option)
+        else:
+            self.cache_dir = self.data_dir
+
         # Create data directory if it doesn't exist
         os.makedirs(self.data_dir, exist_ok=True)
+        os.makedirs(self.cache_dir, exist_ok=True)
 
         self.train_vectors = None
         self.test_vectors = None
@@ -198,7 +208,7 @@ class Dataset:
             digest = hashlib.md5(options_key.encode("utf-8")).hexdigest()[:8]
             cache_suffix = f"_{digest}"
 
-        cache_file = os.path.join(self.data_dir, f"{self.name}{cache_suffix}_processed.pkl")
+        cache_file = os.path.join(self.cache_dir, f"{self.name}{cache_suffix}_processed.pkl")
 
         # Check if processed file exists
         if os.path.exists(cache_file) and not force_download:

@@ -55,9 +55,14 @@ class HNSW(BaseAlgorithm):
         # Determine the metric type
         if self.metric == "cosine":
             # Normalize vectors for cosine similarity
-            normalized_vectors = vectors.copy()
+            normalized_vectors = vectors.astype(np.float32, copy=True)
             norms = np.linalg.norm(normalized_vectors, axis=1, keepdims=True)
-            normalized_vectors = normalized_vectors / norms
+            normalized_vectors = np.divide(
+                normalized_vectors,
+                norms,
+                out=np.zeros_like(normalized_vectors),
+                where=norms > 0,
+            )
             metric_type = faiss.METRIC_INNER_PRODUCT
             vectors_to_index = normalized_vectors
         elif self.metric == "dot":
@@ -96,8 +101,9 @@ class HNSW(BaseAlgorithm):
 
         # Normalize query for cosine similarity
         if self.metric == "cosine":
+            query = query.astype(np.float32, copy=True)
             query_norm = np.linalg.norm(query, axis=1, keepdims=True)
-            query = query / query_norm
+            query = np.divide(query, query_norm, out=np.zeros_like(query), where=query_norm > 0)
 
         # Perform the search
         distances, indices = self.index.search(query, k)
@@ -120,9 +126,14 @@ class HNSW(BaseAlgorithm):
 
         # Normalize queries for cosine similarity
         if self.metric == "cosine":
-            queries_copy = queries.copy()
+            queries_copy = queries.astype(np.float32, copy=True)
             norms = np.linalg.norm(queries_copy, axis=1, keepdims=True)
-            queries_copy = queries_copy / norms
+            queries_copy = np.divide(
+                queries_copy,
+                norms,
+                out=np.zeros_like(queries_copy),
+                where=norms > 0,
+            )
             distances, indices = self.index.search(queries_copy, k)
         else:
             distances, indices = self.index.search(queries, k)

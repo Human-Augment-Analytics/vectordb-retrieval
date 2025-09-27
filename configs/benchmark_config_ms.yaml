@@ -1,0 +1,34 @@
+algorithms:
+  exact:
+    type: ExactSearch
+  hnsw:
+    M: 16
+    efConstruction: 200
+    efSearch: 100
+    type: HNSW
+  ivf_flat:
+    index_type: IVF100,Flat
+    nprobe: 10
+    type: ApproximateSearch
+datasets:
+  - name: random
+    metric: l2
+  - name: msmarco
+    metric: cosine
+    dataset_options:
+      version: v2.1
+      base_split: train
+      query_split: validation
+      base_limit: 8000
+      query_limit: 2000
+      max_passages_per_query: 5
+      vectorizer_max_features: 768
+      ground_truth_k: 10
+      cache_dir: /storage/ice-shared/cs8903onl/vectordb-retrieval/results/cache
+output_dir: /storage/ice-shared/cs8903onl/vectordb-retrieval/results
+data_dir: /storage/ice-shared/cs8903onl/vectordb-retrieval/datasets
+n_queries: 1000
+output_prefix: benchmark
+repeat: 1
+seed: 42
+topk: 100

@@ -6,7 +6,8 @@ This repository provides a comprehensive framework for researching, benchmarking
 
 - **Extensible Algorithm Framework**: Easily add new vector search algorithms by inheriting from a `BaseAlgorithm` class.
 - **Automated Benchmark Suite**: A single script (`scripts/run_full_benchmark.py`) to run a full suite of experiments across multiple datasets.
-- **Standard Datasets**: Built-in support for standard benchmark datasets like SIFT1M and GloVe, with automated download and preprocessing.
+- **Modular Index/Search Pipelines**: Combine any indexing strategy with any search strategy through declarative config (e.g., pair FAISS HNSW indexing with linear or FAISS searchers).
+- **Standard Datasets**: Built-in support for benchmark datasets like SIFT1M, GloVe, and MS MARCO (via TF-IDF projection), with automated download and preprocessing.
 - **Comprehensive Metrics**: Tracks key performance indicators including recall, queries per second (QPS), index build time, and index memory usage.
 - **Automated Reporting**: Automatically generates detailed Markdown summary reports and raw JSON results for each benchmark run.
 
@@ -19,8 +20,8 @@ This repository provides a comprehensive framework for researching, benchmarking
 - `scripts/`: High-level scripts for automating experiments.
   - `run_full_benchmark.py`: The main entry point for running the full benchmark suite.
 - `configs/`: Directory for experiment configuration files (in YAML format).
-- `data/`: Default directory for storing downloaded and processed datasets.
-- `benchmark_results/`: Default output directory for benchmark reports and raw results.
+- `data/`: Default directory for storing downloaded and processed datasets (configurable via `data_dir`).
+- `benchmark_results/`: Default output directory for benchmark reports and raw results (configurable via `output_dir`).
 
 ## Setup
 
@@ -31,6 +32,17 @@ conda activate vectordb-env
 
 # Install dependencies
 pip install -r requirements.txt
+```
+
+## Testing
+
+Fast smoke checks are available via `pytest`. This runs lightweight algorithm/indexer tests without needing full dataset downloads.
+
+```bash
+pytest
+
+# Skip FAISS-dependent tests if the backend is unavailable
+pytest -m "not requires_faiss"
 ```
 
 ## Running the Benchmark
@@ -59,7 +71,22 @@ python scripts/run_full_benchmark.py --config configs/benchmark_config_test1.yam
 
 ```
 
-The script will automatically download the required datasets if they are not found locally, run all experiments, and save the results to the `benchmark_results/` directory.
+The script will automatically download the required datasets if they are not found in the configured `data_dir`, run all experiments, and save the results under the configured `output_dir`.
+
+> **PACE deployment note:** the repository configuration (`configs/benchmark_config.yaml`) points to the shared storage locations:
+> - Datasets: `/storage/ice-shared/cs8903onl/vectordb-retrieval/datasets`
+> - Benchmark results: `/storage/ice-shared/cs8903onl/vectordb-retrieval/results`
+> - MS MARCO parquet files (v2.1): `/storage/ice-shared/cs8903onl/vectordb-retrieval/datasets/msmarco/v2.1`
+>
+> Adjust those paths if you are running on a different machine or prefer a different layout.
+
+### Dataset-specific Options
+
+Dataset entries can carry bespoke options via the `dataset_options` key. For example, the MS MARCO configuration in `configs/benchmark_config.yaml` limits the number of passages and queries that are vectorised with TF-IDF, routes processed caches to the writable results folder, and points at the shared v2.1 parquet files. Tweak those knobs (`base_limit`, `query_limit`, `vectorizer_max_features`, `cache_dir`, etc.) to balance fidelity and runtime for your environment.
+
+### Modular Indexing & Searching
+
+Each benchmark configuration can declare reusable `indexers` and `searchers`, then mix-and-match them per algorithm via references. For example, `exact` uses the `brute_force_l2` indexer together with the `linear_l2` searcher, while the MS MARCO override swaps in cosine-compatible variants. This structure lets you explore new combinations (e.g., FAISS IVF indexer + linear searcher) without touching code—just add a new entry under `algorithms` with the desired `indexer_ref` / `searcher_ref` or inline overrides.
 
 ## Benchmark Results
 
@@ -111,7 +138,7 @@ Please ensure Git LFS is properly configured before proceeding with development.
 
 ## Data Files Download
 
-Please note that when you run the script `run_full_benchmark.py`, the necessary data files will automatically be downloaded to your local `data/` directory if they are not already present.
+Please note that when you run the script `run_full_benchmark.py`, the necessary data files will automatically be downloaded to the configured `data_dir` (the repository default targets the shared PACE dataset folder) if they are not already present.
 
 Additionally, you can utilize Git LFS to pull the latest datasets directly from the repository. The datasets for `glove50` and `random` are now tracked with Git LFS. To download these files using Git LFS, run the following command:
 

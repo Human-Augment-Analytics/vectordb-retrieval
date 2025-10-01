@@ -41,7 +41,7 @@ class ExperimentRunner:
             return
 
         self.logger.info(f"Loading dataset: {self.config.dataset}")
-        dataset = Dataset(self.config.dataset, self.config.data_dir)
+        dataset = Dataset(self.config.dataset, self.config.data_dir, options=self.config.dataset_options)
         dataset.load(force_download=self.config.force_download)
         self.dataset = dataset
 

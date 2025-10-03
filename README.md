@@ -84,6 +84,8 @@ The script will automatically download the required datasets if they are not fou
 
 Dataset entries can carry bespoke options via the `dataset_options` key. For example, the MS MARCO configuration in `configs/benchmark_config.yaml` now consumes the pre-embedded Cohere vectors by pointing at the shared parquet cache, constraining how many passages/queries are loaded, and routing processed caches to the writable results folder. Additional knobs (`query_relevance_offsets_column`, `relevance_candidates_limit`) control how many of the provided top-1k references are considered when constructing ground-truth labels. Tweak those knobs (`base_limit`, `query_limit`, `cache_dir`, etc.) to balance fidelity and runtime for your environment.
 
+When you evaluate at higher cut-offs (e.g., top-1000), raise both `ground_truth_k` in the dataset options and the global `topk` setting so the cache retains enough positives and the benchmark actually requests that many neighbors. Expect the first run with a larger window (e.g., `base_limit: 200000`, `query_limit: 1000`) to spend more time materialising the cache; subsequent runs reuse the processed pickle.
+
 ### Modular Indexing & Searching
 
 Each benchmark configuration can declare reusable `indexers` and `searchers`, then mix-and-match them per algorithm via references. For example, `exact` uses the `brute_force_l2` indexer together with the `linear_l2` searcher, while the MS MARCO override swaps in cosine-compatible variants. This structure lets you explore new combinations (e.g., FAISS IVF indexer + linear searcher) without touching code—just add a new entry under `algorithms` with the desired `indexer_ref` / `searcher_ref` or inline overrides.

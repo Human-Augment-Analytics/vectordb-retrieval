@@ -1,5 +1,5 @@
 import numpy as np
-from typing import Dict, List, Tuple, Any, Optional
+from typing import Dict, List, Tuple, Any, Optional, Iterable
 from .metrics import recall_at_k, precision_at_k, mean_average_precision
 import time
 import pandas as pd
@@ -10,15 +10,23 @@ class Evaluator:
     Class for evaluating vector retrieval algorithms on benchmark datasets.
     """
 
-    def __init__(self, ground_truth: np.ndarray):
+    def __init__(self, ground_truth: np.ndarray, k_values: Optional[Iterable[int]] = None):
         """
         Initialize the evaluator.
 
         Args:
             ground_truth: Ground truth nearest neighbors for test queries
+            k_values: Iterable of cut-offs to evaluate (defaults to {1, 10, 100})
         """
         self.ground_truth = ground_truth
         self.results = {}
+        default_k_values = [1, 10, 100]
+        if k_values is None:
+            self.k_values = default_k_values
+        else:
+            merged = set(default_k_values)
+            merged.update(k_values)
+            self.k_values = sorted(merged)
 
     def evaluate(self, algorithm_name: str, predicted_indices: np.ndarray, 
                 query_times: np.ndarray) -> Dict[str, Any]:
@@ -33,11 +41,10 @@ class Evaluator:
         Returns:
             Dictionary of evaluation metrics
         """
-        k_values = [1, 10, 100]
         metrics = {}
 
         # Calculate retrieval metrics at different k values
-        for k in k_values:
+        for k in self.k_values:
             if k <= predicted_indices.shape[1]:
                 metrics[f'recall@{k}'] = recall_at_k(self.ground_truth, predicted_indices, k)
                 metrics[f'precision@{k}'] = precision_at_k(self.ground_truth, predicted_indices, k)
@@ -70,15 +77,14 @@ class Evaluator:
         df = pd.DataFrame(self.results).T
 
         # Reorder columns for better readability
-        metric_order = [
-            'recall@1', 'recall@10', 'recall@100',
-            'precision@1', 'precision@10', 'precision@100',
+        recall_cols = [f'recall@{k}' for k in self.k_values]
+        precision_cols = [f'precision@{k}' for k in self.k_values]
+        metric_order = recall_cols + precision_cols + [
             'map@10',
             'qps', 'mean_query_time', 'median_query_time', 
             'min_query_time', 'max_query_time'
         ]
 
-        # Filter to only include available metrics
         available_metrics = [m for m in metric_order if m in df.columns]
 
         print("\nEvaluation Results:\n")
@@ -99,7 +105,8 @@ class Evaluator:
 
         # Extract recall@10 and QPS for each algorithm
         algorithms = list(self.results.keys())
-        recalls = [self.results[alg].get('recall@10', 0) for alg in algorithms]
+        target_k = min(10, max(self.k_values))
+        recalls = [self.results[alg].get(f'recall@{target_k}', 0) for alg in algorithms]
         qps = [self.results[alg].get('qps', 0) for alg in algorithms]
 
         # Create scatter plot

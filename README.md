@@ -7,7 +7,7 @@ This repository provides a comprehensive framework for researching, benchmarking
 - **Extensible Algorithm Framework**: Easily add new vector search algorithms by inheriting from a `BaseAlgorithm` class.
 - **Automated Benchmark Suite**: A single script (`scripts/run_full_benchmark.py`) to run a full suite of experiments across multiple datasets.
 - **Modular Index/Search Pipelines**: Combine any indexing strategy with any search strategy through declarative config (e.g., pair FAISS HNSW indexing with linear or FAISS searchers).
-- **Standard Datasets**: Built-in support for benchmark datasets like SIFT1M, GloVe, and MS MARCO (via TF-IDF projection), with automated download and preprocessing.
+- **Standard Datasets**: Built-in support for benchmark datasets like SIFT1M, GloVe, and MS MARCO (TF-IDF projection or pre-embedded Cohere vectors), with automated download and preprocessing.
 - **Comprehensive Metrics**: Tracks key performance indicators including recall, queries per second (QPS), index build time, and index memory usage.
 - **Automated Reporting**: Automatically generates detailed Markdown summary reports and raw JSON results for each benchmark run.
 
@@ -68,7 +68,7 @@ python scripts/run_full_benchmark.py --config configs/benchmark_config.yaml
 
 #below works
 python scripts/run_full_benchmark.py --config configs/benchmark_config_test1.yaml 
-
+python scripts/run_full_benchmark.py --config configs/benchmark_config_ms.yaml 
 ```
 
 The script will automatically download the required datasets if they are not found in the configured `data_dir`, run all experiments, and save the results under the configured `output_dir`.
@@ -76,13 +76,13 @@ The script will automatically download the required datasets if they are not fou
 > **PACE deployment note:** the repository configuration (`configs/benchmark_config.yaml`) points to the shared storage locations:
 > - Datasets: `/storage/ice-shared/cs8903onl/vectordb-retrieval/datasets`
 > - Benchmark results: `/storage/ice-shared/cs8903onl/vectordb-retrieval/results`
-> - MS MARCO parquet files (v2.1): `/storage/ice-shared/cs8903onl/vectordb-retrieval/datasets/msmarco/v2.1`
+> - MS MARCO (pre-embedded Cohere vectors): `/storage/ice-shared/cs8903onl/vectordb-retrieval/datasets/msmarco_pre_embeded/`
 >
 > Adjust those paths if you are running on a different machine or prefer a different layout.
 
 ### Dataset-specific Options
 
-Dataset entries can carry bespoke options via the `dataset_options` key. For example, the MS MARCO configuration in `configs/benchmark_config.yaml` limits the number of passages and queries that are vectorised with TF-IDF, routes processed caches to the writable results folder, and points at the shared v2.1 parquet files. Tweak those knobs (`base_limit`, `query_limit`, `vectorizer_max_features`, `cache_dir`, etc.) to balance fidelity and runtime for your environment.
+Dataset entries can carry bespoke options via the `dataset_options` key. For example, the MS MARCO configuration in `configs/benchmark_config.yaml` now consumes the pre-embedded Cohere vectors by pointing at the shared parquet cache, constraining how many passages/queries are loaded, and routing processed caches to the writable results folder. Additional knobs (`query_relevance_offsets_column`, `relevance_candidates_limit`) control how many of the provided top-1k references are considered when constructing ground-truth labels. Tweak those knobs (`base_limit`, `query_limit`, `cache_dir`, etc.) to balance fidelity and runtime for your environment.
 
 ### Modular Indexing & Searching
 
@@ -117,29 +117,3 @@ To add a new algorithm for benchmarking:
     - `search(self, query, k)`: To find the `k` nearest neighbors for a single query vector.
     - `batch_search(self, queries, k)`: To find neighbors for a batch of query vectors.
 4.  Add your new algorithm to the `algorithms` section in your `benchmark_config.yaml` file.
-
-
-## Git LFS Data Files
-
-This repository uses Git LFS for managing large data files needed for the project. The following files are tracked using Git LFS:
-
-- data/glove50/glove.6B.zip
-- data/glove50/glove50_processed.pkl
-- data/random/random_processed.pkl
-
-If you have cloned the repository, please ensure that Git LFS is installed. You can download and install it from https://git-lfs.github.com/.
-
-After cloning the repository, run the following command to fetch the large files:
-
-    git lfs pull
-
-Please ensure Git LFS is properly configured before proceeding with development.
-
-
-## Data Files Download
-
-Please note that when you run the script `run_full_benchmark.py`, the necessary data files will automatically be downloaded to the configured `data_dir` (the repository default targets the shared PACE dataset folder) if they are not already present.
-
-Additionally, you can utilize Git LFS to pull the latest datasets directly from the repository. The datasets for `glove50` and `random` are now tracked with Git LFS. To download these files using Git LFS, run the following command:
-
-    git lfs pull

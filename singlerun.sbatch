@@ -14,7 +14,7 @@ set -xeu
 #       USER-CONFIGURABLE SECTION                         #
 ###########################################################
 # Specify the path to your repository directory.
-REPO_DIR="$HOME/vectordb-retrieval"
+REPO_DIR="$HOME/PycharmProjects/vectordb-retrieval"
 # Specify the name for the virtual environment directory.
 VENV_DIR="$HOME/scratch/vector-db-venv"
 ###########################################################
@@ -62,4 +62,4 @@ echo "To activate this environment in the future, run: source $VENV_DIR/bin/acti
 cd $REPO_DIR
 
 # Run benchmarking setup
-python scripts/run_full_benchmark.py --config configs/benchmark_config.yaml
+python scripts/run_full_benchmark.py --config configs/benchmark_config_ms.yaml

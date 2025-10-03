@@ -5,12 +5,15 @@ import os
 import pickle
 import zipfile
 from ftplib import FTP
-from typing import Any, Dict, List, Optional, Tuple
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 from urllib.parse import urlparse
 
 import numpy as np
 import requests
 from tqdm import tqdm
+
+logger = logging.getLogger(__name__)
 
 class Dataset:
     """
@@ -37,7 +40,7 @@ class Dataset:
             "url": None
         },
         "msmarco": {
-            "description": "MS MARCO passage ranking dataset (TF-IDF projection)",
+            "description": "MS MARCO passage ranking dataset (TF-IDF projection or pre-embedded vectors)",
             "dimensions": None,
             "size": None,
             "url": None
@@ -286,9 +289,10 @@ class Dataset:
         elif self.name == "glove50":
             self._process_glove()
         elif self.name == "msmarco":
-            self._process_msmarco()
-        elif self.name == "msmarco":
-            self._process_msmarco()
+            if self.options.get("use_preembedded", False) or self.options.get("preembedded_passage_dir"):
+                self._process_msmarco_preembedded()
+            else:
+                self._process_msmarco_tfidf()
 
     def _read_fvecs(self, filename: str) -> np.ndarray:
         """
@@ -420,10 +424,12 @@ class Dataset:
     # ------------------------------------------------------------------
     # MS MARCO processing helpers
     # ------------------------------------------------------------------
-    def _process_msmarco(self) -> None:
+    def _process_msmarco_tfidf(self) -> None:
         """Process MS MARCO parquet files into TF-IDF vector representations."""
         try:
             import pyarrow.parquet as pq  # type: ignore
+            import pyarrow as pa  # type: ignore
+            import pyarrow as pa  # type: ignore
         except ImportError as exc:  # pragma: no cover - dependency managed via requirements
             raise ImportError(
                 "pyarrow is required to load the MS MARCO dataset. Install pyarrow>=8.0.0"
@@ -445,7 +451,6 @@ class Dataset:
 
         base_path = os.path.join(self.data_dir, version, f"{base_split}.parquet")
         query_path = os.path.join(self.data_dir, version, f"{query_split}.parquet")
-
         if not os.path.exists(base_path):
             raise FileNotFoundError(f"MS MARCO base split not found: {base_path}")
         if not os.path.exists(query_path):
@@ -603,6 +608,474 @@ class Dataset:
         self.ground_truth = ground_truth
 
         print("MS MARCO dataset processed:")
+        print(f"  Documents: {self.train_vectors.shape}")
+        print(f"  Queries: {self.test_vectors.shape}")
+        print(f"  Ground truth width: {self.ground_truth.shape[1]}")
+
+    def _process_msmarco_preembedded(self) -> None:
+        """Load pre-embedded MS MARCO passages and queries from parquet files."""
+        try:
+            import pyarrow.parquet as pq  # type: ignore
+            import pyarrow as pa  # type: ignore
+        except ImportError as exc:  # pragma: no cover - dependency managed via requirements
+            raise ImportError(
+                "pyarrow is required to load the MS MARCO dataset. Install pyarrow>=8.0.0"
+            ) from exc
+
+        batch_size = int(self.options.get("batch_size", 128))
+        base_limit = int(self.options.get("base_limit", 5000))
+        query_limit = int(self.options.get("query_limit", 1000))
+        ground_truth_k = int(self.options.get("ground_truth_k", 10))
+        candidate_limit = int(self.options.get("relevance_candidates_limit", max(ground_truth_k, 100)))
+
+        passage_dir = self.options.get("preembedded_passage_dir")
+        query_dir = self.options.get("preembedded_query_dir")
+
+        if passage_dir is None:
+            root = self.options.get("preembedded_root", self.data_dir)
+            passage_dir = os.path.join(root, "passages_parquet")
+        if query_dir is None:
+            root = self.options.get("preembedded_root", self.data_dir)
+            query_dir = os.path.join(root, "queries_parquet")
+
+        passage_dir_path = Path(passage_dir)
+        query_dir_path = Path(query_dir)
+
+        if not passage_dir_path.exists():
+            raise FileNotFoundError(f"Pre-embedded passage directory not found: {passage_dir_path}")
+        if not query_dir_path.exists():
+            raise FileNotFoundError(f"Pre-embedded query directory not found: {query_dir_path}")
+
+        passage_paths = sorted(passage_dir_path.rglob("*.parquet"))
+        query_paths = sorted(query_dir_path.rglob("*.parquet"))
+
+        if not passage_paths:
+            raise FileNotFoundError(f"No parquet files found in {passage_dir_path}")
+        if not query_paths:
+            raise FileNotFoundError(f"No parquet files found in {query_dir_path}")
+
+        def is_vector_field(field: pa.Field) -> bool:
+            field_type = field.type
+
+            if pa.types.is_fixed_size_list(field_type):
+                return pa.types.is_floating(field_type.value_type)
+
+            if pa.types.is_list(field_type) or pa.types.is_large_list(field_type):
+                value_field = field_type.value_field
+                value_type = value_field.type
+
+                if pa.types.is_fixed_size_list(value_type):
+                    return pa.types.is_floating(value_type.value_type)
+
+                return pa.types.is_floating(value_type)
+
+            return False
+
+        def select_column(
+            paths: Sequence[Path],
+            requested: Optional[Any],
+            fallbacks: Sequence[str],
+            required: bool,
+            context: str,
+            require_vector: bool = False,
+        ) -> Optional[str]:
+            def normalise(value: Optional[Any]) -> List[str]:
+                if value is None:
+                    return []
+                if isinstance(value, str):
+                    return [value]
+                if isinstance(value, Sequence):
+                    return [str(v) for v in value]
+                return [str(value)]
+
+            candidates: List[str] = []
+            candidates.extend(normalise(requested))
+            for fb in fallbacks:
+                if fb not in candidates:
+                    candidates.append(fb)
+
+            first_available: Optional[List[str]] = None
+
+            for path in paths:
+                pf = pq.ParquetFile(path)
+                arrow_schema = getattr(pf, "schema_arrow", None)
+                if arrow_schema is None:
+                    arrow_schema = pf.schema.to_arrow_schema()
+
+
+                field_lookup = {field.name: field for field in arrow_schema}
+                schema_names = set(field_lookup.keys())
+
+                if first_available is None:
+                    first_available = list(field_lookup.keys())
+
+                logger.debug(
+                    "select_column context=%s path=%s candidates=%s schema=%s",
+                    context,
+                    path,
+                    candidates,
+                    list(field_lookup.keys()),
+                )
+
+                for candidate in candidates:
+                    logger.debug("evaluating candidate=%s for context=%s", candidate, context)
+                    if candidate in schema_names:
+                        field = field_lookup.get(candidate)
+                        if not require_vector:
+                            return candidate
+                        if field is None or is_vector_field(field):
+                            return candidate
+
+                    field = field_lookup.get(candidate)
+                    if field is not None and pa.types.is_struct(field.type):
+                        for child in field.type:
+                            if child.name in {"values", "list", "array"} and is_vector_field(child):
+                                return f"{candidate}.{child.name}"
+
+            if required and require_vector:
+                for path in paths:
+                    pf = pq.ParquetFile(path)
+                    arrow_schema = getattr(pf, "schema_arrow", None)
+                    if arrow_schema is None:
+                        arrow_schema = pf.schema.to_arrow_schema()
+
+                    for field in arrow_schema:
+                        if is_vector_field(field):
+                            return field.name
+
+                        if pa.types.is_struct(field.type):
+                            for child in field.type:
+                                if is_vector_field(child):
+                                    return f"{field.name}.{child.name}"
+
+                message = (
+                    "Could not locate required column for "
+                    f"{context}. Checked candidates: {candidates}. "
+                    f"Available top-level columns include: {first_available or []}"
+                )
+                logger.error(message)
+                raise ValueError(message)
+            return None
+
+        passage_embedding_column = select_column(
+            passage_paths,
+            self.options.get("passage_embedding_column"),
+            ["emb", "embedding", "vector"],
+            True,
+            "passage embeddings",
+            require_vector=True,
+        )
+
+        passage_id_column = select_column(
+            passage_paths,
+            self.options.get("passage_id_column"),
+            ["_id", "id", "doc_id", "passage_id"],
+            False,
+            "passage identifiers",
+        )
+
+        query_embedding_column = select_column(
+            query_paths,
+            self.options.get("query_embedding_column"),
+            ["emb", "embedding", "vector"],
+            True,
+            "query embeddings",
+            require_vector=True,
+        )
+
+        query_relevance_column = select_column(
+            query_paths,
+            self.options.get("query_relevance_column"),
+            [
+                "top1k_passage_ids",
+                "positive_passage_ids",
+                "doc_ids",
+                "positive_passages",
+                "qrels",
+            ],
+            False,
+            "query relevance passage identifiers",
+        )
+
+        query_relevance_offsets_column = select_column(
+            query_paths,
+            self.options.get("query_relevance_offsets_column"),
+            ["top1k_offsets", "positive_passage_offsets", "offsets"],
+            False,
+            "query relevance passage offsets",
+        )
+
+        if query_relevance_column is None:
+            query_relevance_column = select_column(
+                query_paths,
+                None,
+                ["top1k_passage_ids", "positive_passages", "qrels"],
+                False,
+                "query relevance identifiers",
+            )
+
+        if query_relevance_offsets_column is None:
+            query_relevance_offsets_column = select_column(
+                query_paths,
+                None,
+                ["top1k_offsets", "positive_passage_offsets"],
+                False,
+                "query relevance offsets",
+            )
+
+        logger.debug(
+            "MS MARCO pre-embedded query columns -> embeddings: %s ids: %s offsets: %s",
+            query_embedding_column,
+            query_relevance_column,
+            query_relevance_offsets_column,
+        )
+
+        if query_relevance_column is None and query_relevance_offsets_column is None:
+            available = []
+            for path in query_paths:
+                pf = pq.ParquetFile(path)
+                arrow_schema = getattr(pf, "schema_arrow", None)
+                if arrow_schema is None:
+                    arrow_schema = pf.schema.to_arrow_schema()
+                available.extend(arrow_schema.names)
+                break
+            message = (
+                "MS MARCO pre-embedded queries require either a relevance id column or an offset column."
+                f" Observed columns: {available}"
+            )
+            logger.error(message)
+            raise ValueError(message)
+
+        # ------------------------------------------------------------------
+        # Pass 1: Read queries to collect embeddings and relevance references
+        # ------------------------------------------------------------------
+        queries_raw: List[Tuple[np.ndarray, List[str], List[int]]] = []
+        needed_doc_ids: set[str] = set()
+        needed_offsets: set[int] = set()
+
+        for path in query_paths:
+            pf = pq.ParquetFile(path)
+            columns = [query_embedding_column]
+            if query_relevance_column:
+                columns.append(query_relevance_column)
+            if query_relevance_offsets_column and query_relevance_offsets_column not in columns:
+                columns.append(query_relevance_offsets_column)
+
+            for batch in pf.iter_batches(columns=columns, batch_size=batch_size):
+                data = batch.to_pydict()
+                if not data:
+                    continue
+
+                batch_len = len(next(iter(data.values())))
+                for i in range(batch_len):
+                    embedding = data[query_embedding_column][i]
+                    if embedding is None:
+                        continue
+
+                    vector = np.asarray(embedding, dtype=np.float32)
+                    if vector.ndim == 2 and vector.shape[0] == 1:
+                        vector = vector[0]
+                    if vector.ndim != 1:
+                        raise ValueError(f"Unexpected embedding shape for query row: {vector.shape}")
+
+                    id_candidates: List[str] = []
+                    if query_relevance_column:
+                        raw_ids = data.get(query_relevance_column, [None])[i]
+
+                        if isinstance(raw_ids, dict):
+                            raw_ids = list(raw_ids.keys())
+
+                        candidates_iterable = list(raw_ids or [])
+
+                        for entry in candidates_iterable[:candidate_limit]:
+                            if entry is None:
+                                continue
+
+                            doc_id = None
+
+                            if isinstance(entry, (list, tuple)):
+                                doc_id = entry[0] if entry else None
+                            elif isinstance(entry, dict):
+                                doc_id = entry.get("doc_id") or entry.get("passage_id")
+                            else:
+                                doc_id = entry
+
+                            if doc_id is None:
+                                continue
+
+                            doc_str = str(doc_id)
+                            id_candidates.append(doc_str)
+                            needed_doc_ids.add(doc_str)
+
+                    offset_candidates: List[int] = []
+                    if query_relevance_offsets_column:
+                        raw_offsets = data.get(query_relevance_offsets_column, [None])[i]
+
+                        candidates_iterable = list(raw_offsets or [])
+
+                        for entry in candidates_iterable[:candidate_limit]:
+                            offset_value = None
+
+                            if isinstance(entry, (list, tuple)):
+                                offset_value = entry[0] if entry else None
+                            elif isinstance(entry, dict):
+                                offset_value = entry.get("offset") or entry.get("passage_offset")
+                            else:
+                                offset_value = entry
+
+                            try:
+                                offset_int = int(offset_value)
+                            except (TypeError, ValueError):
+                                continue
+
+                            offset_candidates.append(offset_int)
+                            needed_offsets.add(offset_int)
+
+                    queries_raw.append((vector, id_candidates, offset_candidates))
+
+                    if query_limit and len(queries_raw) >= query_limit:
+                        break
+
+                if query_limit and len(queries_raw) >= query_limit:
+                    break
+            if query_limit and len(queries_raw) >= query_limit:
+                break
+
+        if not queries_raw:
+            raise ValueError("No queries were loaded from the pre-embedded dataset.")
+
+        # ------------------------------------------------------------------
+        # Pass 2: Read passages, ensuring coverage for required doc ids/offsets
+        # ------------------------------------------------------------------
+        doc_vectors: List[np.ndarray] = []
+        doc_id_to_index: Dict[str, int] = {}
+        offset_to_index: Dict[int, int] = {}
+
+        global_offset = 0
+
+        def add_passage(vector: np.ndarray, doc_identifier: Optional[str], offset: int) -> None:
+            local_idx = len(doc_vectors)
+            doc_vectors.append(vector)
+            offset_to_index[offset] = local_idx
+            if doc_identifier is not None and doc_identifier not in doc_id_to_index:
+                doc_id_to_index[doc_identifier] = local_idx
+
+        for path in passage_paths:
+            pf = pq.ParquetFile(path)
+            columns = [passage_embedding_column]
+            if passage_id_column:
+                columns.append(passage_id_column)
+
+            for batch in pf.iter_batches(columns=columns, batch_size=batch_size):
+                data = batch.to_pydict()
+                if not data:
+                    continue
+
+                embeddings = data[passage_embedding_column]
+                ids = data.get(passage_id_column) if passage_id_column else None
+
+                batch_len = len(embeddings)
+                for i in range(batch_len):
+                    embedding = embeddings[i]
+                    doc_identifier = None
+                    if passage_id_column and ids is not None:
+                        doc_identifier = ids[i]
+                        doc_identifier = str(doc_identifier) if doc_identifier is not None else None
+
+                    vector = np.asarray(embedding, dtype=np.float32) if embedding is not None else None
+                    if vector is not None and vector.ndim == 2 and vector.shape[0] == 1:
+                        vector = vector[0]
+
+                    should_add = False
+                    if vector is not None and vector.ndim == 1:
+                        if base_limit <= 0 or len(doc_vectors) < base_limit:
+                            should_add = True
+                        elif doc_identifier is not None and doc_identifier in needed_doc_ids and doc_identifier not in doc_id_to_index:
+                            should_add = True
+                        elif global_offset in needed_offsets and global_offset not in offset_to_index:
+                            should_add = True
+
+                    if should_add and vector is not None:
+                        add_passage(vector, doc_identifier, global_offset)
+
+                    global_offset += 1
+
+                if base_limit > 0 and len(doc_vectors) >= base_limit and \
+                    needed_doc_ids.issubset(doc_id_to_index.keys()) and \
+                        needed_offsets.issubset(offset_to_index.keys()):
+                    break
+
+            if base_limit > 0 and len(doc_vectors) >= base_limit and \
+                needed_doc_ids.issubset(doc_id_to_index.keys()) and \
+                    needed_offsets.issubset(offset_to_index.keys()):
+                break
+
+        if not doc_vectors:
+            raise ValueError("No passages with embeddings were loaded from the pre-embedded dataset.")
+
+        self.train_vectors = np.vstack(doc_vectors)
+
+        missing_ids = needed_doc_ids.difference(doc_id_to_index.keys())
+        missing_offsets = needed_offsets.difference(offset_to_index.keys())
+
+        if missing_ids or missing_offsets:
+            print(
+                "Warning: Could not load all requested ground-truth passages. "
+                f"Missing ids: {len(missing_ids)}, missing offsets: {len(missing_offsets)}"
+            )
+
+        # ------------------------------------------------------------------
+        # Pass 3: Build query vectors and align ground truth indices
+        # ------------------------------------------------------------------
+        query_vectors: List[np.ndarray] = []
+        positives: List[List[int]] = []
+
+        for vector, id_candidates, offset_candidates in queries_raw:
+            relevant_indices: List[int] = []
+            seen: set[int] = set()
+
+            for doc_identifier in id_candidates:
+                idx = doc_id_to_index.get(doc_identifier)
+                if idx is None or idx in seen:
+                    continue
+                relevant_indices.append(idx)
+                seen.add(idx)
+                if len(relevant_indices) >= ground_truth_k:
+                    break
+
+            if len(relevant_indices) < ground_truth_k:
+                for offset in offset_candidates:
+                    idx = offset_to_index.get(offset)
+                    if idx is None or idx in seen:
+                        continue
+                    relevant_indices.append(idx)
+                    seen.add(idx)
+                    if len(relevant_indices) >= ground_truth_k:
+                        break
+
+            if not relevant_indices:
+                continue
+
+            query_vectors.append(vector)
+            positives.append(relevant_indices)
+
+        if not query_vectors:
+            raise ValueError("No queries with matching ground-truth passages were loaded.")
+
+        self.test_vectors = np.vstack(query_vectors)
+
+        max_relevant = max((len(p) for p in positives), default=0)
+        effective_k = max(1, min(ground_truth_k, max_relevant))
+
+        ground_truth = np.zeros((len(positives), effective_k), dtype=np.int32)
+        for i, relevant_docs in enumerate(positives):
+            for j in range(effective_k):
+                idx = relevant_docs[j] if j < len(relevant_docs) else relevant_docs[-1]
+                ground_truth[i, j] = idx
+
+        self.ground_truth = ground_truth
+
+        print("MS MARCO pre-embedded dataset processed:")
         print(f"  Documents: {self.train_vectors.shape}")
         print(f"  Queries: {self.test_vectors.shape}")
         print(f"  Ground truth width: {self.ground_truth.shape[1]}")

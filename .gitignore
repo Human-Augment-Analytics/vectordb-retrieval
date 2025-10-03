@@ -46,3 +46,4 @@ benchmark_results/
 results/
 charts/
 figures/!/data/
+singlerun.sbatch

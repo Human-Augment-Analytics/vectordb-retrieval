@@ -71,9 +71,9 @@ datasets:
       passage_id_column: _id
       query_relevance_column: top1k_passage_ids
       query_relevance_offsets_column: top1k_offsets
-      relevance_candidates_limit: 128
-      base_limit: 8000
-      query_limit: 2000
+      relevance_candidates_limit: 32
+      base_limit: 50000
+      query_limit: 1000
       ground_truth_k: 10
       cache_dir: /storage/ice-shared/cs8903onl/vectordb-retrieval/results/cache
     algorithms:

@@ -2,7 +2,7 @@
 
 # Dataset configuration
 dataset: "random"  # Use random dataset for testing
-data_dir: "data"
+data_dir: "/storage/ice-shared/cs8903onl/vectordb-retrieval/datasets"
 force_download: false
 metric: "l2"  # Distance metric shared across algorithms
 

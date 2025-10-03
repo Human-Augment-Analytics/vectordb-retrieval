@@ -6,7 +6,7 @@ import datetime
 import copy
 import yaml
 from pathlib import Path
-from typing import Dict, Any, Tuple
+from typing import Dict, Any, Tuple, Optional
 
 from ..experiments.config import ExperimentConfig
 from ..experiments.experiment_runner import ExperimentRunner
@@ -27,7 +27,16 @@ class BenchmarkRunner:
         """
         self.config_file = config_file
         self.timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        self.output_dir = os.path.join(output_dir, f"benchmark_{self.timestamp}")
+
+        # Load configuration early so we can honor repository-level paths.
+        with open(config_file, 'r') as f:
+            self.config = json.load(f) if config_file.endswith('.json') else yaml.safe_load(f)
+
+        self.global_indexers = copy.deepcopy(self.config.get('indexers', {}))
+        self.global_searchers = copy.deepcopy(self.config.get('searchers', {}))
+
+        base_output_dir = self.config.get('output_dir', output_dir)
+        self.output_dir = os.path.join(base_output_dir, f"benchmark_{self.timestamp}")
 
         # Create output directory
         os.makedirs(self.output_dir, exist_ok=True)
@@ -35,10 +44,6 @@ class BenchmarkRunner:
         # Set up logging
         self.log_file = os.path.join(self.output_dir, "benchmark.log")
         self.logger = self._setup_logging()
-
-        # Load configuration
-        with open(config_file, 'r') as f:
-            self.config = json.load(f) if config_file.endswith('.json') else yaml.safe_load(f)
 
         self.logger.info(f"Loaded benchmark configuration from {config_file}")
         self.logger.info(f"Output directory: {self.output_dir}")
@@ -93,6 +98,10 @@ class BenchmarkRunner:
 
             dataset_metric = dataset_options.get('metric')
             dataset_algorithms_override = dataset_options.get('algorithms', {})
+            dataset_specific_options = copy.deepcopy(
+                dataset_options.get('dataset_options') or dataset_options.get('options') or {}
+            )
+            dataset_data_dir = dataset_options.get('data_dir', self.config.get('data_dir', 'data'))
 
             # Apply dataset-specific overrides while keeping base algorithm definitions intact.
             base_algorithms = copy.deepcopy(self.config.get('algorithms', {}))
@@ -106,6 +115,8 @@ class BenchmarkRunner:
                 if dataset_metric is not None:
                     merged_config['metric'] = dataset_metric
 
+                self._resolve_modular_components(merged_config)
+
                 algorithms_for_dataset[alg_name] = merged_config
 
             # Include overrides for algorithms defined only at the dataset level.
@@ -114,11 +125,12 @@ class BenchmarkRunner:
                     merged_override = copy.deepcopy(override_config)
                     if dataset_metric is not None and 'metric' not in merged_override:
                         merged_override['metric'] = dataset_metric
+                    self._resolve_modular_components(merged_override)
                     algorithms_for_dataset[alg_name] = merged_override
 
             experiment_kwargs = dict(
                 dataset=dataset_name,
-                data_dir=self.config.get('data_dir', 'data'),
+                data_dir=dataset_data_dir,
                 force_download=self.config.get('force_download', False),
                 n_queries=dataset_options.get('n_queries', self.config.get('n_queries', 1000)),
                 topk=dataset_options.get('topk', self.config.get('topk', 100)),
@@ -130,6 +142,8 @@ class BenchmarkRunner:
 
             if dataset_metric is not None:
                 experiment_kwargs['metric'] = dataset_metric
+            if dataset_specific_options:
+                experiment_kwargs['dataset_options'] = dataset_specific_options
             experiment_config = ExperimentConfig(**experiment_kwargs)
 
             # Run experiments for this dataset
@@ -187,6 +201,90 @@ class BenchmarkRunner:
         self.logger.info(f"Benchmark completed in {end_time - start_time:.2f} seconds")
 
         return self.all_results
+
+    @staticmethod
+    def _deep_merge_dict(base: Dict[str, Any], updates: Dict[str, Any]) -> Dict[str, Any]:
+        """Recursively merge dictionary values without mutating inputs."""
+        result = copy.deepcopy(base)
+        for key, value in updates.items():
+            if (
+                key in result
+                and isinstance(result[key], dict)
+                and isinstance(value, dict)
+            ):
+                result[key] = BenchmarkRunner._deep_merge_dict(result[key], value)
+            else:
+                result[key] = copy.deepcopy(value)
+        return result
+
+    def _materialize_component(
+        self,
+        ref_name: Optional[str],
+        inline_cfg: Optional[Any],
+        registry: Dict[str, Dict[str, Any]],
+        component_label: str,
+    ) -> Optional[Dict[str, Any]]:
+        """Resolve component configuration from references/overrides."""
+
+        config: Optional[Dict[str, Any]] = None
+
+        if ref_name:
+            if ref_name not in registry:
+                raise ValueError(
+                    f"Unknown {component_label} reference '{ref_name}'. Available: {list(registry.keys())}"
+                )
+            config = copy.deepcopy(registry[ref_name])
+
+        if inline_cfg is None:
+            return config
+
+        if isinstance(inline_cfg, str):
+            # Treat direct string as a reference
+            if inline_cfg not in registry:
+                raise ValueError(
+                    f"Unknown {component_label} reference '{inline_cfg}'. Available: {list(registry.keys())}"
+                )
+            inline_dict = copy.deepcopy(registry[inline_cfg])
+        elif isinstance(inline_cfg, dict):
+            inline_dict = copy.deepcopy(inline_cfg)
+        else:
+            raise TypeError(
+                f"{component_label.capitalize()} configuration must be a dict or string reference, got {type(inline_cfg)}"
+            )
+
+        if config is None:
+            config = inline_dict
+        else:
+            config = self._deep_merge_dict(config, inline_dict)
+
+        return config
+
+    def _resolve_modular_components(self, algorithm_config: Dict[str, Any]) -> None:
+        """Inject resolved indexer/searcher configs for modular algorithms if present."""
+
+        indexer_ref = algorithm_config.pop('indexer_ref', None)
+        searcher_ref = algorithm_config.pop('searcher_ref', None)
+
+        indexer_cfg = self._materialize_component(
+            indexer_ref,
+            algorithm_config.get('indexer'),
+            self.global_indexers,
+            'indexer'
+        )
+        searcher_cfg = self._materialize_component(
+            searcher_ref,
+            algorithm_config.get('searcher'),
+            self.global_searchers,
+            'searcher'
+        )
+
+        if indexer_cfg is not None:
+            algorithm_config['indexer'] = indexer_cfg
+        if searcher_cfg is not None:
+            algorithm_config['searcher'] = searcher_cfg
+
+        if indexer_cfg is not None or searcher_cfg is not None:
+            algorithm_config.setdefault('type', 'Composite')
 
     def _normalize_dataset_entry(self, entry: Any) -> Tuple[str, Dict[str, Any]]:
         """Convert dataset configuration entries into a uniform structure."""

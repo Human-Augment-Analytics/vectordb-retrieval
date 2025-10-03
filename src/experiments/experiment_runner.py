@@ -239,4 +239,7 @@ class ExperimentRunner:
         os.makedirs(plots_dir, exist_ok=True)
 
         plot_path = os.path.join(plots_dir, "recall_vs_qps.png")
-        evaluator.plot_recall_vs_qps(output_file=plot_path)
+        evaluator.plot_recall_vs_qps(
+            output_file=plot_path,
+            title_suffix=self.config.dataset,
+        )

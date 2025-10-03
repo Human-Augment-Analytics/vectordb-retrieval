@@ -90,7 +90,11 @@ class Evaluator:
         print("\nEvaluation Results:\n")
         print(df[available_metrics].round(4))
 
-    def plot_recall_vs_qps(self, output_file: Optional[str] = None):
+    def plot_recall_vs_qps(
+        self,
+        output_file: Optional[str] = None,
+        title_suffix: Optional[str] = None,
+    ) -> None:
         """
         Plot recall@k vs queries per second for all algorithms.
 
@@ -120,7 +124,10 @@ class Evaluator:
         # Set axis labels and title
         ax.set_xlabel('Queries Per Second (QPS)')
         ax.set_ylabel('Recall@10')
-        ax.set_title('Retrieval Accuracy vs Speed')
+        title = 'Retrieval Accuracy vs Speed'
+        if title_suffix:
+            title = f"{title} — {title_suffix}"
+        ax.set_title(title)
 
         # Add grid and set axis limits
         ax.grid(True, linestyle='--', alpha=0.7)
@@ -129,6 +136,7 @@ class Evaluator:
 
         # Save or show the plot
         if output_file:
+            plt.tight_layout()
             plt.savefig(output_file, dpi=300, bbox_inches='tight')
             print(f"Plot saved to {output_file}")
         else:

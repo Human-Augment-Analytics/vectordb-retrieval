@@ -315,17 +315,39 @@ class BenchmarkRunner:
 
                 # Algorithm performance table
                 f.write(f"### Algorithm Performance\n\n")
-                f.write(f"| Algorithm | Recall@{self.config.get('topk', 100)} | QPS | Mean Query Time (ms) | Build Time (s) | Index Memory (MB) |\n")
-                f.write(f"|-----------|-----------|-----|----------------------|----------------|-------------------|\n")
+                f.write("| Algorithm | Recall | QPS | Mean Query Time (ms) | Build Time (s) | Index Memory (MB) |\n")
+                f.write("|-----------|--------|-----|----------------------|----------------|-------------------|\n")
 
                 for alg_name, alg_results in results.items():
-                    recall = alg_results.get('recall', 0)
+                    recall_display = "0.0000"
+                    recall_value = alg_results.get('recall')
+                    recall_key = None
+
+                    if recall_value is not None:
+                        recall_key = 'summary'
+                    else:
+                        recall_metrics = [
+                            key for key in alg_results.keys()
+                            if key.startswith('recall@') and alg_results.get(key) is not None
+                        ]
+                        if recall_metrics:
+                            recall_metrics.sort(key=lambda k: int(k.split('@')[-1]))
+                            recall_key = recall_metrics[-1]
+                            recall_value = alg_results[recall_key]
+
+                    if recall_value is not None:
+                        if recall_key and recall_key.startswith('recall@'):
+                            cutoff = recall_key.split('@')[-1]
+                            recall_display = f"{recall_value:.4f} (@{cutoff})"
+                        else:
+                            recall_display = f"{recall_value:.4f}"
+
                     qps = alg_results.get('qps', 0)
                     query_time = alg_results.get('mean_query_time_ms', 0)
                     build_time = alg_results.get('build_time_s', 0)
                     memory = alg_results.get('index_memory_mb', 0)
 
-                    f.write(f"| {alg_name} | {recall:.4f} | {qps:.2f}| {query_time:.2f} | {build_time:.2f} | {memory:.2f} |\n")
+                    f.write(f"| {alg_name} | {recall_display} | {qps:.2f}| {query_time:.2f} | {build_time:.2f} | {memory:.2f} |\n")
 
                 f.write(f"\n\n")
 

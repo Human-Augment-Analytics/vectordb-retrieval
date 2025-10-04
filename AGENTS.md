@@ -44,8 +44,8 @@ This is a research repository for benchmarking the existing vector DB retrieval 
 - Do not store secrets or API keys in YAML configs.
 
 ## PACE Cluster Usage (SLURM)
-- Submit long runs with SLURM (`sbatch singlerun.sbatch`) on the PACE cluster; the script now reuses the Conda environment at `$HOME/miniconda3/envs/vectordb-retrieval` when it exists, falling back to creating a `uv` venv only on first use. Adjust `REPO_DIR`/`VENV_DIR` if your paths differ.
-- `singlerun.sbatch` launches `python scripts/run_full_benchmark.py --config configs/benchmark_config_ms.yaml` so the shared MS MARCO pre-embedded cache is exercised; increase `#SBATCH -t` for the initial cache build and reuse the cached pickle on subsequent runs.
+- Submit long runs with SLURM (`sbatch singlerun.sbatch`) on the PACE cluster; 
+- `singlerun.sbatch` launches `python scripts/run_full_benchmark.py --config configs/benchmark_config.yaml` so the shared MS MARCO pre-embedded cache is exercised; increase `#SBATCH -t` for the initial cache build and reuse the cached pickle on subsequent runs.
 - Keep walltime/CPU settings in sync with project needs; request more resources via the `#SBATCH` lines and notify maintainers if configs require different quotas.
 - Cluster-specific environment modules (e.g., GCC, OpenBLAS) should be loaded inside the script before dependency installation; document any additions in PR descriptions.
 - For interactive debugging use `srun --pty bash` with matching module loads, then reuse `uv` environments instead of re-installing requirements each run.
@@ -56,5 +56,5 @@ This is a research repository for benchmarking the existing vector DB retrieval 
 - Do not rename top-level dirs or public APIs without updating configs, scripts, and README.
 - When adding algorithms, place them in `src/algorithms/`, document guarantees in class docstrings, and add a minimal config example under `configs/`.
 - Prefer composing new retrieval variants by wiring `indexers` + `searchers` in YAML (see `configs/benchmark_config.yaml`) before adding new composite classes.
-- Prefer `/home/hice1/pli396/miniconda3/envs/vectordb-retrieval/bin/python  scripts/run_full_benchmark.py --config configs/benchmark_config_test1.yaml` for runnable examples; keep changes surgical and reproducible.
-- When benchmarking at larger cut-offs (e.g., top-1000), bump both `ground_truth_k` inside the dataset options and the global `topk` field so the cache keeps enough positives for metric evaluation.
+- Prefer `singlerun.sbatch` for runnable examples; keep changes surgical and reproducible.
+- keep readme.md and agents.mdup-to-date with new features and changes.

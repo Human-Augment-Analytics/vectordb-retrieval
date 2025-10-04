@@ -101,9 +101,19 @@ class ExperimentRunner:
                 metrics = evaluator.evaluate(name, indices, query_times)
                 self.results[name].update(metrics)
 
-                topk_key = f"recall@{self.config.topk}"
-                if topk_key in metrics:
-                    self.results[name]["recall"] = metrics[topk_key]
+                summary_k = min(100, self.config.topk)
+                summary_key = f"recall@{summary_k}"
+
+                if summary_key in metrics:
+                    self.results[name]["recall"] = metrics[summary_key]
+                elif metrics:
+                    # Fallback to the largest available recall metric
+                    available_recalls = sorted(
+                        (key for key in metrics if key.startswith("recall@")),
+                        key=lambda x: int(x.split("@")[-1])
+                    )
+                    if available_recalls:
+                        self.results[name]["recall"] = metrics[available_recalls[-1]]
 
         for name in self.results:
             self._save_algorithm_results(name, self.results[name])
@@ -229,4 +239,7 @@ class ExperimentRunner:
         os.makedirs(plots_dir, exist_ok=True)
 
         plot_path = os.path.join(plots_dir, "recall_vs_qps.png")
-        evaluator.plot_recall_vs_qps(output_file=plot_path)
+        evaluator.plot_recall_vs_qps(
+            output_file=plot_path,
+            title_suffix=self.config.dataset,
+        )

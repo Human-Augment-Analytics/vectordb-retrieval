@@ -1,5 +1,8 @@
 import numpy as np
-import faiss
+try:  # optional dependency
+    import faiss  # type: ignore
+except Exception:  # pragma: no cover
+    faiss = None  # type: ignore
 from typing import List, Dict, Any, Tuple, Optional
 from .base_algorithm import BaseAlgorithm
 
@@ -46,6 +49,8 @@ class HNSW(BaseAlgorithm):
             vectors: Vectors to index (n_vectors, dimension)
             metadata: Optional metadata for each vector
         """
+        if faiss is None:
+            raise ImportError("faiss is required for HNSW but is not installed")
         if vectors.shape[1] != self.dimension:
             raise ValueError(f"Expected vectors of dimension {self.dimension}, got {vectors.shape[1]}")
 
@@ -94,6 +99,8 @@ class HNSW(BaseAlgorithm):
         """
         if not self.index_built:
             raise RuntimeError("Index not built. Call build_index() first.")
+        if faiss is None:
+            raise ImportError("faiss is required for HNSW but is not installed")
 
         # Reshape query to (1, dimension) if needed
         if len(query.shape) == 1:
@@ -123,6 +130,8 @@ class HNSW(BaseAlgorithm):
         """
         if not self.index_built:
             raise RuntimeError("Index not built. Call build_index() first.")
+        if faiss is None:
+            raise ImportError("faiss is required for HNSW but is not installed")
 
         # Normalize queries for cosine similarity
         if self.metric == "cosine":
@@ -134,8 +143,33 @@ class HNSW(BaseAlgorithm):
                 out=np.zeros_like(queries_copy),
                 where=norms > 0,
             )
+            # Reset FAISS HNSW counters and search
+            try:
+                from ..utils.faiss_stats import reset_runtime_stats, read_distance_counts
+            except Exception:  # pragma: no cover
+                reset_runtime_stats = read_distance_counts = None  # type: ignore
+            if reset_runtime_stats is not None:
+                reset_runtime_stats(self.index)
             distances, indices = self.index.search(queries_copy, k)
         else:
+            try:
+                from ..utils.faiss_stats import reset_runtime_stats, read_distance_counts
+            except Exception:  # pragma: no cover
+                reset_runtime_stats = read_distance_counts = None  # type: ignore
+            if reset_runtime_stats is not None:
+                reset_runtime_stats(self.index)
             distances, indices = self.index.search(queries, k)
+
+        # Expose vector op counts when available
+        try:
+            from ..utils.faiss_stats import counters_are_v2v, read_distance_counts
+        except Exception:  # pragma: no cover
+            counters_are_v2v = read_distance_counts = None  # type: ignore
+        if read_distance_counts is not None:
+            _ivf, hnsw_ndis = read_distance_counts(self.index)
+            total_ndis = (hnsw_ndis or 0)
+            v2v_flag = (counters_are_v2v(self.index) if counters_are_v2v is not None else True)
+            self._last_v2v_ops = int(total_ndis) if v2v_flag else None
+            self._last_code_distance_ops = int(total_ndis) if not v2v_flag else None
 
         return distances, indices

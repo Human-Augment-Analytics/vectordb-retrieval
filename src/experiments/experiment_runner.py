@@ -158,6 +158,11 @@ class ExperimentRunner:
         query_times = np.zeros(len(test_queries), dtype=float)
 
         total_query_time = 0.0
+        total_v2v_ops: int = 0
+        total_code_ops: int = 0
+        total_ivf_ndis: int = 0
+        total_hnsw_ndis: int = 0
+
         for idx, query in enumerate(test_queries):
             single_start = time.time()
             _, single_indices = algorithm.search(query, k=k)
@@ -165,6 +170,21 @@ class ExperimentRunner:
             query_times[idx] = query_duration
             indices[idx] = single_indices
             total_query_time += query_duration
+
+            # Collect per-query operation counters when exposed by algorithm
+            v2v_ops = getattr(algorithm, "_last_v2v_ops", None)
+            code_ops = getattr(algorithm, "_last_code_distance_ops", None)
+            if isinstance(v2v_ops, int):
+                total_v2v_ops += v2v_ops
+            if isinstance(code_ops, int):
+                total_code_ops += code_ops
+            # Breakdown (best-effort, FAISS-only)
+            ivf_ndis = getattr(algorithm, "_last_faiss_ivf_ndis", None)
+            hnsw_ndis = getattr(algorithm, "_last_faiss_hnsw_ndis", None)
+            if isinstance(ivf_ndis, int):
+                total_ivf_ndis += ivf_ndis
+            if isinstance(hnsw_ndis, int):
+                total_hnsw_ndis += hnsw_ndis
 
         total_query_time = max(total_query_time, query_times.sum())
         mean_query_time_ms = (
@@ -190,6 +210,20 @@ class ExperimentRunner:
             "total_query_time_s": float(total_query_time),
             "timestamp": datetime.now().isoformat(),
         }
+
+        # Persist operation counts if any were observed
+        if total_v2v_ops > 0:
+            metrics["total_v2v_ops"] = int(total_v2v_ops)
+            metrics["avg_v2v_ops_per_query"] = float(total_v2v_ops / max(len(test_queries), 1))
+        if total_code_ops > 0:
+            metrics["total_code_distance_ops"] = int(total_code_ops)
+            metrics["avg_code_distance_ops_per_query"] = float(total_code_ops / max(len(test_queries), 1))
+        if total_ivf_ndis > 0:
+            metrics["faiss_total_ivf_ndis"] = int(total_ivf_ndis)
+            metrics["faiss_avg_ivf_ndis_per_query"] = float(total_ivf_ndis / max(len(test_queries), 1))
+        if total_hnsw_ndis > 0:
+            metrics["faiss_total_hnsw_ndis"] = int(total_hnsw_ndis)
+            metrics["faiss_avg_hnsw_ndis_per_query"] = float(total_hnsw_ndis / max(len(test_queries), 1))
 
         return metrics, indices, query_times
 

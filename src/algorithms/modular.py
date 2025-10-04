@@ -245,6 +245,11 @@ class LinearSearcher(BaseSearcher):
         if not self._prepared:
             raise RuntimeError("LinearSearcher not attached to an index")
         queries = self._prepare_query(queries)
+        # record exact vector-to-vector comparisons: nq * n
+        nq = int(queries.shape[0])
+        n = int(self._vectors.shape[0])
+        setattr(self, "_last_v2v_ops", nq * n)
+        setattr(self, "_last_code_distance_ops", None)
 
         if self.metric == "l2":
             # Compute squared L2 distances and take sqrt for final distances
@@ -334,7 +339,41 @@ class FaissSearcher(BaseSearcher):
         if not self._prepared:
             raise RuntimeError("FaissSearcher not attached to an index")
         queries = self._prepare_query(queries)
+        # Import faiss stats lazily to avoid hard dep for non-faiss users
+        try:
+            from ..utils.faiss_stats import reset_runtime_stats, read_distance_counts, counters_are_v2v, classify_index
+        except Exception:  # pragma: no cover
+            reset_runtime_stats = read_distance_counts = counters_are_v2v = classify_index = None  # type: ignore
+
+        # Reset FAISS runtime counters (best-effort)
+        if reset_runtime_stats is not None:
+            reset_runtime_stats(self.index)
+
         distances, indices = self.index.search(queries, k)
+
+        # Collect vector-to-vector operation counts if available
+        if read_distance_counts is not None:
+            ivf_ndis, hnsw_ndis = read_distance_counts(self.index)
+            total_ndis = (ivf_ndis or 0) + (hnsw_ndis or 0)
+            v2v_flag = counters_are_v2v(self.index) if counters_are_v2v is not None else None
+            kind = classify_index(self.index) if classify_index is not None else "unknown"
+            # Expose lightweight metrics on the instance for the experiment runner to read
+            setattr(self, "_last_v2v_ops", int(total_ndis) if v2v_flag else None)
+            setattr(self, "_last_code_distance_ops", int(total_ndis) if (v2v_flag is False) else None)
+            setattr(self, "_last_faiss_index_kind", kind)
+            # Breakdown counters
+            setattr(self, "_last_faiss_ivf_ndis", int(ivf_ndis) if ivf_ndis is not None else None)
+            setattr(self, "_last_faiss_hnsw_ndis", int(hnsw_ndis) if hnsw_ndis is not None else None)
+        else:
+            # If stats not available but index is flat, compute exact ops
+            try:
+                kind = classify_index(self.index) if classify_index is not None else None
+                if kind == "flat" and hasattr(self.index, "ntotal"):
+                    nq = int(queries.shape[0])
+                    self._last_v2v_ops = nq * int(self.index.ntotal)
+                    self._last_code_distance_ops = None
+            except Exception:
+                pass
 
         if self.metric in {"cosine", "ip"}:
             distances = -distances
@@ -407,12 +446,25 @@ class CompositeAlgorithm(BaseAlgorithm):
     def search(self, query: np.ndarray, k: int = 10) -> Tuple[np.ndarray, np.ndarray]:
         if not self.index_built:
             raise RuntimeError("Index has not been built for this algorithm")
-        return self.searcher.search(query, k)
+        distances, indices = self.searcher.search(query, k)
+        # propagate per-call counters if present
+        self._last_v2v_ops = getattr(self.searcher, "_last_v2v_ops", None)
+        self._last_code_distance_ops = getattr(self.searcher, "_last_code_distance_ops", None)
+        self._last_faiss_index_kind = getattr(self.searcher, "_last_faiss_index_kind", None)
+        self._last_faiss_ivf_ndis = getattr(self.searcher, "_last_faiss_ivf_ndis", None)
+        self._last_faiss_hnsw_ndis = getattr(self.searcher, "_last_faiss_hnsw_ndis", None)
+        return distances, indices
 
     def batch_search(self, queries: np.ndarray, k: int = 10) -> Tuple[np.ndarray, np.ndarray]:
         if not self.index_built:
             raise RuntimeError("Index has not been built for this algorithm")
-        return self.searcher.batch_search(queries, k)
+        distances, indices = self.searcher.batch_search(queries, k)
+        self._last_v2v_ops = getattr(self.searcher, "_last_v2v_ops", None)
+        self._last_code_distance_ops = getattr(self.searcher, "_last_code_distance_ops", None)
+        self._last_faiss_index_kind = getattr(self.searcher, "_last_faiss_index_kind", None)
+        self._last_faiss_ivf_ndis = getattr(self.searcher, "_last_faiss_ivf_ndis", None)
+        self._last_faiss_hnsw_ndis = getattr(self.searcher, "_last_faiss_hnsw_ndis", None)
+        return distances, indices
 
 
 __all__ = [

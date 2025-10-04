@@ -60,6 +60,11 @@ class ExactSearch(BaseAlgorithm):
         k = min(k, len(distances))  # Handle case where k > number of vectors
         indices = np.argsort(distances)[:k]
 
+        # Expose last-call counts: v2v comparisons with one query = n
+        n = int(self.index.shape[0]) if self.index is not None else 0
+        self._last_v2v_ops = n
+        self._last_code_distance_ops = None
+
         return indices
 
     def batch_search(self, queries: np.ndarray, k: int) -> List[np.ndarray]:
@@ -74,6 +79,11 @@ class ExactSearch(BaseAlgorithm):
             List of arrays containing indices of nearest neighbors for each query
         """
         results = []
+        # For batch: exact v2v ops = nq * n
+        nq = int(queries.shape[0])
+        n = int(self.index.shape[0]) if self.index is not None else 0
+        self._last_v2v_ops = nq * n
+        self._last_code_distance_ops = None
         for i in range(queries.shape[0]):
             results.append(self.search(queries[i], k))
         return results

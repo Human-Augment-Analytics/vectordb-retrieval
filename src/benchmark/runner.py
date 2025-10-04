@@ -315,8 +315,12 @@ class BenchmarkRunner:
 
                 # Algorithm performance table
                 f.write(f"### Algorithm Performance\n\n")
-                f.write(f"| Algorithm | Recall@{self.config.get('topk', 100)} | QPS | Mean Query Time (ms) | Build Time (s) | Index Memory (MB) |\n")
-                f.write(f"|-----------|-----------|-----|----------------------|----------------|-------------------|\n")
+                f.write(
+                    f"| Algorithm | Recall@{self.config.get('topk', 100)} | QPS | Mean Query Time (ms) | Build Time (s) | Index Memory (MB) | Avg V2V Ops/Query |\n"
+                )
+                f.write(
+                    f"|-----------|-----------|-----|----------------------|----------------|-------------------|-------------------|\n"
+                )
 
                 for alg_name, alg_results in results.items():
                     recall = alg_results.get('recall', 0)
@@ -325,7 +329,10 @@ class BenchmarkRunner:
                     build_time = alg_results.get('build_time_s', 0)
                     memory = alg_results.get('index_memory_mb', 0)
 
-                    f.write(f"| {alg_name} | {recall:.4f} | {qps:.2f}| {query_time:.2f} | {build_time:.2f} | {memory:.2f} |\n")
+                    avg_v2v = alg_results.get('avg_v2v_ops_per_query', 0)
+                    f.write(
+                        f"| {alg_name} | {recall:.4f} | {qps:.2f}| {query_time:.2f} | {build_time:.2f} | {memory:.2f} | {avg_v2v:.2f} |\n"
+                    )
 
                 f.write(f"\n\n")
 

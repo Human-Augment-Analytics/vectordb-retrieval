@@ -117,3 +117,26 @@ To add a new algorithm for benchmarking:
     - `search(self, query, k)`: To find the `k` nearest neighbors for a single query vector.
     - `batch_search(self, queries, k)`: To find neighbors for a batch of query vectors.
 4.  Add your new algorithm to the `algorithms` section in your `benchmark_config.yaml` file.
+
+## Vector-to-Vector Operation Counting
+
+This framework records the amount of pairwise vector work performed during retrieval and saves it in the per-algorithm results JSON.
+
+What gets counted
+- Exact/linear scans: exact v2v operations computed as queries × indexed vectors.
+- FAISS HNSW and IVFFlat: FAISS runtime counters are used to measure true vector-to-vector distance evaluations.
+- FAISS compressed IVF (IVFPQ/SQ/RQ): counters reflect code-distance evaluations (not raw v2v); these are reported separately.
+- FAISS Flat: exact v2v computed as queries × ntotal.
+
+FAISS stats used (if available)
+- IVF family: `faiss.cvar.indexIVF_stats.ndis`
+- HNSW family: `faiss.cvar.hnsw_stats.ndis`
+
+Emitted metrics (per algorithm)
+- `total_v2v_ops`, `avg_v2v_ops_per_query` — exact v2v counts when applicable.
+- `total_code_distance_ops`, `avg_code_distance_ops_per_query` — for compressed IVF families.
+- `faiss_total_ivf_ndis`, `faiss_avg_ivf_ndis_per_query` — IVF breakdown.
+- `faiss_total_hnsw_ndis`, `faiss_avg_hnsw_ndis_per_query` — HNSW breakdown.
+
+Where to find them
+- Within each dataset folder under `benchmark_results/.../<algo>_results.json` and in the combined `<prefix>_all_results.json`.

@@ -1,4 +1,7 @@
-import faiss
+try:  # optional dependency
+    import faiss  # type: ignore
+except Exception:  # pragma: no cover
+    faiss = None  # type: ignore
 import numpy as np
 from typing import List, Dict, Any, Tuple, Optional
 from .base_algorithm import BaseAlgorithm
@@ -20,7 +23,11 @@ class ExactSearch(BaseAlgorithm):
             **kwargs: Additional parameters
         """
         super().__init__(name, dimension, **kwargs)
-        self.metric = faiss.METRIC_L2 if metric == 'l2' else faiss.METRIC_INNER_PRODUCT
+        if faiss is None:
+            # Store friendly string until build time
+            self.metric = 'l2' if metric == 'l2' else 'ip'  # type: ignore
+        else:
+            self.metric = faiss.METRIC_L2 if metric == 'l2' else faiss.METRIC_INNER_PRODUCT
         self.index = None
 
     def build_index(self, vectors: np.ndarray, metadata: Optional[List[Dict[str, Any]]] = None) -> None:
@@ -31,8 +38,14 @@ class ExactSearch(BaseAlgorithm):
             vectors: Vectors to index (n_vectors, dimension)
             metadata: Optional metadata (not used by this algorithm)
         """
+        if faiss is None:
+            raise ImportError("faiss is required for ExactSearch (faiss-based) but is not installed")
         self.vectors = vectors.astype(np.float32)
-        self.index = faiss.IndexFlat(self.dimension, self.metric)
+        # Convert metric string to FAISS metric if necessary
+        metric_kind = self.metric
+        if isinstance(metric_kind, str):
+            metric_kind = faiss.METRIC_L2 if metric_kind == 'l2' else faiss.METRIC_INNER_PRODUCT
+        self.index = faiss.IndexFlat(self.dimension, metric_kind)
         self.index.add(self.vectors)
         self.index_built = True
 
@@ -69,5 +82,10 @@ class ExactSearch(BaseAlgorithm):
         """
         if not self.index_built:
             raise RuntimeError("Index has not been built yet.")
-            
-        return self.index.search(queries.astype(np.float32), k)
+        queries = queries.astype(np.float32)
+        # For flat indexes, v2v ops = nq * ntotal exactly
+        nq = int(queries.shape[0])
+        ntotal = int(self.index.ntotal) if hasattr(self.index, "ntotal") else 0
+        self._last_v2v_ops = nq * ntotal
+        self._last_code_distance_ops = None
+        return self.index.search(queries, k)

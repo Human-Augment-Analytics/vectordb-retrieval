@@ -440,8 +440,10 @@ class Dataset:
         version = self.options.get("version", "v2.1")
         base_split = self.options.get("base_split", "train")
         query_split = self.options.get("query_split", "validation")
-        base_limit = int(self.options.get("base_limit", 5000))
-        query_limit = int(self.options.get("query_limit", 1000))
+        base_limit_raw = self.options.get("base_limit")
+        base_limit = int(base_limit_raw) if base_limit_raw is not None else None
+        query_limit_raw = self.options.get("query_limit")
+        query_limit = int(query_limit_raw) if query_limit_raw is not None else None
         max_passages = int(self.options.get("max_passages_per_query", 5))
         include_unselected = bool(self.options.get("include_unselected", False))
         selected_only = bool(self.options.get("selected_only", True))
@@ -623,8 +625,10 @@ class Dataset:
             ) from exc
 
         batch_size = int(self.options.get("batch_size", 128))
-        base_limit = int(self.options.get("base_limit", 5000))
-        query_limit = int(self.options.get("query_limit", 1000))
+        base_limit_raw = self.options.get("base_limit")
+        base_limit = int(base_limit_raw) if base_limit_raw is not None else 0
+        query_limit_raw = self.options.get("query_limit")
+        query_limit = int(query_limit_raw) if query_limit_raw is not None else 0
         ground_truth_k = int(self.options.get("ground_truth_k", 10))
         candidate_limit = int(self.options.get("relevance_candidates_limit", max(ground_truth_k, 100)))
 

@@ -72,12 +72,10 @@ datasets:
       query_relevance_column: top1k_passage_ids
       query_relevance_offsets_column: top1k_offsets
       relevance_candidates_limit: 64
-#      base_limit: 200000
-#      query_limit: 1000
-      base_limit: 20000
-      query_limit: 100
+      base_limit: 200000
+      query_limit: 1000
       ground_truth_k: 1000
-      cache_dir: /storage/ice-shared/cs8903onl/vectordb-retrieval/results/cache_smoketest
+      cache_dir: /storage/ice-shared/cs8903onl/vectordb-retrieval/results/cache
     algorithms:
       exact:
         indexer_ref: brute_force_cosine
@@ -92,6 +90,6 @@ output_dir: /storage/ice-shared/cs8903onl/vectordb-retrieval/results
 data_dir: /storage/ice-shared/cs8903onl/vectordb-retrieval/datasets
 n_queries: 10000
 output_prefix: benchmark
-repeat: 2
+repeat: 1
 seed: 42
-topk: 1000
+topk: 100

@@ -7,6 +7,7 @@ This repository provides a comprehensive framework for researching, benchmarking
 - **Extensible Algorithm Framework**: Easily add new vector search algorithms by inheriting from a `BaseAlgorithm` class.
 - **Automated Benchmark Suite**: A single script (`scripts/run_full_benchmark.py`) to run a full suite of experiments across multiple datasets.
 - **Modular Index/Search Pipelines**: Combine any indexing strategy with any search strategy through declarative config (e.g., pair FAISS HNSW indexing with linear or FAISS searchers).
+- **Expanded FAISS Coverage**: Benchmark flat, IVF-Flat, IVF-PQ, IVF-SQ8, and stand-alone PQ indexes side by side without code changes by updating YAML configs.
 - **Standard Datasets**: Built-in support for benchmark datasets like SIFT1M, GloVe, and MS MARCO (TF-IDF projection or pre-embedded Cohere vectors), with automated download and preprocessing.
 - **Comprehensive Metrics**: Tracks key performance indicators including recall, queries per second (QPS), index build time, and index memory usage.
 - **Automated Reporting**: Automatically generates detailed Markdown summary reports and raw JSON results for each benchmark run.
@@ -89,6 +90,8 @@ When you evaluate at higher cut-offs (e.g., top-1000), raise both `ground_truth_
 ### Modular Indexing & Searching
 
 Each benchmark configuration can declare reusable `indexers` and `searchers`, then mix-and-match them per algorithm via references. For example, `exact` uses the `brute_force_l2` indexer together with the `linear_l2` searcher, while the MS MARCO override swaps in cosine-compatible variants. This structure lets you explore new combinations (e.g., FAISS IVF indexer + linear searcher) without touching code—just add a new entry under `algorithms` with the desired `indexer_ref` / `searcher_ref` or inline overrides.
+
+The shipping `configs/benchmark_config.yaml` now illustrates this by instantiating multiple FAISS retrieval families called out in *MethodsUnitVectorDB).pdf*: IVF-Flat, IVF-PQ, IVF-SQ8, and a stand-alone PQ baseline, each plugged into the same evaluation harness for apples-to-apples comparisons.
 
 ## Benchmark Results
 

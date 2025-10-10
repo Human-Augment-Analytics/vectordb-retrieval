@@ -33,6 +33,34 @@ indexers:
     index_type: IVF100,Flat
     metric: cosine
     nprobe: 10
+  faiss_ivf_pq_l2:
+    type: FaissFactoryIndexer
+    index_key: IVF256,PQ64
+    metric: l2
+    nprobe: 24
+  faiss_ivf_pq_cosine:
+    type: FaissFactoryIndexer
+    index_key: IVF256,PQ64
+    metric: cosine
+    nprobe: 48
+  faiss_ivf_sq8_l2:
+    type: FaissFactoryIndexer
+    index_key: IVF256,SQ8
+    metric: l2
+    nprobe: 24
+  faiss_ivf_sq8_cosine:
+    type: FaissFactoryIndexer
+    index_key: IVF256,SQ8
+    metric: cosine
+    nprobe: 48
+  faiss_pq_l2:
+    type: FaissFactoryIndexer
+    index_key: PQ64
+    metric: l2
+  faiss_pq_cosine:
+    type: FaissFactoryIndexer
+    index_key: PQ64
+    metric: cosine
 
 searchers:
   linear_l2:
@@ -49,6 +77,14 @@ searchers:
     type: FaissSearcher
     metric: cosine
     nprobe: 32
+  faiss_l2_highprobe:
+    type: FaissSearcher
+    metric: l2
+    nprobe: 24
+  faiss_cosine_highprobe:
+    type: FaissSearcher
+    metric: cosine
+    nprobe: 48
 
 algorithms:
   exact:
@@ -62,6 +98,18 @@ algorithms:
   ivf_flat:
     indexer_ref: faiss_ivf_l2
     searcher_ref: faiss_l2
+    metric: l2
+  ivf_pq:
+    indexer_ref: faiss_ivf_pq_l2
+    searcher_ref: faiss_l2_highprobe
+    metric: l2
+  ivf_sq8:
+    indexer_ref: faiss_ivf_sq8_l2
+    searcher_ref: faiss_l2_highprobe
+    metric: l2
+  pq:
+    indexer_ref: faiss_pq_l2
+    searcher_ref: faiss_l2_highprobe
     metric: l2
 datasets:
   - name: random
@@ -97,6 +145,15 @@ datasets:
       ivf_flat:
         indexer_ref: faiss_ivf_cosine
         searcher_ref: faiss_cosine
+      ivf_pq:
+        indexer_ref: faiss_ivf_pq_cosine
+        searcher_ref: faiss_cosine_highprobe
+      ivf_sq8:
+        indexer_ref: faiss_ivf_sq8_cosine
+        searcher_ref: faiss_cosine_highprobe
+      pq:
+        indexer_ref: faiss_pq_cosine
+        searcher_ref: faiss_cosine_highprobe
 output_dir: /storage/ice-shared/cs8903onl/vectordb-retrieval/results
 data_dir: /storage/ice-shared/cs8903onl/vectordb-retrieval/datasets
 n_queries: 1000

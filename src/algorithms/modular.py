@@ -172,46 +172,89 @@ class HNSWIndexer(BaseIndexer):
 register_indexer("HNSWIndexer", HNSWIndexer)
 
 
-class FaissIVFIndexer(BaseIndexer):
-    """Generic FAISS IVF-based indexer via index_factory."""
+class FaissFactoryIndexer(BaseIndexer):
+    """Generic FAISS indexer driven by the index_factory grammar."""
 
-    def __init__(self, name: str, dimension: int, metric: str = "l2", index_type: str = "IVF100,Flat", **kwargs: Any) -> None:
+    _RESERVED_PARAM_KEYS = {"index_key", "index_type"}
+
+    def __init__(
+        self,
+        name: str,
+        dimension: int,
+        metric: str = "l2",
+        index_key: str = "Flat",
+        **kwargs: Any,
+    ) -> None:
         if faiss is None:
-            raise ImportError("faiss is required for FaissIVFIndexer")
-        super().__init__(name, dimension, metric, index_type=index_type, **kwargs)
-        self.index_type = index_type
-        self.training_params = kwargs
+            raise ImportError("faiss is required for FaissFactoryIndexer")
+        self.index_key = index_key
+        params = dict(kwargs)
+        params.setdefault("index_key", index_key)
+        super().__init__(name, dimension, metric, **params)
 
-    def build(self, vectors: np.ndarray, metadata: Optional[List[Dict[str, Any]]] = None) -> IndexArtifact:
-        metric_kind = faiss.METRIC_L2
+    def _prepare_data(self, vectors: np.ndarray) -> Tuple[np.ndarray, int, Dict[str, Any]]:
         data = vectors.astype(np.float32, copy=True)
+        metric_kind = faiss.METRIC_L2
         artefact_metadata: Dict[str, Any] = {
             "metric": self.metric,
+            "index_key": self.index_key,
             "faiss_metric": "l2",
         }
 
         if self.metric == "cosine":
             data = _safe_normalize(data)
             metric_kind = faiss.METRIC_INNER_PRODUCT
-            artefact_metadata.update({
-                "faiss_metric": "ip",
-                "normalize_queries": True,
-                "normalize_vectors": True,
-            })
+            artefact_metadata.update(
+                {
+                    "faiss_metric": "ip",
+                    "normalize_queries": True,
+                    "normalize_vectors": True,
+                }
+            )
         elif self.metric == "ip":
             metric_kind = faiss.METRIC_INNER_PRODUCT
             artefact_metadata["faiss_metric"] = "ip"
 
-        index = faiss.index_factory(self.dimension, self.index_type, metric_kind)
+        return data, metric_kind, artefact_metadata
+
+    def _apply_runtime_params(self, index: "faiss.Index", artefact_metadata: Dict[str, Any]) -> None:
+        for key, value in self.params.items():
+            if key in self._RESERVED_PARAM_KEYS:
+                continue
+            if hasattr(index, key):
+                setattr(index, key, value)
+                artefact_metadata[key] = value
+
+    def build(self, vectors: np.ndarray, metadata: Optional[List[Dict[str, Any]]] = None) -> IndexArtifact:
+        data, metric_kind, artefact_metadata = self._prepare_data(vectors)
+        index = faiss.index_factory(self.dimension, self.index_key, metric_kind)
+
         if not index.is_trained:
             index.train(data)
         index.add(data)
 
-        if "nprobe" in self.params and hasattr(index, "nprobe"):
-            index.nprobe = self.params["nprobe"]
-            artefact_metadata["nprobe"] = self.params["nprobe"]
-
+        self._apply_runtime_params(index, artefact_metadata)
         return IndexArtifact(kind="faiss", data=index, metadata=artefact_metadata)
+
+
+register_indexer("FaissFactoryIndexer", FaissFactoryIndexer)
+
+
+class FaissIVFIndexer(FaissFactoryIndexer):
+    """Backward-compatible wrapper around FaissFactoryIndexer for IVF-based indexes."""
+
+    def __init__(
+        self,
+        name: str,
+        dimension: int,
+        metric: str = "l2",
+        index_type: str = "IVF100,Flat",
+        **kwargs: Any,
+    ) -> None:
+        params = dict(kwargs)
+        params.setdefault("index_type", index_type)
+        super().__init__(name, dimension, metric, index_key=index_type, **params)
+        self.index_type = index_type
 
 
 register_indexer("FaissIVFIndexer", FaissIVFIndexer)

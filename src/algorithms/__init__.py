@@ -4,6 +4,7 @@ from .approximate_search import ApproximateSearch
 from .base_algorithm import BaseAlgorithm
 from .exact_search import ExactSearch
 from .hnsw import HNSW
+from .lsh import LSH
 from .modular import (
     BaseIndexer,
     BaseSearcher,
@@ -22,6 +23,7 @@ ALGORITHM_REGISTRY: Dict[str, Type[BaseAlgorithm]] = {
     "ExactSearch": ExactSearch,
     "ApproximateSearch": ApproximateSearch,
     "HNSW": HNSW,
+    "LSH": LSH,
     "Composite": CompositeAlgorithm,
     "CompositeAlgorithm": CompositeAlgorithm,
     "Modular": CompositeAlgorithm,
@@ -46,6 +48,7 @@ __all__ = [
     "ExactSearch",
     "ApproximateSearch",
     "HNSW",
+    "LSH",
     "CompositeAlgorithm",
     "BaseIndexer",
     "BaseSearcher",

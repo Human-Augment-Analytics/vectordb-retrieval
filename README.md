@@ -8,6 +8,7 @@ This repository provides a comprehensive framework for researching, benchmarking
 - **Automated Benchmark Suite**: A single script (`scripts/run_full_benchmark.py`) to run a full suite of experiments across multiple datasets.
 - **Modular Index/Search Pipelines**: Combine any indexing strategy with any search strategy through declarative config (e.g., pair FAISS HNSW indexing with linear or FAISS searchers).
 - **Expanded FAISS Coverage**: Benchmark flat, IVF-Flat, IVF-PQ, IVF-SQ8, and stand-alone PQ indexes side by side without code changes by updating YAML configs.
+- **Locality-Sensitive Hashing Baseline**: Compare an LSH retriever (cosine or Euclidean) with tunable recall guarantees using the same declarative pipeline.
 - **Standard Datasets**: Built-in support for benchmark datasets like SIFT1M, GloVe, and MS MARCO (TF-IDF projection or pre-embedded Cohere vectors), with automated download and preprocessing.
 - **Comprehensive Metrics**: Tracks key performance indicators including recall, queries per second (QPS), index build time, and index memory usage.
 - **Automated Reporting**: Automatically generates detailed Markdown summary reports and raw JSON results for each benchmark run.
@@ -74,6 +75,12 @@ python scripts/run_full_benchmark.py --config configs/benchmark_config_ms.yaml
 
 The script will automatically download the required datasets if they are not found in the configured `data_dir`, run all experiments, and save the results under the configured `output_dir`.
 
+To run a lightweight smoke of the LSH configuration on the synthetic random dataset:
+
+```bash
+python scripts/run_full_benchmark.py --config configs/lsh_example.yaml
+```
+
 > **PACE deployment note:** the repository configuration (`configs/benchmark_config.yaml`) points to the shared storage locations:
 > - Datasets: `/storage/ice-shared/cs8903onl/vectordb-retrieval/datasets`
 > - Benchmark results: `/storage/ice-shared/cs8903onl/vectordb-retrieval/results`
@@ -121,4 +128,4 @@ To add a new algorithm for benchmarking:
     - `build_index(self, vectors)`: To build the search index from a set of vectors.
     - `search(self, query, k)`: To find the `k` nearest neighbors for a single query vector.
     - `batch_search(self, queries, k)`: To find neighbors for a batch of query vectors.
-4.  Add your new algorithm to the `algorithms` section in your `benchmark_config.yaml` file.
+4.  Add your new algorithm to the `algorithms` section in your `benchmark_config.yaml` file (reference the new `lsh` entry for a complete modular example).

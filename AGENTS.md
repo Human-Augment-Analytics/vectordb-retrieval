@@ -4,7 +4,7 @@
 This is a research repository for benchmarking the existing vector DB retrieval algorithms and developing vector retrieval algorithms with retrieval guarantees (e.g., formal/empirical recall bounds). Contributions should highlight the guarantee type, assumptions (distribution, metric, parameters), and how to reproduce the evidence (configs + commands).
 
 ## Project Structure & Module Organization
-- `src/algorithms/`: Vector search implementations (e.g., `ExactSearch`, `HNSW`, FAISS wrappers).
+- `src/algorithms/`: Vector search implementations (e.g., `ExactSearch`, `HNSW`, `LSH`, FAISS wrappers).
 - `src/benchmark/`: Dataset loading, metrics, and benchmark orchestration.
 - `src/experiments/`: Config parsing and `ExperimentRunner` glue code.
 - `scripts/`: Entry scripts for full suites and comparisons.

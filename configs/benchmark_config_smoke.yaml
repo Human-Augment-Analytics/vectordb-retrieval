@@ -27,6 +27,19 @@ indexers:
     index_type: IVF100,Flat
     metric: cosine
     nprobe: 10
+  lsh_l2:
+    type: LSHIndexer
+    metric: l2
+    num_tables: 8
+    hash_size: 14
+    bucket_width: 4.0
+    seed: 7
+  lsh_cosine:
+    type: LSHIndexer
+    metric: cosine
+    num_tables: 8
+    hash_size: 14
+    seed: 7
 
 searchers:
   linear_l2:
@@ -43,6 +56,16 @@ searchers:
     type: FaissSearcher
     metric: cosine
     nprobe: 32
+  lsh_search_l2:
+    type: LSHSearcher
+    metric: l2
+    candidate_multiplier: 6.0
+    fallback_to_bruteforce: true
+  lsh_search_cosine:
+    type: LSHSearcher
+    metric: cosine
+    candidate_multiplier: 6.0
+    fallback_to_bruteforce: true
 
 algorithms:
   exact:
@@ -56,6 +79,10 @@ algorithms:
   ivf_flat:
     indexer_ref: faiss_ivf_l2
     searcher_ref: faiss_l2
+    metric: l2
+  lsh:
+    indexer_ref: lsh_l2
+    searcher_ref: lsh_search_l2
     metric: l2
 datasets:
   - name: random
@@ -86,6 +113,10 @@ datasets:
       ivf_flat:
         indexer_ref: faiss_ivf_cosine
         searcher_ref: faiss_cosine
+      lsh:
+        indexer_ref: lsh_cosine
+        searcher_ref: lsh_search_cosine
+        metric: cosine
 output_dir: /storage/ice-shared/cs8903onl/vectordb-retrieval/results
 data_dir: /storage/ice-shared/cs8903onl/vectordb-retrieval/datasets
 n_queries: 10000

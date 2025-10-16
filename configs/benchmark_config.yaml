@@ -172,15 +172,13 @@ datasets:
       query_relevance_column: top1k_passage_ids
       query_relevance_offsets_column: top1k_offsets
       relevance_candidates_limit: 64
-#      uncomment below to only process a limited size
-      base_limit: 300000
-      query_limit: 1000
-      ground_truth_k: 1000
+      base_limit: 1000
+      query_limit: 100
+      ground_truth_k: 200
       cache_dir: /storage/ice-shared/cs8903onl/vectordb-retrieval/results/cache
-      #
       strict_relevance_resolution: false  # break once base_limit is reached even if some positives are missing
-      max_passage_scan: 600000            # optional hard cap on parquet rows scanned
-      progress_log_interval: 10000       # log loader progress every N passage rows
+      max_passage_scan: 1000            # optional hard cap on parquet rows scanned
+      progress_log_interval: 100       # log loader progress every N passage rows
     algorithms:
       exact:
         indexer_ref: brute_force_cosine

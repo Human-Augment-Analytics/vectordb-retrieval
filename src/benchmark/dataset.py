@@ -1212,9 +1212,13 @@ class Dataset:
                         progress_interval > 0
                         and global_offset - last_progress_logged >= progress_interval
                     ):
-                        print(
-                            f"Processed {global_offset:,} passage rows, retained {doc_count:,} "
-                            f"vectors (base_limit={base_limit or 'unbounded'})"
+                        logger.info(
+                            "MS MARCO loader progress: processed %s rows, retained %s vectors "
+                            "(base_limit=%s, max_passage_scan=%s)",
+                            f"{global_offset:,}",
+                            f"{doc_count:,}",
+                            base_limit or "unbounded",
+                            max_passage_scan or "unbounded",
                         )
                         last_progress_logged = global_offset
 
@@ -1319,7 +1323,17 @@ class Dataset:
             positives.append(relevant_indices)
 
         if not query_vectors:
-            raise ValueError("No queries with matching ground-truth passages were loaded.")
+            missing_ids = needed_doc_ids.difference(doc_id_to_index.keys())
+            missing_offsets = needed_offsets.difference(offset_to_index.keys())
+            raise ValueError(
+                "No queries with matching ground-truth passages were loaded. "
+                f"Loaded passages: {doc_count} (base_limit={base_limit}, "
+                f"max_passage_scan={max_passage_scan or 'unbounded'}). "
+                f"Resolved doc ids: {len(doc_id_to_index)}/{len(needed_doc_ids)}, "
+                f"offsets: {len(offset_to_index)}/{len(needed_offsets)}. "
+                "Increase base_limit or max_passage_scan, raise progress_log_interval, "
+                "or re-enable strict_relevance_resolution to continue scanning for required passages."
+            )
 
         self.test_vectors = np.vstack(query_vectors)
 

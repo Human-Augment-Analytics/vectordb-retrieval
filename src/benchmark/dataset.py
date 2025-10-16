@@ -1,12 +1,13 @@
-import json
 import hashlib
 import logging
 import os
 import pickle
 import zipfile
+import json
+import tempfile
 from ftplib import FTP
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, BinaryIO, Dict, List, Optional, Sequence, Tuple
 from urllib.parse import urlparse
 
 import numpy as np
@@ -80,6 +81,12 @@ class Dataset:
         self.test_vectors = None
         self.ground_truth = None
         self.loaded = False
+        self._use_memmap_cache = bool(self.options.get("use_memmap_cache", False))
+        self._cache_suffix = ""
+        self._train_memmap_path: Optional[str] = None
+        self._test_cache_path: Optional[str] = None
+        self._ground_truth_cache_path: Optional[str] = None
+        self._train_cache_format: Optional[str] = None
 
     def download(self):
         """
@@ -210,11 +217,15 @@ class Dataset:
             options_key = json.dumps(self.options, sort_keys=True)
             digest = hashlib.md5(options_key.encode("utf-8")).hexdigest()[:8]
             cache_suffix = f"_{digest}"
+        self._cache_suffix = cache_suffix
 
         cache_file = os.path.join(self.cache_dir, f"{self.name}{cache_suffix}_processed.pkl")
+        memmap_meta_path = self._memmap_meta_path()
 
-        # Check if processed file exists
-        if os.path.exists(cache_file) and not force_download:
+        if self._use_memmap_cache and not force_download and os.path.exists(memmap_meta_path):
+            print(f"Loading processed dataset from {memmap_meta_path}")
+            self._load_memmap_cache(memmap_meta_path)
+        elif os.path.exists(cache_file) and not force_download:
             print(f"Loading processed dataset from {cache_file}")
             with open(cache_file, 'rb') as f:
                 data = pickle.load(f)
@@ -222,28 +233,161 @@ class Dataset:
                 self.test_vectors = data['test']
                 self.ground_truth = data['ground_truth']
         else:
-            # For random dataset, generate it
             if self.name == "random":
                 print("Generating random dataset")
                 self._generate_random_dataset()
             else:
-                # Download and process real dataset
                 self.download()
                 self._process_dataset()
 
-            # Save processed data
-            with open(cache_file, 'wb') as f:
-                pickle.dump({
-                    'train': self.train_vectors,
-                    'test': self.test_vectors,
-                    'ground_truth': self.ground_truth
-                }, f)
+            if self._use_memmap_cache:
+                self._save_memmap_cache(memmap_meta_path)
+            else:
+                with open(cache_file, 'wb') as f:
+                    pickle.dump({
+                        'train': self.train_vectors,
+                        'test': self.test_vectors,
+                        'ground_truth': self.ground_truth
+                    }, f)
 
         self.loaded = True
         print(f"Dataset loaded: {self.name}")
         print(f"  Train vectors: {self.train_vectors.shape}")
         print(f"  Test vectors: {self.test_vectors.shape}")
         print(f"  Ground truth: {self.ground_truth.shape if self.ground_truth is not None else 'N/A'}")
+
+    def _memmap_meta_path(self) -> str:
+        filename = f"{self.name}{self._cache_suffix}_memmap.json"
+        return os.path.join(self.cache_dir, filename)
+
+    def _train_memmap_path_for_cache(self) -> str:
+        filename = f"{self.name}{self._cache_suffix}_train.memmap"
+        return os.path.join(self.cache_dir, filename)
+
+    def _resolve_cache_path(self, path: str) -> str:
+        if os.path.isabs(path):
+            return path
+        return os.path.join(self.cache_dir, path)
+
+    def _write_array_cache(self, array: Optional[np.ndarray], suffix: str) -> Optional[str]:
+        if array is None:
+            return None
+
+        filename = f"{self.name}{self._cache_suffix}_{suffix}.npy"
+        final_path = os.path.join(self.cache_dir, filename)
+        with tempfile.NamedTemporaryFile(
+            dir=self.cache_dir,
+            prefix=f"{self.name}{self._cache_suffix}_{suffix}_",
+            suffix=".npy",
+            delete=False,
+        ) as tmp:
+            np.save(tmp, array)
+            tmp_path = tmp.name
+        os.replace(tmp_path, final_path)
+        return final_path
+
+    def _save_memmap_cache(self, meta_path: str) -> None:
+        if self.train_vectors is None:
+            raise ValueError("Cannot cache dataset before it is loaded.")
+
+        meta: Dict[str, Any] = {"version": 1}
+
+        train_entry: Dict[str, Any]
+        if self._train_cache_format == "memmap" and self._train_memmap_path:
+            train_entry = {
+                "path": os.path.relpath(self._train_memmap_path, self.cache_dir),
+                "dtype": str(self.train_vectors.dtype),
+                "shape": list(self.train_vectors.shape),
+                "format": "memmap",
+            }
+        else:
+            train_cache = self._write_array_cache(self.train_vectors, "train")
+            if train_cache is None:
+                raise ValueError("Failed to materialise training vectors for caching.")
+            self._train_memmap_path = train_cache
+            self._train_cache_format = "numpy"
+            train_entry = {
+                "path": os.path.relpath(train_cache, self.cache_dir),
+                "dtype": str(self.train_vectors.dtype),
+                "shape": list(self.train_vectors.shape),
+                "format": "numpy",
+            }
+
+        test_cache = self._write_array_cache(self.test_vectors, "test")
+        if test_cache is None:
+            raise ValueError("Test vectors must be available for caching.")
+        self._test_cache_path = test_cache
+
+        ground_truth_cache = None
+        if self.ground_truth is not None:
+            ground_truth_cache = self._write_array_cache(self.ground_truth, "groundtruth")
+            self._ground_truth_cache_path = ground_truth_cache
+
+        meta["train"] = train_entry
+        meta["test"] = {
+            "path": os.path.relpath(test_cache, self.cache_dir),
+            "format": "numpy",
+        }
+        if ground_truth_cache is not None:
+            meta["ground_truth"] = {
+                "path": os.path.relpath(ground_truth_cache, self.cache_dir),
+                "format": "numpy",
+            }
+
+        tmp_meta_fd, tmp_meta_path = tempfile.mkstemp(dir=self.cache_dir, prefix=f"{self.name}{self._cache_suffix}_meta_", suffix=".json")
+        os.close(tmp_meta_fd)
+        try:
+            with open(tmp_meta_path, "w", encoding="utf-8") as tmp_f:
+                json.dump(meta, tmp_f, indent=2)
+            os.replace(tmp_meta_path, meta_path)
+        finally:
+            if os.path.exists(tmp_meta_path):
+                os.remove(tmp_meta_path)
+
+    def _load_memmap_cache(self, meta_path: str) -> None:
+        with open(meta_path, "r", encoding="utf-8") as f:
+            meta = json.load(f)
+
+        train_meta = meta.get("train")
+        if not train_meta:
+            raise ValueError(f"Invalid metadata cache: missing train entry ({meta_path})")
+
+        train_path = self._resolve_cache_path(train_meta["path"])
+        dtype = np.dtype(train_meta.get("dtype", "float32"))
+        shape = tuple(train_meta.get("shape", []))
+        fmt = train_meta.get("format", "memmap")
+
+        if fmt == "memmap":
+            self._train_memmap_path = train_path
+            self.train_vectors = np.memmap(train_path, dtype=dtype, mode="r", shape=shape)
+            self._train_cache_format = "memmap"
+        elif fmt == "numpy":
+            self.train_vectors = np.load(train_path, allow_pickle=False)
+            self._train_memmap_path = train_path
+            self._train_cache_format = "numpy"
+        else:
+            raise ValueError(f"Unsupported train cache format: {fmt}")
+
+        test_meta = meta.get("test")
+        if not test_meta:
+            raise ValueError(f"Invalid metadata cache: missing test entry ({meta_path})")
+        test_path = self._resolve_cache_path(test_meta["path"])
+        test_format = test_meta.get("format", "numpy")
+        if test_format != "numpy":
+            raise ValueError(f"Unsupported test cache format: {test_format}")
+        self.test_vectors = np.load(test_path, allow_pickle=False)
+        self._test_cache_path = test_path
+
+        ground_meta = meta.get("ground_truth")
+        if ground_meta:
+            ground_path = self._resolve_cache_path(ground_meta["path"])
+            ground_format = ground_meta.get("format", "numpy")
+            if ground_format != "numpy":
+                raise ValueError(f"Unsupported ground truth cache format: {ground_format}")
+            self.ground_truth = np.load(ground_path, allow_pickle=False)
+            self._ground_truth_cache_path = ground_path
+        else:
+            self.ground_truth = None
 
     def _generate_random_dataset(self, dimensions: int = 128,
                                  train_size: int = 10_000,
@@ -631,6 +775,21 @@ class Dataset:
         query_limit = int(query_limit_raw) if query_limit_raw is not None else 0
         ground_truth_k = int(self.options.get("ground_truth_k", 10))
         candidate_limit = int(self.options.get("relevance_candidates_limit", max(ground_truth_k, 100)))
+        max_passage_scan_raw = self.options.get("max_passage_scan")
+        max_passage_scan = int(max_passage_scan_raw) if max_passage_scan_raw is not None else 0
+        strict_resolution = bool(self.options.get("strict_relevance_resolution", True))
+        progress_interval = int(self.options.get("progress_log_interval", 200_000))
+
+        if base_limit < 0:
+            base_limit = 0
+        if query_limit < 0:
+            query_limit = 0
+        if candidate_limit <= 0:
+            candidate_limit = max(ground_truth_k, 1)
+        if max_passage_scan < 0:
+            max_passage_scan = 0
+        if progress_interval < 0:
+            progress_interval = 0
 
         passage_dir = self.options.get("preembedded_passage_dir")
         query_dir = self.options.get("preembedded_query_dir")
@@ -951,50 +1110,96 @@ class Dataset:
         # ------------------------------------------------------------------
         # Pass 2: Read passages, ensuring coverage for required doc ids/offsets
         # ------------------------------------------------------------------
+        use_memmap_cache = self._use_memmap_cache
+        train_memmap_target = self._train_memmap_path_for_cache() if use_memmap_cache else None
+        memmap_tmp_path: Optional[str] = None
+        memmap_fp: Optional[BinaryIO] = None
+
+        if use_memmap_cache:
+            if train_memmap_target is None:
+                raise ValueError("Cache directory is not configured for memmap storage.")
+            memmap_tmp_path = f"{train_memmap_target}.tmp"
+            os.makedirs(os.path.dirname(train_memmap_target), exist_ok=True)
+            if os.path.exists(train_memmap_target):
+                os.remove(train_memmap_target)
+            if os.path.exists(memmap_tmp_path):
+                os.remove(memmap_tmp_path)
+            memmap_fp = open(memmap_tmp_path, "wb")
+
         doc_vectors: List[np.ndarray] = []
         doc_id_to_index: Dict[str, int] = {}
         offset_to_index: Dict[int, int] = {}
+        doc_count = 0
+        doc_dim: Optional[int] = None
 
         global_offset = 0
+        last_progress_logged = 0
+
+        def store_vector(vector: np.ndarray) -> int:
+            nonlocal doc_dim, doc_count
+
+            contiguous = np.ascontiguousarray(vector, dtype=np.float32)
+
+            if doc_dim is None:
+                doc_dim = contiguous.shape[0]
+            elif contiguous.shape[0] != doc_dim:
+                raise ValueError(
+                    f"Inconsistent embedding dimension for MS MARCO passages: "
+                    f"expected {doc_dim}, observed {contiguous.shape[0]}"
+                )
+
+            local_idx = doc_count
+            if use_memmap_cache:
+                assert memmap_fp is not None
+                memmap_fp.write(contiguous.tobytes())
+            else:
+                doc_vectors.append(contiguous)
+
+            doc_count += 1
+            return local_idx
 
         def add_passage(vector: np.ndarray, doc_identifier: Optional[str], offset: int) -> None:
-            local_idx = len(doc_vectors)
-            doc_vectors.append(vector)
+            local_idx = store_vector(vector)
             offset_to_index[offset] = local_idx
             if doc_identifier is not None and doc_identifier not in doc_id_to_index:
                 doc_id_to_index[doc_identifier] = local_idx
 
-        for path in passage_paths:
-            pf = pq.ParquetFile(path)
-            columns = [passage_embedding_column]
-            if passage_id_column:
-                columns.append(passage_id_column)
+        try:
+            for path in passage_paths:
+                pf = pq.ParquetFile(path)
+                columns = [passage_embedding_column]
+                if passage_id_column:
+                    columns.append(passage_id_column)
 
-            for batch in pf.iter_batches(columns=columns, batch_size=batch_size):
-                data = batch.to_pydict()
-                if not data:
-                    continue
+                for batch in pf.iter_batches(columns=columns, batch_size=batch_size):
+                    data = batch.to_pydict()
+                    if not data:
+                        continue
 
-                embeddings = data[passage_embedding_column]
-                ids = data.get(passage_id_column) if passage_id_column else None
+                    embeddings = data[passage_embedding_column]
+                    ids = data.get(passage_id_column) if passage_id_column else None
 
-                batch_len = len(embeddings)
-                for i in range(batch_len):
-                    embedding = embeddings[i]
-                    doc_identifier = None
-                    if passage_id_column and ids is not None:
-                        doc_identifier = ids[i]
-                        doc_identifier = str(doc_identifier) if doc_identifier is not None else None
+                    batch_len = len(embeddings)
+                    for i in range(batch_len):
+                        embedding = embeddings[i]
+                        doc_identifier = None
+                        if passage_id_column and ids is not None:
+                            doc_identifier = ids[i]
+                            doc_identifier = str(doc_identifier) if doc_identifier is not None else None
 
-                    vector = np.asarray(embedding, dtype=np.float32) if embedding is not None else None
-                    if vector is not None and vector.ndim == 2 and vector.shape[0] == 1:
-                        vector = vector[0]
+                        vector = np.asarray(embedding, dtype=np.float32) if embedding is not None else None
+                        if vector is not None and vector.ndim == 2 and vector.shape[0] == 1:
+                            vector = vector[0]
 
-                    should_add = False
-                    if vector is not None and vector.ndim == 1:
-                        if base_limit <= 0 or len(doc_vectors) < base_limit:
-                            should_add = True
-                        elif doc_identifier is not None and doc_identifier in needed_doc_ids and doc_identifier not in doc_id_to_index:
+                        should_add = False
+                        if vector is not None and vector.ndim == 1:
+                            if base_limit <= 0 or doc_count < base_limit:
+                                should_add = True
+                        elif (
+                            doc_identifier is not None
+                            and doc_identifier in needed_doc_ids
+                            and doc_identifier not in doc_id_to_index
+                        ):
                             should_add = True
                         elif global_offset in needed_offsets and global_offset not in offset_to_index:
                             should_add = True
@@ -1003,30 +1208,80 @@ class Dataset:
                         add_passage(vector, doc_identifier, global_offset)
 
                     global_offset += 1
+                    if (
+                        progress_interval > 0
+                        and global_offset - last_progress_logged >= progress_interval
+                    ):
+                        print(
+                            f"Processed {global_offset:,} passage rows, retained {doc_count:,} "
+                            f"vectors (base_limit={base_limit or 'unbounded'})"
+                        )
+                        last_progress_logged = global_offset
 
-                if base_limit > 0 and len(doc_vectors) >= base_limit and \
-                    needed_doc_ids.issubset(doc_id_to_index.keys()) and \
-                        needed_offsets.issubset(offset_to_index.keys()):
+                    should_stop = False
+                    if base_limit > 0 and doc_count >= base_limit:
+                        if strict_resolution:
+                            should_stop = needed_doc_ids.issubset(doc_id_to_index.keys()) and needed_offsets.issubset(
+                                offset_to_index.keys()
+                            )
+                        else:
+                            should_stop = True
+                    if not should_stop and max_passage_scan > 0 and global_offset >= max_passage_scan:
+                        should_stop = True
+
+                    if should_stop:
+                        break
+
+                should_stop_outer = False
+                if base_limit > 0 and doc_count >= base_limit:
+                    if strict_resolution:
+                        should_stop_outer = needed_doc_ids.issubset(doc_id_to_index.keys()) and needed_offsets.issubset(
+                            offset_to_index.keys()
+                        )
+                    else:
+                        should_stop_outer = True
+                if not should_stop_outer and max_passage_scan > 0 and global_offset >= max_passage_scan:
+                    should_stop_outer = True
+
+                if should_stop_outer:
                     break
+        finally:
+            if memmap_fp is not None:
+                memmap_fp.flush()
+                memmap_fp.close()
 
-            if base_limit > 0 and len(doc_vectors) >= base_limit and \
-                needed_doc_ids.issubset(doc_id_to_index.keys()) and \
-                    needed_offsets.issubset(offset_to_index.keys()):
-                break
-
-        if not doc_vectors:
+        if doc_count == 0:
+            if memmap_tmp_path and os.path.exists(memmap_tmp_path):
+                os.remove(memmap_tmp_path)
             raise ValueError("No passages with embeddings were loaded from the pre-embedded dataset.")
 
-        self.train_vectors = np.vstack(doc_vectors)
+        if use_memmap_cache:
+            assert train_memmap_target is not None
+            assert memmap_tmp_path is not None
+            if doc_dim is None:
+                raise ValueError("Unable to infer MS MARCO embedding dimensionality.")
+            os.replace(memmap_tmp_path, train_memmap_target)
+            self._train_memmap_path = train_memmap_target
+            self.train_vectors = np.memmap(train_memmap_target, dtype=np.float32, mode="r", shape=(doc_count, doc_dim))
+            self._train_cache_format = "memmap"
+        else:
+            self.train_vectors = np.vstack(doc_vectors)
+            self._train_memmap_path = None
+            self._train_cache_format = None
 
         missing_ids = needed_doc_ids.difference(doc_id_to_index.keys())
         missing_offsets = needed_offsets.difference(offset_to_index.keys())
 
         if missing_ids or missing_offsets:
-            print(
+            message = (
                 "Warning: Could not load all requested ground-truth passages. "
                 f"Missing ids: {len(missing_ids)}, missing offsets: {len(missing_offsets)}"
             )
+            if not strict_resolution:
+                message += " (strict_relevance_resolution is disabled; continuing with partial coverage.)"
+            elif max_passage_scan > 0 and global_offset >= max_passage_scan:
+                message += f" (Reached max_passage_scan={max_passage_scan:,} during processing.)"
+            print(message)
 
         # ------------------------------------------------------------------
         # Pass 3: Build query vectors and align ground truth indices

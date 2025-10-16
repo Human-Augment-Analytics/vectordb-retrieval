@@ -31,7 +31,10 @@ class ExactSearch(BaseAlgorithm):
             vectors: Vectors to index (n_vectors, dimension)
             metadata: Optional metadata (not used by this algorithm)
         """
-        self.vectors = vectors.astype(np.float32)
+        if vectors.dtype == np.float32 and vectors.flags["C_CONTIGUOUS"]:
+            self.vectors = vectors
+        else:
+            self.vectors = np.ascontiguousarray(vectors, dtype=np.float32)
         self.index = faiss.IndexFlat(self.dimension, self.metric)
         self.index.add(self.vectors)
         self.index_built = True
@@ -70,4 +73,6 @@ class ExactSearch(BaseAlgorithm):
         if not self.index_built:
             raise RuntimeError("Index has not been built yet.")
             
-        return self.index.search(queries.astype(np.float32), k)
+        if queries.dtype != np.float32 or not queries.flags["C_CONTIGUOUS"]:
+            queries = np.ascontiguousarray(queries, dtype=np.float32)
+        return self.index.search(queries, k)

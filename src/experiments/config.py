@@ -24,6 +24,7 @@ class ExperimentConfig:
         self.n_queries = kwargs.get("n_queries", 1000)  # Number of test queries to run
         self.topk = kwargs.get("topk", 100)  # Number of nearest neighbors to retrieve
         self.repeat = kwargs.get("repeat", 1)  # Number of times to repeat experiment
+        self.query_batch_size = kwargs.get("query_batch_size", 0)  # Batch size for query evaluation (0 = all)
 
         # Algorithm configurations
         default_algorithms = {
@@ -75,6 +76,7 @@ class ExperimentConfig:
             "n_queries": self.n_queries,
             "topk": self.topk,
             "repeat": self.repeat,
+            "query_batch_size": self.query_batch_size,
             "algorithms": self.algorithms,
             "seed": self.seed,
             "output_prefix": self.output_prefix

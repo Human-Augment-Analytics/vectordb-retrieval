@@ -164,17 +164,87 @@ class ExperimentRunner:
 
         # Search phase
         k = self.config.topk
-        indices = np.zeros((len(test_queries), k), dtype=np.int64)
+        indices = np.full((len(test_queries), k), -1, dtype=np.int64)
         query_times = np.zeros(len(test_queries), dtype=float)
 
         total_query_time = 0.0
-        for idx, query in enumerate(test_queries):
-            single_start = time.time()
-            _, single_indices = algorithm.search(query, k=k)
-            query_duration = time.time() - single_start
-            query_times[idx] = query_duration
-            indices[idx] = single_indices
-            total_query_time += query_duration
+        used_batch_api = False
+
+        def _normalize_batch_indices(
+            batch_result: Any, expected_rows: int, expected_k: int
+        ) -> np.ndarray:
+            if isinstance(batch_result, tuple):
+                if len(batch_result) != 2:
+                    raise ValueError("batch_search must return (distances, indices)")
+                batch_result = batch_result[1]
+
+            if isinstance(batch_result, list):
+                rows = [np.asarray(row) for row in batch_result]
+                output = np.full((expected_rows, expected_k), -1, dtype=np.int64)
+                for row_idx, row in enumerate(rows[:expected_rows]):
+                    limit = min(row.size, expected_k)
+                    if limit > 0:
+                        output[row_idx, :limit] = row[:limit]
+                return output
+
+            arr = np.asarray(batch_result)
+            if arr.ndim == 1:
+                arr = arr.reshape(1, -1)
+            if arr.ndim != 2:
+                raise ValueError("batch_search returned array with unexpected shape")
+            if arr.shape[0] != expected_rows:
+                if expected_rows == 1 and arr.shape[0] == expected_k:
+                    arr = arr.reshape(1, -1)
+                else:
+                    raise ValueError(
+                        f"batch_search returned {arr.shape[0]} rows, expected {expected_rows}"
+                    )
+
+            if arr.shape[1] < expected_k:
+                padded = np.full((expected_rows, expected_k), -1, dtype=np.int64)
+                padded[:, :arr.shape[1]] = arr
+                arr = padded
+            elif arr.shape[1] > expected_k:
+                arr = arr[:, :expected_k]
+
+            return arr.astype(np.int64, copy=False)
+
+        if len(test_queries) > 0:
+            batch_size_cfg = int(getattr(self.config, "query_batch_size", 0) or 0)
+            if batch_size_cfg < 0:
+                batch_size_cfg = 0
+            batch_size = len(test_queries) if batch_size_cfg == 0 else min(batch_size_cfg, len(test_queries))
+
+            try:
+                cursor = 0
+                while cursor < len(test_queries):
+                    end = min(cursor + batch_size, len(test_queries))
+                    batch_queries = test_queries[cursor:end]
+                    batch_start = time.time()
+                    batch_result = algorithm.batch_search(batch_queries, k=k)
+                    elapsed = time.time() - batch_start
+                    batch_indices = _normalize_batch_indices(batch_result, end - cursor, k)
+                    indices[cursor:end] = batch_indices
+                    per_query = elapsed / max((end - cursor), 1)
+                    query_times[cursor:end] = per_query
+                    total_query_time += elapsed
+                    cursor = end
+
+                used_batch_api = True
+            except (AttributeError, NotImplementedError, TypeError, ValueError):
+                # Reset to ensure clean fallback path
+                indices.fill(-1)
+                query_times.fill(0.0)
+                total_query_time = 0.0
+
+        if not used_batch_api:
+            for idx, query in enumerate(test_queries):
+                single_start = time.time()
+                _, single_indices = algorithm.search(query, k=k)
+                query_duration = time.time() - single_start
+                query_times[idx] = query_duration
+                indices[idx] = single_indices
+                total_query_time += query_duration
 
         total_query_time = max(total_query_time, query_times.sum())
         mean_query_time_ms = (

@@ -140,6 +140,12 @@ class BenchmarkRunner:
                 output_prefix=dataset_options.get('output_prefix', f"{dataset_name}_{self.timestamp}")
             )
 
+            query_batch_size = dataset_options.get('query_batch_size')
+            if query_batch_size is None:
+                query_batch_size = self.config.get('query_batch_size')
+            if query_batch_size is not None:
+                experiment_kwargs['query_batch_size'] = query_batch_size
+
             if dataset_metric is not None:
                 experiment_kwargs['metric'] = dataset_metric
             if dataset_specific_options:

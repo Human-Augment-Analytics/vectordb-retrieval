@@ -111,11 +111,18 @@ def _safe_normalize(matrix: np.ndarray) -> np.ndarray:
     return np.divide(matrix, norms, out=np.zeros_like(matrix), where=norms > 0)
 
 
+def _ensure_float32(vectors: np.ndarray) -> np.ndarray:
+    """Ensure vectors are float32 and C-contiguous without unnecessary copying."""
+    if vectors.dtype == np.float32 and vectors.flags["C_CONTIGUOUS"]:
+        return vectors
+    return np.ascontiguousarray(vectors, dtype=np.float32)
+
+
 class BruteForceIndexer(BaseIndexer):
     """Indexer that simply stores raw vectors in memory."""
 
     def build(self, vectors: np.ndarray, metadata: Optional[List[Dict[str, Any]]] = None) -> IndexArtifact:
-        vector_store = vectors.astype(np.float32, copy=True)
+        vector_store = _ensure_float32(vectors)
         artifact_metadata = {
             "metric": self.metric,
             "normalize_vectors": self.metric == "cosine",
@@ -142,7 +149,7 @@ class HNSWIndexer(BaseIndexer):
             raise ValueError(f"Expected dimension {self.dimension}, got {vectors.shape[1]}")
 
         metric_type = faiss.METRIC_L2
-        data = vectors.astype(np.float32, copy=True)
+        data = _ensure_float32(vectors)
         artefact_metadata: Dict[str, Any] = {
             "metric": self.metric,
             "faiss_metric": "l2",
@@ -193,7 +200,7 @@ class FaissFactoryIndexer(BaseIndexer):
         super().__init__(name, dimension, metric, **params)
 
     def _prepare_data(self, vectors: np.ndarray) -> Tuple[np.ndarray, int, Dict[str, Any]]:
-        data = vectors.astype(np.float32, copy=True)
+        data = _ensure_float32(vectors)
         metric_kind = faiss.METRIC_L2
         artefact_metadata: Dict[str, Any] = {
             "metric": self.metric,

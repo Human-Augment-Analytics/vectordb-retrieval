@@ -42,6 +42,7 @@ This is a research repository for benchmarking the existing vector DB retrieval 
 
 - Prefer `faiss-cpu` (default). Document any BLAS/OMP tweaks and hardware in PRs.
 - Do not store secrets or API keys in YAML configs.
+- For memory-constrained runs, enable `use_memmap_cache: true` inside `dataset_options` (especially for MS MARCO). The loader streams embeddings into `<dataset>_<digest>_train.memmap` under `cache_dir` and records metadata in a JSON sidecar so SLURM jobs can resume without rebuilding the cache. Pair this with `query_batch_size` (global or per dataset) to bound concurrent search work and keep SLURM jobs within walltime/memory limits. If walltime is the bottleneck, set `strict_relevance_resolution: false` and/or `max_passage_scan` so preprocessing stops once the passage budget is satisfied; missing positives are logged and skipped.
 
 ## PACE Cluster Usage (SLURM)
 - Submit long runs with SLURM (`sbatch singlerun.sbatch`) on the PACE cluster; 

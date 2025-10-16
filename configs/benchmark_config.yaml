@@ -162,6 +162,7 @@ datasets:
   - name: msmarco
     metric: cosine
     dataset_options:
+      use_memmap_cache: true
       use_preembedded: true
       preembedded_passage_dir: /storage/ice-shared/cs8903onl/vectordb-retrieval/datasets/msmarco_pre_embeded/passages_parquet
       preembedded_query_dir: /storage/ice-shared/cs8903onl/vectordb-retrieval/datasets/msmarco_pre_embeded/queries_parquet
@@ -176,6 +177,10 @@ datasets:
       query_limit: 1000
       ground_truth_k: 1000
       cache_dir: /storage/ice-shared/cs8903onl/vectordb-retrieval/results/cache
+      #
+      strict_relevance_resolution: false  # break once base_limit is reached even if some positives are missing
+      max_passage_scan: 600000            # optional hard cap on parquet rows scanned
+      progress_log_interval: 10000       # log loader progress every N passage rows
     algorithms:
       exact:
         indexer_ref: brute_force_cosine
@@ -202,6 +207,7 @@ datasets:
 output_dir: /storage/ice-shared/cs8903onl/vectordb-retrieval/results
 data_dir: /storage/ice-shared/cs8903onl/vectordb-retrieval/datasets
 n_queries: 1000
+query_batch_size: 128
 output_prefix: benchmark
 repeat: 2
 seed: 42

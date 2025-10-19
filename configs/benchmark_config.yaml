@@ -1,6 +1,6 @@
-#> random and glove50 are stored as Euclidean vectors, so their configs keep metric: l2 (with L2-compatible indexers/searchers). MS MARCO’s Cohere embeddings belong on the unit sphere and are almost always searched with cosine similarity (1 – dot product). Forcing everything to use the same metric would mean either:
+#> random and glove50 are stored as Euclidean vectors, so their configs keep metric: l2 (with L2-compatible indexers/searchers). MS MARCO’s Cohere embeddings belong on the unit sphere and are almost always searched with cosine similarity (1 – dot product). Forcing everything to use the same metric would mean either:
 #
-#  - Pretending the MS MARCO embeddings are best handled by L2—which would hurt their recall, or
+#  - Pretending the MS MARCO embeddings are best handled by L2—which would hurt their recall, or
 #  - Converting the other datasets to cosine and swapping their index/search settings.
 #
 
@@ -147,6 +147,12 @@ algorithms:
     indexer_ref: lsh_l2
     searcher_ref: lsh_search_l2
     metric: l2
+  diskann:
+    type: DiskANN
+    metric: l2
+    max_degree: 64
+    build_complexity: 750
+    search_complexity: 100
 datasets:
   - name: random
     metric: l2
@@ -202,6 +208,12 @@ datasets:
         indexer_ref: lsh_cosine
         searcher_ref: lsh_search_cosine
         metric: cosine
+      diskann:
+        type: DiskANN
+        metric: cosine
+        max_degree: 64
+        build_complexity: 750
+        search_complexity: 100
 output_dir: /storage/ice-shared/cs8903onl/vectordb-retrieval/results
 data_dir: /storage/ice-shared/cs8903onl/vectordb-retrieval/datasets
 n_queries: 1000

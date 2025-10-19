@@ -92,6 +92,25 @@ When you evaluate at higher cut-offs (e.g., top-1000), raise both `ground_truth_
 
 > **Why scanning matters:** MS MARCO queries list the passage IDs / offsets that are relevant to them. The loader therefore reads queries first, records those references, and only retains passages whose IDs/offsets were mentioned. If you cap both `base_limit` and `max_passage_scan` too tightly, the loader may stop before it encounters any referenced passages, leaving every query without ground-truth positives (and raising an error). Increase `max_passage_scan` and/or keep `strict_relevance_resolution: true` while exploring smaller budgets so the scan can continue until the required passages are found—even if you ultimately keep only a subset in memory.
 
+### PySpark MS MARCO Subset Builder
+
+If you only have access to a single MS MARCO shard (for example `msmarco_v2.1_doc_segmented_06.parquet`) the default loader can fail with:
+
+```
+ValueError: No queries with matching ground-truth passages were loaded ...
+```
+
+To build a self-consistent subset ahead of benchmarking, run the step-by-step notebook:
+
+- `notebooks/msmarco_pyspark_preprocessing.ipynb`
+- Requires `pyspark>=3.5.0` (added to `requirements.txt`)
+- Reads `data/msmarco_pre_embeded/passages_parquet/msmarco_v2.1_doc_segmented_06.parquet` and `data/msmarco_pre_embeded/queries_parquet/queries.parquet`
+- Writes numpy-friendly artifacts to `/storage/ice-shared/cs8903onl/vectordb-retrieval/datasets/mamarco_pre_embeded_subset`
+  - `subset.npz` (`train`, `test`, `ground_truth`)
+  - `metadata.json`, `passage_index.json`, `query_index.json`
+
+The notebook uses PySpark to explode the top-k passage candidates per query, joins them against the shard, filters out queries without enough positives, and materialises a compact dataset that bypasses the earlier ground-truth resolution failure.
+
 ### Modular Indexing & Searching
 
 Each benchmark configuration can declare reusable `indexers` and `searchers`, then mix-and-match them per algorithm via references. For example, `exact` uses the `brute_force_l2` indexer together with the `linear_l2` searcher, while the MS MARCO override swaps in cosine-compatible variants. This structure lets you explore new combinations (e.g., FAISS IVF indexer + linear searcher) without touching code—just add a new entry under `algorithms` with the desired `indexer_ref` / `searcher_ref` or inline overrides.

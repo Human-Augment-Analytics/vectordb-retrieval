@@ -9,9 +9,8 @@ from tqdm import tqdm
 from box import ConfigBox
 
 # load config -----
-with open("config/config_a3c.yml", "r") as file:
+with open("config/ms_marco_subset_embed.yml", "r") as file:
     config = ConfigBox(yaml.safe_load(file))
-
 
 def load_tsv_data(file_path: Path):
     """Loads IDs and text from a TSV file."""

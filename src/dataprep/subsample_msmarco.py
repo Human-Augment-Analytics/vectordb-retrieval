@@ -9,9 +9,9 @@ from tqdm import tqdm
 from box import ConfigBox
 
 # load config -----
-with open("config/config_a3c.yml", "r") as file:
+with open("config/ms_marco_subset_embed.yml", "r") as file:
     config = ConfigBox(yaml.safe_load(file))
-    
+
 # SET UP IR_DATASETS HOME -----
 # We load the downloaded dataset from the common drive so that we can save time on downloading it again every time that we want
 # to subsample it in a different way

@@ -1,0 +1,13 @@
+common:
+  SHARED_DRIVE_PATH: "/storage/ice-shared/cs8903onl/vectordb-retrieval"
+
+subset:
+  SEED: 42  # seed for sampling 
+  CORPUS_SAMPLE_SIZE: 1_000_000  # documents
+  QUERY_SAMPLE_SIZE: 1_000       # queries
+
+embeddings:
+  SUBSAMPLED_DATA_DIR: "/storage/ice-shared/cs8903onl/vectordb-retrieval/msmarco_v1_subsampled"
+  OUTPUT_EMBEDDING_DIR: "/storage/ice-shared/cs8903onl/vectordb-retrieval/msmarco_v1_embeddings"
+  MODEL_NAME: 'all-MiniLM-L6-v2'
+  BATCH_SIZE: 256

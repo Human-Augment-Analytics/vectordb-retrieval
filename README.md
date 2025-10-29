@@ -146,3 +146,17 @@ To add a new algorithm for benchmarking:
     - `search(self, query, k)`: To find the `k` nearest neighbors for a single query vector.
     - `batch_search(self, queries, k)`: To find neighbors for a batch of query vectors.
 4.  Add your new algorithm to the `algorithms` section in your `benchmark_config.yaml` file (reference the new `lsh` entry for a complete modular example).
+
+## Embedding MSMARCOV1
+We use the dataset from IR_Datasets: `msmarco-v1-passage`, see here
+for more details [here](https://ir-datasets.com/msmarco-passage.html#msmarco-passage).
+#### Subsampling
+- We subsample MSMARCO using the script in `src/dataprep/subsample_msmarco.py` to create a smaller dataset for faster experimentation.
+- The subsampling parameters (number of passages and queries) can be configured in `configs/msmarco_subsample_config.yaml`.
+- The subsampled dataset can be found in the output directory specified in the config.
+- To subsample, run the slurm job in `slurm_jobs/msmarco_subsample.sbatch`, which uses the specified config file.
+#### Embedding
+- We embed the subsampled MSMARCO dataset using the script in `src/embeddings/embed_msmarco.py`.
+- The embedding model and parameters can be configured in `configs/msmarco_embedding_config.yaml`.
+- The embedded dataset will be saved in the output directory specified in the config.
+- To embed, run the slurm job in `slurm_jobs/msmarco_embedding.sbatch`, which uses the specified config file.

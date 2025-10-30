@@ -1,5 +1,5 @@
 import unittest
-from .base_algorithm import BaseAlgorithm
+from base_algorithm import BaseAlgorithm
 from typing import List
 import numpy as np
 
@@ -29,6 +29,9 @@ class CoverTree(BaseAlgorithm):
         self.config.update({
             'metric': self.metric
         })
+
+    def batch_search(self):
+        pass
 
     def build_index(self, vectors: np.ndarray):
         if vectors is None or len(vectors) == 0:
@@ -72,13 +75,13 @@ class CoverTree(BaseAlgorithm):
 
         # 1. Set Q_children
         Q_children = []
-        for q in Qi:
+        for q in Q:
             Q_children.extend(q.children)
             
         # 3. (a) Set Qi_minus_1 (the filtered set)
         Qi_minus_1 = [
             child for child in Q_children 
-            if np.linalg.norm(p - child.value) <= dist_power
+            if self.metric(p - child.value) <= dist_power
         ]
 
         # 3. (b) if Insert(p, Qi−1, i − 1) ...
@@ -87,8 +90,8 @@ class CoverTree(BaseAlgorithm):
                 return True # "parent found"
 
         # 3. (b) ... and d(p, Qi) ≤ 2i ...
-        for q in Qi:
-            if np.linalg.norm(p - q.value) <= dist_power:
+        for q in Q:
+            if self.metric(p - q.value) <= dist_power:
                 q.children.append(self.Node(p))
                 return True # "parent found"
         
@@ -104,7 +107,7 @@ class CoverTree(BaseAlgorithm):
 
         # Start with the root as the best-so-far
         best_q_node = self.root
-        best_dist = np.linalg.norm(p - self.root.value)
+        best_dist = self.metric(p - self.root.value)
         
         # Q_i is our set of candidate nodes for the current level
         Q_i = [self.root]
@@ -120,7 +123,7 @@ class CoverTree(BaseAlgorithm):
                 break # We've hit the bottom of the tree
 
             # Find the minimum distance to any child
-            child_dists = [np.linalg.norm(p - c.value) for c in Q_children]
+            child_dists = [self.metric(p - c.value) for c in Q_children]
             min_child_dist = np.min(child_dists)
             min_child_index = np.argmin(child_dists)
 
@@ -166,7 +169,7 @@ class CoverTree(BaseAlgorithm):
 class TestCoverTreeSearch(unittest.TestCase):
     
     def setUp(self):
-        self.tree = CoverTree(name="test_search_tree", dimension=2)
+        self.tree = CoverTree(name="test_search_tree", dimension=2, metric=np.linalg.norm)
 
     def test_search_empty_tree(self):
         """Test searching an empty tree."""

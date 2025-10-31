@@ -760,6 +760,88 @@ class Dataset:
 
     def _process_msmarco_preembedded(self) -> None:
         """Load pre-embedded MS MARCO passages and queries from parquet files."""
+        embedded_dir_value = self.options.get("embedded_dataset_dir") or self.options.get("embedding_dir")
+        passage_embeddings_path_opt = self.options.get("passage_embeddings_path")
+        query_embeddings_path_opt = self.options.get("query_embeddings_path")
+        ground_truth_path_opt = self.options.get("ground_truth_path")
+
+        if embedded_dir_value or passage_embeddings_path_opt or query_embeddings_path_opt or ground_truth_path_opt:
+            embedded_dir = Path(embedded_dir_value) if embedded_dir_value else None
+
+            def resolve_path(option_key: str, default_filename: str) -> Path:
+                explicit = self.options.get(option_key)
+                if explicit:
+                    return Path(explicit)
+                if embedded_dir is not None:
+                    return embedded_dir / default_filename
+                raise ValueError(
+                    f"Dataset option '{option_key}' is required when 'embedded_dataset_dir' is not provided."
+                )
+
+            passage_path = resolve_path("passage_embeddings_path", "passage_embeddings.npy")
+            query_path = resolve_path("query_embeddings_path", "query_embeddings.npy")
+            ground_path = resolve_path("ground_truth_path", "ground_truth.npy")
+
+            if not passage_path.exists():
+                raise FileNotFoundError(f"Passage embeddings file not found: {passage_path}")
+            if not query_path.exists():
+                raise FileNotFoundError(f"Query embeddings file not found: {query_path}")
+            if not ground_path.exists():
+                raise FileNotFoundError(f"Ground-truth file not found: {ground_path}")
+
+            use_memmap_cache = bool(self.options.get("use_memmap_cache", False))
+            mmap_mode = "r" if use_memmap_cache else None
+
+            train_vectors = np.load(passage_path, mmap_mode=mmap_mode, allow_pickle=False)
+            if train_vectors.dtype != np.float32:
+                raise ValueError(
+                    f"Expected passage embeddings to be float32 but found {train_vectors.dtype} at {passage_path}"
+                )
+
+            test_vectors = np.load(query_path, mmap_mode=None, allow_pickle=False)
+            if test_vectors.dtype != np.float32:
+                raise ValueError(
+                    f"Expected query embeddings to be float32 but found {test_vectors.dtype} at {query_path}"
+                )
+
+            ground_truth = np.load(ground_path, mmap_mode=None, allow_pickle=False)
+            if ground_truth.dtype not in (np.int32, np.int64):
+                raise ValueError(
+                    f"Expected ground truth indices to be int32/int64 but found {ground_truth.dtype} at {ground_path}"
+                )
+            if ground_truth.ndim != 2:
+                raise ValueError(f"Ground truth array must be 2D; found shape {ground_truth.shape} at {ground_path}")
+
+            max_index = int(ground_truth.max()) if ground_truth.size else -1
+            if max_index >= train_vectors.shape[0]:
+                raise ValueError(
+                    "Ground truth indices reference passages outside the embeddings array. "
+                    f"Max index={max_index}, passage_count={train_vectors.shape[0]}"
+                )
+
+            if test_vectors.shape[0] != ground_truth.shape[0]:
+                raise ValueError(
+                    "Mismatch between number of queries and ground-truth rows: "
+                    f"{test_vectors.shape[0]} vs {ground_truth.shape[0]}"
+                )
+
+            self.train_vectors = train_vectors
+            self.test_vectors = test_vectors
+            self.ground_truth = ground_truth.astype(np.int32, copy=False)
+
+            if use_memmap_cache and isinstance(train_vectors, np.memmap):
+                self._train_memmap_path = str(passage_path)
+                self._train_cache_format = "memmap"
+            else:
+                self._train_memmap_path = None
+                self._train_cache_format = None
+
+            print("MS MARCO embedded dataset loaded from pre-generated numpy arrays:")
+            print(f"  Documents: {self.train_vectors.shape}")
+            print(f"  Queries: {self.test_vectors.shape}")
+            print(f"  Ground truth width: {self.ground_truth.shape[1]}")
+            return
+
         try:
             import pyarrow.parquet as pq  # type: ignore
             import pyarrow as pa  # type: ignore

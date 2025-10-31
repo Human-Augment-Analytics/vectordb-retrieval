@@ -42,11 +42,11 @@ This is a research repository for benchmarking the existing vector DB retrieval 
 
 - Prefer `faiss-cpu` (default). Document any BLAS/OMP tweaks and hardware in PRs.
 - Do not store secrets or API keys in YAML configs.
-- For memory-constrained runs, enable `use_memmap_cache: true` inside `dataset_options` (especially for MS MARCO). The loader streams embeddings into `<dataset>_<digest>_train.memmap` under `cache_dir` and records metadata in a JSON sidecar so SLURM jobs can resume without rebuilding the cache. Pair this with `query_batch_size` (global or per dataset) to bound concurrent search work and keep SLURM jobs within walltime/memory limits. If walltime is the bottleneck, set `strict_relevance_resolution: false` and/or `max_passage_scan` so preprocessing stops once the passage budget is satisfied; missing positives are logged and skipped.
+- For memory-constrained runs, keep `use_memmap_cache: true` inside `dataset_options` (especially for MS MARCO) so `passage_embeddings.npy` is opened through a read-only memmap. Pair this with `query_batch_size` (global or per dataset) to bound concurrent search work and keep SLURM jobs within walltime/memory limits.
 
 ## PACE Cluster Usage (SLURM)
 - Submit long runs with SLURM (`sbatch singlerun.sbatch`) on the PACE cluster; 
-- `singlerun.sbatch` launches `python scripts/run_full_benchmark.py --config configs/benchmark_config.yaml` so the shared MS MARCO pre-embedded cache is exercised; increase `#SBATCH -t` for the initial cache build and reuse the cached pickle on subsequent runs.
+- `singlerun.sbatch` launches `python scripts/run_full_benchmark.py --config configs/benchmark_config.yaml` so the generated MS MARCO embedding bundle (`/storage/ice-shared/cs8903onl/vectordb-retrieval/msmarco_v1_embeddings`) is consumed; increase `#SBATCH -t` if you refresh the subset/embeddings so the new artefacts can be written before reuse.
 - Keep walltime/CPU settings in sync with project needs; request more resources via the `#SBATCH` lines and notify maintainers if configs require different quotas.
 - Cluster-specific environment modules (e.g., GCC, OpenBLAS) should be loaded inside the script before dependency installation; document any additions in PR descriptions.
 - For interactive debugging use `srun --pty bash` with matching module loads, then reuse `uv` environments instead of re-installing requirements each run.
@@ -58,4 +58,5 @@ This is a research repository for benchmarking the existing vector DB retrieval 
 - When adding algorithms, place them in `src/algorithms/`, document guarantees in class docstrings, and add a minimal config example under `configs/`.
 - Prefer composing new retrieval variants by wiring `indexers` + `searchers` in YAML (see `configs/benchmark_config.yaml`) before adding new composite classes.
 - Prefer `singlerun.sbatch` for runnable examples; keep changes surgical and reproducible.
+- MSMARCO subsampling/embedding lives in `src/dataprep/`; keep `configs/ms_marco_subset_embed.yaml`, README.md, and this file in sync whenever the sampling parameters, output locations, or artefact layout change.
 - keep readme.md and agents.mdup-to-date with new features and changes.

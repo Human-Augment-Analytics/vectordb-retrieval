@@ -34,7 +34,7 @@ This is a research repository for benchmarking the existing vector DB retrieval 
 - Verify outputs: presence of `benchmark_results/.../benchmark_summary.md` and `all_results.json`.
 
 ## Commit & Pull Request Guidelines
-- Follow Conventional Commits: `feat(scope): ...`, `docs: ...`, `chore: ...` (see `git log`), follwing by detailed changes description, what files updated and why
+- Follow Conventional Commits: `feat(scope): ...`, `docs: ...`, `chore: ...` (see `git log`), follwing by multiline commit message with detailed changes description, what files updated and why
 - PRs must include: clear description, linked issue, sample config, brief results (attach summary table or log), and reproduction steps.
 - Keep changes focused; update configs and README when behavior/CLI changes.
 

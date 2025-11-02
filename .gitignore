@@ -34,8 +34,9 @@ glove.*.txt
 # Logs
 logs/
 *.log
-slurm_logs/
-slurm_jobs/slurm_logs/
+/slurm_logs/
+slurm_jobs/slurm_logs/*
+!slurm_jobs/slurm_logs/.gitkeep
 
 # IDE specific files
 .idea/

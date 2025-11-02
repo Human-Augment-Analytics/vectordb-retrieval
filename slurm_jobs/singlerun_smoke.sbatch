@@ -4,12 +4,9 @@
 #SBATCH --cpus-per-task=24                      # Number of CPU
 #SBATCH --mem-per-cpu=16G                       # Memory per CPU
 #SBATCH -t 12:00:00                              # Duration
-#SBATCH --output=$HOME/PycharmProjects/vectordb-retrieval/slurm_jobs/slurm_logs/%x-%j-%N.log  # Combined output and error messages file
+#SBATCH --output=slurm_jobs/slurm_logs/%x-%j-%N.log  # Combined output and error messages file
 #SBATCH --mail-type=BEGIN,END,FAIL              # Mail preferences
 set -xeu
-
-LOG_DIR="$HOME/PycharmProjects/vectordb-retrieval/slurm_jobs/slurm_logs"
-mkdir -p "$LOG_DIR"
 
 # A script to set up a uv virtual environment and install dependencies.
 # This script is designed for environments where uv is installed via a curl command.
@@ -22,6 +19,8 @@ mkdir -p "$LOG_DIR"
 REPO_DIR="$HOME/PycharmProjects/vectordb-retrieval"
 # -# Specify the name for the virtual environment directory.
 VENV_DIR="$HOME/scratch/vector-db-venv"
+LOG_DIR="$REPO_DIR/slurm_jobs/slurm_logs"
+mkdir -p "$LOG_DIR"
 ###########################################################
 
 # Check if uv is installed, and install it if not using the curl method.

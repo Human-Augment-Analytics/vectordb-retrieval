@@ -4,9 +4,12 @@
 #SBATCH --cpus-per-task=24                      # Number of CPU
 #SBATCH --mem-per-cpu=16G                       # Memory per CPU
 #SBATCH -t 15:00:00                              # Duration
-#SBATCH --output=Report-%j-%x-%N.log            # Combined output and error messages file
+#SBATCH --output=$HOME/PycharmProjects/vectordb-retrieval/slurm_jobs/slurm_logs/%x-%j-%N.log  # Combined output and error messages file
 #SBATCH --mail-type=BEGIN,END,FAIL              # Mail preferences
 set -xeu
+
+LOG_DIR="$HOME/PycharmProjects/vectordb-retrieval/slurm_jobs/slurm_logs"
+mkdir -p "$LOG_DIR"
 
 
 # A script to set up a uv virtual environment and install dependencies.

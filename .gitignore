@@ -35,6 +35,7 @@ glove.*.txt
 logs/
 *.log
 slurm_logs/
+slurm_jobs/slurm_logs/
 
 # IDE specific files
 .idea/

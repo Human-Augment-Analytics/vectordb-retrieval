@@ -3,9 +3,12 @@
 #SBATCH -N1 --gres=gpu:V100:1
 #SBATCH --cpus-per-task=4                   # Number of CPUs per task
 #SBATCH -t 0:60:00                          # Job duration (hh:mm:ss) - Reduced for sampling, adjust if needed
-#SBATCH --output=msmarco_embed-%j.log   # Output and error messages file (includes job ID)
+#SBATCH --output=$HOME/PycharmProjects/vectordb-retrieval/slurm_jobs/slurm_logs/%x-%j.log   # Output and error messages file (includes job ID)
 #SBATCH --mail-type=BEGIN,END,FAIL          # When to send email notifications
 set -xeu
+
+LOG_DIR="$HOME/PycharmProjects/vectordb-retrieval/slurm_jobs/slurm_logs"
+mkdir -p "$LOG_DIR"
 
 
 # A script to set up a uv virtual environment and install dependencies.

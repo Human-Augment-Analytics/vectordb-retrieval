@@ -13,10 +13,10 @@ This is a research repository for benchmarking the existing vector DB retrieval 
 - `/storage/ice-shared/cs8903onl/vectordb-retrieval/results/`: Generated reports and logs.
 
 ## Build, Test, and Development Commands
-- Create env and install deps: `pip install -r requirements.txt`.
-- Run a single experiment: `python -m src.experiments.run_experiment --config configs/default.yaml --output-dir results`.
-- Run full benchmark suite: `python scripts/run_full_benchmark.py --config configs/benchmark_config.yaml` (see `README.md` for quick `benchmark_config_test1.yaml`).
-- Main entry alternative: `python main.py --config configs/default.yaml --verbose`.
+- Provision environments inside the SLURM scripts. The default helpers bootstrap a `uv` virtualenv and install `requirements.txt` before execution.
+- Submit full benchmark runs with `sbatch slurm_jobs/singlerun_complete_benchmarking_pat.sbatch`. Adjust the script if configs, resources, or artefact paths change.
+- For smoke or dataset-specific checks (e.g., verifying new MSMARCO embeddings), edit `slurm_jobs/singlerun_smoke.sbatch` to match the scenario and submit it via `sbatch`.
+- When a bespoke experiment is required, clone/tweak the closest script under `slurm_jobs/`, document the invocation, and ensure the job captures logs under `slurm_logs/` or `Report-<jobid>.log`.
 
 ## Coding Style & Naming Conventions
 - Python 3.10+, 4-space indentation, type hints required for public APIs.
@@ -26,15 +26,15 @@ This is a research repository for benchmarking the existing vector DB retrieval 
 - Keep algorithms small and composable; prefer pure functions in `utils/`.
 
 ## Testing Guidelines
-- A `pytest` framework is in place. To run the tests, execute `pytest` from the project root.
-- Use smoke runs for quick validation:
-  - Fast check: `python scripts/run_full_benchmark.py --config configs/benchmark_config_test1.yaml`.
-  - Single run: `python -m src.experiments.run_experiment --config configs/default.yaml`.
+- A `pytest` framework is in place. Package it into an appropriate SLURM job when test coverage is required (e.g., clone `slurm_jobs/singlerun_smoke.sbatch` and swap in `pytest`).
+- Use SLURM smoke runs for quick validation:
+  - Submit the modified `slurm_jobs/singlerun_smoke.sbatch` for lightweight checks (e.g., configs such as `benchmark_config_test1.yaml`).
+  - For targeted experiments, clone the smoke script, adjust the command (e.g., `python -m src.experiments.run_experiment --config configs/default.yaml`), and submit with `sbatch`.
 - Reproducibility: keep `seed` in configs; avoid nondeterministic ops.
 - Verify outputs: presence of `benchmark_results/.../benchmark_summary.md` and `all_results.json`.
 
 ## Commit & Pull Request Guidelines
-- Follow Conventional Commits: `feat(scope): ...`, `docs: ...`, `chore: ...` (see `git log`).
+- Follow Conventional Commits: `feat(scope): ...`, `docs: ...`, `chore: ...` (see `git log`), follwing by detailed changes description, what files updated and why
 - PRs must include: clear description, linked issue, sample config, brief results (attach summary table or log), and reproduction steps.
 - Keep changes focused; update configs and README when behavior/CLI changes.
 
@@ -57,6 +57,9 @@ This is a research repository for benchmarking the existing vector DB retrieval 
 - Do not rename top-level dirs or public APIs without updating configs, scripts, and README.
 - When adding algorithms, place them in `src/algorithms/`, document guarantees in class docstrings, and add a minimal config example under `configs/`.
 - Prefer composing new retrieval variants by wiring `indexers` + `searchers` in YAML (see `configs/benchmark_config.yaml`) before adding new composite classes.
-- Prefer `singlerun.sbatch` for runnable examples; keep changes surgical and reproducible.
+- Agents execute directly on PACE; run benchmarks through the SLURM helpers in `slurm_jobs/`: submit `singlerun_complete_benchmarking_pat.sbatch` for full-suite runs and update/submit `singlerun_smoke.sbatch` for smoke checks (e.g., validating fresh MSMARCO embeddings). Pick or tailor the SLURM script that fits each request before dispatching it.
+- Monitor SLURM job logs (e.g., `Report-<jobid>.log`, `slurm_logs/`) and debug issues in place. You are expected to access any project paths involved; if access is missing, ask for guidance and explain how to grant it.
+- Name any newly created SLURM helpers as `slurm_jobs/codex_<descriptive_name>.sbatch` (or `.sh`) so automation can discover agent-authored scripts.
+- When the user requests a commit, describe the code changes and propose the commit message for approval before running `git commit`.
 - MSMARCO subsampling/embedding lives in `src/dataprep/`; keep `configs/ms_marco_subset_embed.yaml`, README.md, and this file in sync whenever the sampling parameters, output locations, or artefact layout change.
 - keep readme.md and agents.mdup-to-date with new features and changes.

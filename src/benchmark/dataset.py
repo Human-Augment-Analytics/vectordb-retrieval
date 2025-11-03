@@ -14,6 +14,11 @@ import numpy as np
 import requests
 from tqdm import tqdm
 
+try:
+    import faiss  # type: ignore
+except ImportError:  # pragma: no cover - faiss is required for brute-force GT
+    faiss = None
+
 logger = logging.getLogger(__name__)
 
 class Dataset:
@@ -87,6 +92,7 @@ class Dataset:
         self._test_cache_path: Optional[str] = None
         self._ground_truth_cache_path: Optional[str] = None
         self._train_cache_format: Optional[str] = None
+        self._ground_truth_suffix: str = "groundtruth"
 
     def download(self):
         """
@@ -212,6 +218,10 @@ class Dataset:
         if self.loaded:
             return
 
+        if self.name == "msmarco" and "_ground_truth_method" not in self.options:
+            # Ensure cache keys change when the ground-truth construction method changes.
+            self.options["_ground_truth_method"] = "bruteforce_v3"
+
         cache_suffix = ""
         if self.options:
             options_key = json.dumps(self.options, sort_keys=True)
@@ -320,7 +330,8 @@ class Dataset:
 
         ground_truth_cache = None
         if self.ground_truth is not None:
-            ground_truth_cache = self._write_array_cache(self.ground_truth, "groundtruth")
+            suffix = self._ground_truth_suffix or "groundtruth"
+            ground_truth_cache = self._write_array_cache(self.ground_truth, suffix)
             self._ground_truth_cache_path = ground_truth_cache
 
         meta["train"] = train_entry
@@ -758,6 +769,114 @@ class Dataset:
         print(f"  Queries: {self.test_vectors.shape}")
         print(f"  Ground truth width: {self.ground_truth.shape[1]}")
 
+    def _compute_bruteforce_ground_truth(
+        self,
+        train_vectors: np.ndarray,
+        query_vectors: np.ndarray,
+        requested_k: int,
+        metric: str,
+        normalize_cosine: bool,
+    ) -> np.ndarray:
+        """
+        Build exact ground truth by performing a brute-force search using FAISS.
+
+        Args:
+            train_vectors: Passage embedding matrix of shape (n_train, dim)
+            query_vectors: Query embedding matrix of shape (n_queries, dim)
+            requested_k: Desired number of neighbours per query
+            metric: Distance/similarity metric ('cosine', 'l2', or 'ip')
+
+        Returns:
+            Ground-truth index matrix of shape (n_queries, effective_k)
+        """
+        if faiss is None:  # pragma: no cover - dependency managed via requirements
+            raise ImportError(
+                "faiss-cpu is required to compute brute-force ground truth. Install faiss-cpu>=1.7.4."
+            )
+
+        if requested_k <= 0:
+            raise ValueError("requested_k must be a positive integer.")
+
+        train_array = np.asarray(train_vectors, dtype=np.float32)
+        query_array = np.asarray(query_vectors, dtype=np.float32)
+
+        if train_array.ndim != 2 or query_array.ndim != 2:
+            raise ValueError("Training and query embeddings must both be 2D arrays.")
+
+        n_train, dim = train_array.shape
+        if query_array.shape[1] != dim:
+            raise ValueError(
+                f"Dimensional mismatch between passages ({dim}) and queries ({query_array.shape[1]})."
+            )
+
+        effective_k = min(requested_k, n_train)
+        effective_k = max(1, effective_k)
+
+        metric_name = metric.lower()
+        logger.debug(
+            "Preparing FAISS ground truth: metric=%s, requested_k=%s, train_dtype=%s, query_dtype=%s",
+            metric,
+            requested_k,
+            train_array.dtype,
+            query_array.dtype,
+        )
+        if metric_name in {"cosine", "cos"}:
+            train_search = train_array if train_array.flags["C_CONTIGUOUS"] else np.ascontiguousarray(train_array)
+            query_search = query_array if query_array.flags["C_CONTIGUOUS"] else np.ascontiguousarray(query_array)
+            if normalize_cosine:
+                train_search = np.ascontiguousarray(train_search.copy())
+                query_search = np.ascontiguousarray(query_search.copy())
+                faiss.normalize_L2(train_search)
+                faiss.normalize_L2(query_search)
+            index = faiss.IndexFlatIP(dim)
+        elif metric_name in {"ip", "inner_product"}:
+            train_search = train_array if train_array.flags["C_CONTIGUOUS"] else np.ascontiguousarray(train_array)
+            query_search = query_array if query_array.flags["C_CONTIGUOUS"] else np.ascontiguousarray(query_array)
+            index = faiss.IndexFlatIP(dim)
+        elif metric_name in {"l2", "euclidean"}:
+            train_search = train_array if train_array.flags["C_CONTIGUOUS"] else np.ascontiguousarray(train_array)
+            query_search = query_array if query_array.flags["C_CONTIGUOUS"] else np.ascontiguousarray(query_array)
+            index = faiss.IndexFlatL2(dim)
+        else:
+            raise ValueError(
+                f"Unsupported ground-truth metric '{metric}'. Expected one of: cosine, ip, l2."
+            )
+
+        logger.debug(
+            "Running faiss search: n_train=%s, n_queries=%s, dim=%s, metric=%s, normalize_cosine=%s, train_contig=%s, query_contig=%s",
+            n_train,
+            query_array.shape[0],
+            dim,
+            metric,
+            normalize_cosine,
+            (train_search.flags["C_CONTIGUOUS"], train_search.flags["F_CONTIGUOUS"]),
+            (query_search.flags["C_CONTIGUOUS"], query_search.flags["F_CONTIGUOUS"]),
+        )
+        try:
+            train_ptr = int(train_search.ctypes.data)
+            query_ptr = int(query_search.ctypes.data)
+        except AttributeError:
+            train_ptr = query_ptr = None
+        logger.debug("train_ptr=%s query_ptr=%s", train_ptr, query_ptr)
+        logger.debug("index ntotal before add=%s", index.ntotal)
+        index.add(train_search)
+        logger.debug("index ntotal after add=%s", index.ntotal)
+        distances, indices = index.search(query_search, effective_k)
+        logger.debug(
+            "Faiss search completed (metric=%s, normalize_cosine=%s): indices dtype=%s sample=%s",
+            metric,
+            normalize_cosine,
+            indices.dtype,
+            indices[0, : min(5, effective_k)].tolist() if indices.size else [],
+        )
+        logger.debug(
+            "Distance sample: %s",
+            distances[0, : min(5, effective_k)].tolist() if distances.size else [],
+        )
+        del index  # ensure resources are reclaimed promptly
+
+        return indices.astype(np.int32, copy=False)
+
     def _process_msmarco_preembedded(self) -> None:
         """Load pre-embedded MS MARCO passages and queries from parquet files."""
         embedded_dir_value = self.options.get("embedded_dataset_dir") or self.options.get("embedding_dir")
@@ -780,14 +899,18 @@ class Dataset:
 
             passage_path = resolve_path("passage_embeddings_path", "passage_embeddings.npy")
             query_path = resolve_path("query_embeddings_path", "query_embeddings.npy")
-            ground_path = resolve_path("ground_truth_path", "ground_truth.npy")
+
+            if ground_truth_path_opt:
+                logger.warning(
+                    "Ignoring provided 'ground_truth_path' option (%s); ground truth will be recomputed "
+                    "via brute-force search over the supplied embeddings.",
+                    self.options.get("ground_truth_path"),
+                )
 
             if not passage_path.exists():
                 raise FileNotFoundError(f"Passage embeddings file not found: {passage_path}")
             if not query_path.exists():
                 raise FileNotFoundError(f"Query embeddings file not found: {query_path}")
-            if not ground_path.exists():
-                raise FileNotFoundError(f"Ground-truth file not found: {ground_path}")
 
             use_memmap_cache = bool(self.options.get("use_memmap_cache", False))
             mmap_mode = "r" if use_memmap_cache else None
@@ -797,37 +920,25 @@ class Dataset:
                 raise ValueError(
                     f"Expected passage embeddings to be float32 but found {train_vectors.dtype} at {passage_path}"
                 )
+            if train_vectors.ndim != 2:
+                raise ValueError(f"Passage embeddings must be 2D; found shape {train_vectors.shape} at {passage_path}")
 
             test_vectors = np.load(query_path, mmap_mode=None, allow_pickle=False)
             if test_vectors.dtype != np.float32:
                 raise ValueError(
                     f"Expected query embeddings to be float32 but found {test_vectors.dtype} at {query_path}"
                 )
-
-            ground_truth = np.load(ground_path, mmap_mode=None, allow_pickle=False)
-            if ground_truth.dtype not in (np.int32, np.int64):
+            if test_vectors.ndim != 2:
+                raise ValueError(f"Query embeddings must be 2D; found shape {test_vectors.shape} at {query_path}")
+            if test_vectors.shape[1] != train_vectors.shape[1]:
                 raise ValueError(
-                    f"Expected ground truth indices to be int32/int64 but found {ground_truth.dtype} at {ground_path}"
-                )
-            if ground_truth.ndim != 2:
-                raise ValueError(f"Ground truth array must be 2D; found shape {ground_truth.shape} at {ground_path}")
-
-            max_index = int(ground_truth.max()) if ground_truth.size else -1
-            if max_index >= train_vectors.shape[0]:
-                raise ValueError(
-                    "Ground truth indices reference passages outside the embeddings array. "
-                    f"Max index={max_index}, passage_count={train_vectors.shape[0]}"
-                )
-
-            if test_vectors.shape[0] != ground_truth.shape[0]:
-                raise ValueError(
-                    "Mismatch between number of queries and ground-truth rows: "
-                    f"{test_vectors.shape[0]} vs {ground_truth.shape[0]}"
+                    "Dimensional mismatch between passages and queries: "
+                    f"{train_vectors.shape[1]} vs {test_vectors.shape[1]}"
                 )
 
             self.train_vectors = train_vectors
             self.test_vectors = test_vectors
-            self.ground_truth = ground_truth.astype(np.int32, copy=False)
+            self._ground_truth_cache_path = None
 
             if use_memmap_cache and isinstance(train_vectors, np.memmap):
                 self._train_memmap_path = str(passage_path)
@@ -835,6 +946,55 @@ class Dataset:
             else:
                 self._train_memmap_path = None
                 self._train_cache_format = None
+
+            metric_value = (
+                self.options.get("metric")
+                or self.options.get("distance_metric")
+                or self.options.get("similarity")
+                or "cosine"
+            )
+            metric = str(metric_value).lower()
+
+            ground_truth_k_opt = (
+                self.options.get("ground_truth_k")
+                or self.options.get("GROUND_TRUTH_K")
+                or self.options.get("topk")
+            )
+            try:
+                requested_k = int(ground_truth_k_opt) if ground_truth_k_opt is not None else 100
+            except (TypeError, ValueError) as exc:
+                raise ValueError("ground_truth_k must be an integer") from exc
+
+            normalize_cosine = bool(self.options.get("normalize_cosine_groundtruth", False))
+            ground_truth = self._compute_bruteforce_ground_truth(
+                train_vectors,
+                test_vectors,
+                requested_k,
+                metric,
+                normalize_cosine,
+            )
+            self.ground_truth = ground_truth
+            effective_k = ground_truth.shape[1]
+            self._ground_truth_suffix = f"top{effective_k}groundtruth"
+
+            if not self._use_memmap_cache:
+                cache_path = self._write_array_cache(ground_truth, self._ground_truth_suffix)
+                if cache_path is not None:
+                    self._ground_truth_cache_path = cache_path
+
+            logger.info(
+                "Ground-truth index range: min=%s max=%s",
+                int(ground_truth.min()) if ground_truth.size else None,
+                int(ground_truth.max()) if ground_truth.size else None,
+            )
+
+            logger.info(
+                "Computed brute-force ground truth for MS MARCO using metric=%s (requested_k=%s, effective_k=%s, normalize_cosine=%s).",
+                metric,
+                requested_k,
+                effective_k,
+                normalize_cosine,
+            )
 
             print("MS MARCO embedded dataset loaded from pre-generated numpy arrays:")
             print(f"  Documents: {self.train_vectors.shape}")

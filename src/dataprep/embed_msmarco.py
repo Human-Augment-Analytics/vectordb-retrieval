@@ -2,11 +2,9 @@ import csv
 import json
 import logging
 import os
-from collections import defaultdict
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
-import ir_datasets
 import numpy as np
 import torch
 import yaml
@@ -90,90 +88,6 @@ def load_tsv_data(file_path: Path) -> Tuple[List[str], List[str]]:
     return ids, texts
 
 
-def _build_ground_truth(
-    query_ids: List[str],
-    query_texts: List[str],
-    passage_ids: List[str],
-    ground_truth_k: int,
-) -> Tuple[List[str], List[str], np.ndarray, Dict[str, List[str]], int]:
-    """Return filtered queries, ground-truth indices (padded), and doc id mapping."""
-    if ground_truth_k <= 0:
-        raise ValueError("GROUND_TRUTH_K must be a positive integer.")
-
-    dataset = ir_datasets.load("msmarco-passage/dev")
-    id_to_index = {pid: idx for idx, pid in enumerate(passage_ids)}
-    query_id_set = set(query_ids)
-
-    index_map: Dict[str, List[int]] = defaultdict(list)
-    docid_map: Dict[str, List[str]] = defaultdict(list)
-
-    logger.info("Collecting qrels for %s sampled queries...", f"{len(query_ids):,}")
-    for qrel in dataset.qrels_iter():
-        if qrel.relevance <= 0:
-            continue
-        qid = qrel.query_id
-        if qid not in query_id_set:
-            continue
-        doc_idx = id_to_index.get(qrel.doc_id)
-        if doc_idx is None:
-            continue
-        index_map[qid].append(doc_idx)
-        docid_map[qid].append(qrel.doc_id)
-
-    filtered_ids: List[str] = []
-    filtered_texts: List[str] = []
-    ground_truth_rows: List[List[int]] = []
-    docid_rows: Dict[str, List[str]] = {}
-    dropped = 0
-
-    for qid, text in zip(query_ids, query_texts):
-        positives = index_map.get(qid, [])
-        positive_doc_ids = docid_map.get(qid, [])
-        if not positives:
-            dropped += 1
-            continue
-
-        unique_indices: List[int] = []
-        unique_doc_ids: List[str] = []
-        seen: set[int] = set()
-
-        for idx, doc_id in zip(positives, positive_doc_ids):
-            if idx in seen:
-                continue
-            seen.add(idx)
-            unique_indices.append(idx)
-            unique_doc_ids.append(doc_id)
-            if len(unique_indices) >= ground_truth_k:
-                break
-
-        if not unique_indices:
-            dropped += 1
-            continue
-
-        padded = list(unique_indices)
-        while len(padded) < ground_truth_k:
-            padded.append(padded[-1])
-
-        filtered_ids.append(qid)
-        filtered_texts.append(text)
-        ground_truth_rows.append(padded[:ground_truth_k])
-        docid_rows[qid] = unique_doc_ids[:ground_truth_k]
-
-    if not ground_truth_rows:
-        raise ValueError(
-            "No queries retained after aligning qrels with the subsampled corpus. "
-            "Increase the corpus sample size or adjust the query subset."
-        )
-
-    ground_truth = np.asarray(ground_truth_rows, dtype=np.int32)
-    logger.info(
-        "Retained %s queries with positives (dropped %s).",
-        f"{len(filtered_ids):,}",
-        f"{dropped:,}",
-    )
-    return filtered_ids, filtered_texts, ground_truth, docid_rows, dropped
-
-
 def _save_metadata(
     output_dir: Path,
     *,
@@ -181,8 +95,7 @@ def _save_metadata(
     query_count: int,
     embedding_dim: int,
     model_name: str,
-    ground_truth_k: int,
-    dropped_queries: int,
+    ground_truth_precomputed: bool,
     ir_datasets_home: Optional[str],
     config_path: Path,
 ) -> None:
@@ -191,8 +104,7 @@ def _save_metadata(
         "query_count": query_count,
         "embedding_dim": embedding_dim,
         "model_name": model_name,
-        "ground_truth_k": ground_truth_k,
-        "dropped_queries": dropped_queries,
+        "ground_truth_precomputed": ground_truth_precomputed,
         "ir_datasets_home": ir_datasets_home,
         "config_path": str(config_path),
     }
@@ -226,20 +138,12 @@ def main() -> None:
 
     passage_ids, passage_texts = load_tsv_data(corpus_file)
 
-    ground_truth_k = int(cfg.embeddings.get("GROUND_TRUTH_K", 100))
     query_ids_raw, query_texts_raw = load_tsv_data(queries_file)
-
-    (
-        query_ids,
-        query_texts,
-        ground_truth,
-        ground_truth_doc_ids,
-        dropped_queries,
-    ) = _build_ground_truth(
-        query_ids_raw,
-        query_texts_raw,
-        passage_ids,
-        ground_truth_k,
+    query_ids = query_ids_raw
+    query_texts = query_texts_raw
+    logger.info(
+        "Encoding all %s queries from queries.tsv without filtering.",
+        f"{len(query_ids):,}",
     )
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -267,18 +171,10 @@ def main() -> None:
         convert_to_numpy=True,
     ).astype(np.float32, copy=False)
 
-    if query_embeddings.shape[0] != ground_truth.shape[0]:
-        raise ValueError(
-            "Mismatch between number of encoded queries and ground-truth rows: "
-            f"{query_embeddings.shape[0]} vs {ground_truth.shape[0]}"
-        )
-
     passage_emb_path = output_dir / "passage_embeddings.npy"
     passage_ids_path = output_dir / "passage_ids.npy"
     query_emb_path = output_dir / "query_embeddings.npy"
     query_ids_path = output_dir / "query_ids.npy"
-    ground_truth_path = output_dir / "ground_truth.npy"
-    ground_truth_doc_ids_path = output_dir / "ground_truth_doc_ids.json"
 
     logger.info("Saving passage embeddings to %s", passage_emb_path)
     np.save(passage_emb_path, passage_embeddings)
@@ -288,21 +184,13 @@ def main() -> None:
     np.save(query_emb_path, query_embeddings)
     np.save(query_ids_path, np.array(query_ids, dtype=np.str_))
 
-    logger.info("Saving ground truth to %s", ground_truth_path)
-    np.save(ground_truth_path, ground_truth)
-    ground_truth_doc_ids_path.write_text(
-        json.dumps(ground_truth_doc_ids, indent=2),
-        encoding="utf-8",
-    )
-
     _save_metadata(
         output_dir,
         passage_count=len(passage_ids),
         query_count=len(query_ids),
         embedding_dim=passage_embeddings.shape[1],
         model_name=model_name,
-        ground_truth_k=ground_truth_k,
-        dropped_queries=dropped_queries,
+        ground_truth_precomputed=False,
         ir_datasets_home=os.environ.get("IR_DATASETS_HOME"),
         config_path=CONFIG_PATH,
     )

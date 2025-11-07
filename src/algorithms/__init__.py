@@ -1,5 +1,7 @@
 from typing import Any, Dict, Type
 
+# DiskANN support has been removed; keep registry limited to active algorithms.
+
 from .approximate_search import ApproximateSearch
 from .base_algorithm import BaseAlgorithm
 from .exact_search import ExactSearch

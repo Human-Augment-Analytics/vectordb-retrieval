@@ -1,124 +1,205 @@
-import numpy as np
 import csv
+import json
+import logging
+import os
+from pathlib import Path
+from typing import List, Optional, Tuple
+
+import numpy as np
 import torch
 import yaml
-
-from sentence_transformers import SentenceTransformer
-from pathlib import Path
-from tqdm import tqdm
 from box import ConfigBox
+from sentence_transformers import SentenceTransformer
+from tqdm import tqdm
 
-# load config -----
-with open("config/ms_marco_subset_embed.yml", "r") as file:
-    config = ConfigBox(yaml.safe_load(file))
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+CONFIG_PATH = PROJECT_ROOT / "configs" / "ms_marco_subset_embed.yaml"
 
-def load_tsv_data(file_path: Path):
+logger = logging.getLogger(__name__)
+
+
+def _load_config() -> ConfigBox:
+    with CONFIG_PATH.open("r", encoding="utf-8") as file:
+        return ConfigBox(yaml.safe_load(file))
+
+
+def _ensure_ir_datasets_home(cfg: ConfigBox) -> Optional[Path]:
+    """Ensure IR_DATASETS_HOME is set, falling back to config defaults."""
+    configured = os.environ.get("IR_DATASETS_HOME")
+    if configured:
+        return Path(configured)
+
+    default_home = cfg.common.get("IR_DATASETS_HOME")
+    if default_home:
+        default_path = Path(default_home)
+        os.environ["IR_DATASETS_HOME"] = str(default_path)
+        return default_path
+
+    return None
+
+
+def _resolve_paths(cfg: ConfigBox) -> Tuple[Path, Path]:
+    embeddings_cfg = cfg.embeddings
+
+    input_dir = (
+        embeddings_cfg.get("INPUT_DIR")
+        or embeddings_cfg.get("SUBSAMPLED_DATA_DIR")
+        or cfg.subset.get("OUTPUT_DIR")
+    )
+    output_dir = embeddings_cfg.get("OUTPUT_DIR") or embeddings_cfg.get("OUTPUT_EMBEDDING_DIR")
+
+    if not input_dir:
+        raise ValueError("Missing INPUT_DIR/SUBSAMPLED_DATA_DIR/subset.OUTPUT_DIR in configuration.")
+    if not output_dir:
+        raise ValueError("Missing OUTPUT_DIR/OUTPUT_EMBEDDING_DIR in configuration.")
+
+    input_path = Path(input_dir)
+    output_path = Path(output_dir)
+    output_path.mkdir(parents=True, exist_ok=True)
+
+    return input_path, output_path
+
+
+def load_tsv_data(file_path: Path) -> Tuple[List[str], List[str]]:
     """Loads IDs and text from a TSV file."""
-    
-    ids = []
-    texts = []
-    print(f"Loading data from {file_path}...")
-    
+    ids: List[str] = []
+    texts: List[str] = []
+
     if not file_path.is_file():
-        print(f"Error: File not found at {file_path}")
-        return None, None
-        
+        raise FileNotFoundError(f"File not found at {file_path}")
+
+    logger.info("Loading data from %s ...", file_path)
+
     with file_path.open('r', encoding='utf-8') as f:
         reader = csv.reader(f, delimiter='\t')
         try:
-            header = next(reader) # skip header
-        except StopIteration:
-            print(f"Error: File {file_path} appears to be empty.")
-            return None, None
-            
+            next(reader)  # Skip header
+        except StopIteration as exc:
+            raise ValueError(f"File {file_path} appears to be empty.") from exc
+
         for row in tqdm(reader, desc=f"Reading {file_path.name}"):
-            if len(row) == 2: # check for id and text
-                 ids.append(row[0])
-                 texts.append(row[1])
+            if len(row) == 2:
+                ids.append(row[0])
+                texts.append(row[1])
             else:
-                print(f"Warning: Skipping malformed row in {file_path.name}: {row}")
-                
-    print(f"Loaded {len(ids):,} items.")
+                logger.warning("Skipping malformed row in %s: %s", file_path.name, row)
+
+    logger.info("Loaded %s items from %s.", f"{len(ids):,}", file_path.name)
     return ids, texts
 
-def main():
-    print("--- MSMARCO v1 Embedding Generation ---")
-    
-    # --- Setup ---
-    config.embeddings.OUTPUT_EMBEDDING_DIR.mkdir(exist_ok=True)
-    print(f"Output directory: {config.embeddings.OUTPUT_EMBEDDING_DIR}")
 
-    corpus_file = config.embeddings.SUBSAMPLED_DATA_DIR / "corpus.tsv"
-    queries_file = config.embeddings.SUBSAMPLED_DATA_DIR / "queries.tsv"
+def _save_metadata(
+    output_dir: Path,
+    *,
+    passage_count: int,
+    query_count: int,
+    embedding_dim: int,
+    model_name: str,
+    ground_truth_precomputed: bool,
+    ir_datasets_home: Optional[str],
+    config_path: Path,
+) -> None:
+    metadata = {
+        "passage_count": passage_count,
+        "query_count": query_count,
+        "embedding_dim": embedding_dim,
+        "model_name": model_name,
+        "ground_truth_precomputed": ground_truth_precomputed,
+        "ir_datasets_home": ir_datasets_home,
+        "config_path": str(config_path),
+    }
+    metadata_path = output_dir / "metadata.json"
+    metadata_path.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
+    logger.info("Wrote metadata to %s", metadata_path)
 
-    # --- Determine Device ---
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    print(f"Using device: {device}")
-    
-    if device == 'cpu':
-        print("Warning: No GPU detected, will use CPU.")
 
-    # --- Load Model ---
-    print(f"Loading sentence transformer model: {config.embeddings.MODEL_NAME}...")
-    model = SentenceTransformer(config.embeddings.MODEL_NAME, device=device)
-    print("Sentence Bert loaded.")
+def main() -> None:
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(levelname)s - %(message)s",
+    )
+    logger.info("--- MSMARCO v1 Embedding Generation ---")
 
-    # --- Process Corpus ---
+    cfg = _load_config()
+    ir_home = _ensure_ir_datasets_home(cfg)
+    if ir_home:
+        logger.info("Using IR_DATASETS_HOME=%s", ir_home)
+    else:
+        logger.warning(
+            "IR_DATASETS_HOME not set. ir_datasets will fall back to its default cache location."
+        )
+
+    input_dir, output_dir = _resolve_paths(cfg)
+    logger.info("Input directory: %s", input_dir)
+    logger.info("Output directory: %s", output_dir)
+
+    corpus_file = input_dir / "corpus.tsv"
+    queries_file = input_dir / "queries.tsv"
+
     passage_ids, passage_texts = load_tsv_data(corpus_file)
-    if passage_ids is None:
-        return # Exit if loading failed
 
-    print("\nGenerating passage embeddings...")
-    
+    query_ids_raw, query_texts_raw = load_tsv_data(queries_file)
+    query_ids = query_ids_raw
+    query_texts = query_texts_raw
+    logger.info(
+        "Encoding all %s queries from queries.tsv without filtering.",
+        f"{len(query_ids):,}",
+    )
+
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    logger.info("Using device: %s", device)
+    if device == 'cpu':
+        logger.warning("No GPU detected. Encoding will proceed on CPU.")
+
+    model_name = cfg.embeddings.MODEL_NAME
+    logger.info("Loading sentence transformer model: %s...", model_name)
+    model = SentenceTransformer(model_name, device=device)
+
+    logger.info("Encoding %s passages...", f"{len(passage_texts):,}")
     passage_embeddings = model.encode(
         passage_texts,
-        batch_size=config.embeddings.BATCH_SIZE,
+        batch_size=int(cfg.embeddings.BATCH_SIZE),
         show_progress_bar=True,
-        convert_to_numpy=True
-    )
-    
-    print(f"Generated passage embeddings shape: {passage_embeddings.shape}")
+        convert_to_numpy=True,
+    ).astype(np.float32, copy=False)
 
-    # Save passage embeddings and IDs
-    passage_emb_path = config.embeddings.OUTPUT_EMBEDDING_DIR / "passage_embeddings.npy"
-    passage_ids_path = config.embeddings.OUTPUT_EMBEDDING_DIR / "passage_ids.npy"
-    
-    print(f"Saving passage embeddings to {passage_emb_path}...")
-    np.save(passage_emb_path, passage_embeddings.astype(np.float32)) # save for faiss, float32
-    
-    print(f"Saving passage IDs to {passage_ids_path}...")
-    np.save(passage_ids_path, np.array(passage_ids))
-    
-    print("Passage data saved.")
- 
-    # --- Process Queries ---
-    query_ids, query_texts = load_tsv_data(queries_file)
-    if query_ids is None:
-        return print("Failed loading queries") # Exit if loading failed
-
-    print("\nGenerating query embeddings...")
+    logger.info("Encoding %s queries...", f"{len(query_texts):,}")
     query_embeddings = model.encode(
         query_texts,
-        batch_size=config.embeddings.BATCH_SIZE,
+        batch_size=int(cfg.embeddings.BATCH_SIZE),
         show_progress_bar=True,
-        convert_to_numpy=True
+        convert_to_numpy=True,
+    ).astype(np.float32, copy=False)
+
+    passage_emb_path = output_dir / "passage_embeddings.npy"
+    passage_ids_path = output_dir / "passage_ids.npy"
+    query_emb_path = output_dir / "query_embeddings.npy"
+    query_ids_path = output_dir / "query_ids.npy"
+
+    logger.info("Saving passage embeddings to %s", passage_emb_path)
+    np.save(passage_emb_path, passage_embeddings)
+    np.save(passage_ids_path, np.array(passage_ids, dtype=np.str_))
+
+    logger.info("Saving query embeddings to %s", query_emb_path)
+    np.save(query_emb_path, query_embeddings)
+    np.save(query_ids_path, np.array(query_ids, dtype=np.str_))
+
+    _save_metadata(
+        output_dir,
+        passage_count=len(passage_ids),
+        query_count=len(query_ids),
+        embedding_dim=passage_embeddings.shape[1],
+        model_name=model_name,
+        ground_truth_precomputed=False,
+        ir_datasets_home=os.environ.get("IR_DATASETS_HOME"),
+        config_path=CONFIG_PATH,
     )
-    
-    print(f"Generated query embeddings shape: {query_embeddings.shape}")
 
-    # Save query embeddings and IDs
-    query_emb_path = config.embeddings.OUTPUT_EMBEDDING_DIR / "query_embeddings.npy"
-    query_ids_path = config.embeddings.OUTPUT_EMBEDDING_DIR / "query_ids.npy"
-    
-    print(f"Saving query embeddings to {query_emb_path}...")
-    np.save(query_emb_path, query_embeddings.astype(np.float32)) # Save as float32
-    
-    print(f"Saving query IDs to {query_ids_path}...")
-    np.save(query_ids_path, np.array(query_ids))
-    
-    print("Query data saved.")
+    logger.info(
+        "Completed embedding generation. Artifacts written to %s",
+        output_dir,
+    )
 
-    print("Embeddings and IDs saved in:", config.embeddings.OUTPUT_EMBEDDING_DIR)
 
 if __name__ == "__main__":
     main()

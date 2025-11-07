@@ -1,13 +1,20 @@
 common:
   SHARED_DRIVE_PATH: "/storage/ice-shared/cs8903onl/vectordb-retrieval"
+  IR_DATASETS_HOME: "/storage/ice-shared/cs8903onl/vectordb-retrieval/ms_marco_v1_raw"
 
 subset:
-  SEED: 42  # seed for sampling 
-  CORPUS_SAMPLE_SIZE: 1_000_000  # documents
-  QUERY_SAMPLE_SIZE: 1_000       # queries
+  OUTPUT_DIR: "/storage/ice-shared/cs8903onl/vectordb-retrieval/datasets/msmarco_v1_subsampled"
+  SEED: 42
+  CORPUS_SAMPLE_SIZE: 1000000
+  QUERY_SAMPLE_SIZE: 1000
 
 embeddings:
-  SUBSAMPLED_DATA_DIR: "/storage/ice-shared/cs8903onl/vectordb-retrieval/msmarco_v1_subsampled"
-  OUTPUT_EMBEDDING_DIR: "/storage/ice-shared/cs8903onl/vectordb-retrieval/msmarco_v1_embeddings"
-  MODEL_NAME: 'all-MiniLM-L6-v2'
+  INPUT_DIR: "/storage/ice-shared/cs8903onl/vectordb-retrieval/datasets/msmarco_v1_subsampled"
+  OUTPUT_DIR: "/storage/ice-shared/cs8903onl/vectordb-retrieval/datasets/msmarco_v1_embeddings"
+  MODEL_NAME: "all-MiniLM-L6-v2"
   BATCH_SIZE: 256
+  GROUND_TRUTH_K: 200
+
+#  # Backwards-compat aliases used by older scripts (safe to remove once callers adopt the new keys)
+#  SUBSAMPLED_DATA_DIR: "/storage/ice-shared/cs8903onl/vectordb-retrieval/msmarco_v1_subsampled"
+#  OUTPUT_EMBEDDING_DIR: "/storage/ice-shared/cs8903onl/vectordb-retrieval/msmarco_v1_embeddings"

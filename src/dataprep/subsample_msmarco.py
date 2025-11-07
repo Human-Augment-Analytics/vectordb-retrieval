@@ -1,127 +1,156 @@
-import ir_datasets
-import random
-import csv
 import os
+import random
+import logging
+from typing import Optional
+
+import csv
 import yaml
 
 from pathlib import Path
 from tqdm import tqdm
 from box import ConfigBox
 
-# load config -----
-with open("config/ms_marco_subset_embed.yml", "r") as file:
-    config = ConfigBox(yaml.safe_load(file))
+import ir_datasets
 
-# SET UP IR_DATASETS HOME -----
-# We load the downloaded dataset from the common drive so that we can save time on downloading it again every time that we want
-# to subsample it in a different way
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+CONFIG_PATH = PROJECT_ROOT / "configs" / "ms_marco_subset_embed.yaml"
 
-ir_datasets_home_str = os.environ.get('IR_DATASETS_HOME') # this has to be set from the slurm job
+logger = logging.getLogger(__name__)
 
-if ir_datasets_home_str:
-    ir_datasets_home_path = Path(ir_datasets_home_str)
-    
-    # Go up one level from 'ms_marco_v1_raw' and create 'msmarco_v1_subsampled' there
-    OUTPUT_DIR = ir_datasets_home_path.parent / "msmarco_v1_subsampled"
 
-else:
-    # Default fallback if IR_DATASETS_HOME is not set 
-    # This is not recommended because it will pollute your local home directory on ICE
-    
-    OUTPUT_DIR = Path("./msmarco_v1_subsampled")
+def _load_config() -> ConfigBox:
+    with CONFIG_PATH.open("r", encoding="utf-8") as file:
+        return ConfigBox(yaml.safe_load(file))
 
-# ----
 
-def sample_corpus():
+config = _load_config()
+
+
+def _ensure_ir_datasets_home(cfg: ConfigBox) -> Optional[Path]:
+    """Ensure IR_DATASETS_HOME is set, falling back to config defaults."""
+    configured = os.environ.get("IR_DATASETS_HOME")
+    if configured:
+        return Path(configured)
+
+    default_home = cfg.common.get("IR_DATASETS_HOME")
+    if default_home:
+        default_path = Path(default_home)
+        os.environ["IR_DATASETS_HOME"] = str(default_path)
+        return default_path
+
+    return None
+
+
+def _resolve_output_dir(ir_home: Optional[Path], cfg: ConfigBox) -> Path:
+    subset_cfg = cfg.subset
+    embeddings_cfg = cfg.embeddings
+
+    explicit = (
+        subset_cfg.get("OUTPUT_DIR")
+        or embeddings_cfg.get("SUBSAMPLED_DATA_DIR")
+        or embeddings_cfg.get("INPUT_DIR")
+    )
+    if explicit:
+        return Path(explicit)
+
+    if ir_home:
+        return ir_home.parent / "msmarco_v1_subsampled"
+
+    return Path.cwd() / "msmarco_v1_subsampled"
+
+
+def sample_corpus(output_dir: Path, sample_size: int, seed: int) -> None:
     """
     Loads and samples the full MSMARCO v1 passage corpus.
     Assumes data is pre-downloaded based on IR_DATASETS_HOME.
     """
-    print(f"Loading 'msmarco-passage' corpus...")
-    
-    # ir-datasets will try to use IR_DATASETS_HOME to find the data
-    
+    logger.info("Loading 'msmarco-passage' corpus via ir_datasets...")
+
     try:
         dataset = ir_datasets.load("msmarco-passage")
         n_total_docs = dataset.docs_count()
-        print(f"Total documents in corpus: {n_total_docs:,}")
-        
+        logger.info("Total documents in corpus: %s", f"{n_total_docs:,}")
+
     except Exception as e:
-        print(f"Error loading dataset. Is IR_DATASETS_HOME set correctly and data downloaded?")
-        print(f"Error details: {e}")
-        return # Exit the function if dataset loading fails
+        logger.error(
+            "Error loading dataset. Is IR_DATASETS_HOME set correctly and data downloaded? (%s)",
+            e,
+        )
+        raise
 
-    # 1. Set up seed
-    print(f"Generating {config.subset.CORPUS_SAMPLE_SIZE:,} random indices (Seed={config.subset.SEED})...")
-    random.seed(config.subset.SEED)
-    indices_to_keep = set(random.sample(range(n_total_docs), config.subset.CORPUS_SAMPLE_SIZE))
+    if sample_size > n_total_docs:
+        raise ValueError(
+            f"Requested {sample_size:,} passages but dataset only contains {n_total_docs:,} documents."
+        )
 
-    out_path = OUTPUT_DIR / "corpus.tsv"
-    print(f"Streaming corpus and writing subsample to {out_path}...")
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    logger.info("Generating %s random indices (seed=%s)...", f"{sample_size:,}", seed)
+    random.seed(seed)
+    indices_to_keep = set(random.sample(range(n_total_docs), sample_size))
 
-    # 2. Iterate and write the subsample
+    out_path = output_dir / "corpus.tsv"
+    logger.info("Streaming corpus and writing subsample to %s...", out_path)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
     with out_path.open('w', encoding='utf-8', newline='') as f_out:
         writer = csv.writer(f_out, delimiter='\t')
-        writer.writerow(["doc_id", "text"]) # Write header
+        writer.writerow(["doc_id", "text"])
 
         count = 0
-        with tqdm(total=config.subset.CORPUS_SAMPLE_SIZE, desc="Sampling corpus") as pbar:
-            # Check if docs_iter exists before iterating
+        with tqdm(total=sample_size, desc="Sampling corpus") as pbar:
             if not hasattr(dataset, 'docs_iter'):
-                print("Error: docs_iter not found on the dataset object.")
-                return
+                raise AttributeError("docs_iter not found on the dataset object.")
 
-            # go through all the indices and write only the sampled ones
             for i, doc in enumerate(dataset.docs_iter()):
                 if i in indices_to_keep:
                     writer.writerow([doc.doc_id, doc.text])
                     count += 1
                     pbar.update(1)
-                
-                # stop once we hit the desired number of documents
-                if count == config.subset.CORPUS_SAMPLE_SIZE:
+
+                if count == sample_size:
                     break
 
-    print(f"Successfully sampled {count:,} documents.\n")
+    logger.info("Successfully sampled %s documents.", f"{count:,}")
 
-def sample_queries():
+
+def sample_queries(output_dir: Path, sample_size: int, seed: int) -> None:
     """
     Loads and samples the MSMARCO v1 dev queries.
     Assumes data is pre-downloaded based on IR_DATASETS_HOME.
     """
-    print(f"Loading 'msmarco-passage/dev' queries...")
+    logger.info("Loading 'msmarco-passage/dev' queries via ir_datasets...")
     try:
         dataset = ir_datasets.load("msmarco-passage/dev")
         n_total_queries = dataset.queries_count()
-        print(f"Total queries in dev set: {n_total_queries:,}")
-        
+        logger.info("Total queries in dev set: %s", f"{n_total_queries:,}")
+
     except Exception as e:
-        print(f"Error loading dataset. Is IR_DATASETS_HOME set correctly and data downloaded?")
-        print(f"Error details: {e}")
-        return
+        logger.error(
+            "Error loading dataset. Is IR_DATASETS_HOME set correctly and data downloaded? (%s)",
+            e,
+        )
+        raise
 
-    # 1. Generate reproducible indices
-    print(f"Generating {config.subset.QUERY_SAMPLE_SIZE:,} random indices (Seed={config.subset.SEED})...")
-    random.seed(config.subset.SEED)
-    indices_to_keep = set(random.sample(range(n_total_queries), config.subset.QUERY_SAMPLE_SIZE))
+    if sample_size > n_total_queries:
+        raise ValueError(
+            f"Requested {sample_size:,} queries but dataset only contains {n_total_queries:,} queries."
+        )
 
-    out_path = OUTPUT_DIR / "queries.tsv"
-    print(f"Streaming queries and writing subsample to {out_path}...")
+    logger.info("Generating %s random indices (seed=%s)...", f"{sample_size:,}", seed)
+    random.seed(seed)
+    indices_to_keep = set(random.sample(range(n_total_queries), sample_size))
 
-    # Ensure output directory exists before writing
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    out_path = output_dir / "queries.tsv"
+    logger.info("Streaming queries and writing subsample to %s...", out_path)
+    output_dir.mkdir(parents=True, exist_ok=True)
 
-    # 2. Iterate and write
     with out_path.open('w', encoding='utf-8', newline='') as f_out:
         writer = csv.writer(f_out, delimiter='\t')
-        writer.writerow(["query_id", "text"]) # Write header
+        writer.writerow(["query_id", "text"])
 
         count = 0
-        with tqdm(total=config.subset.QUERY_SAMPLE_SIZE, desc="Sampling queries") as pbar:
+        with tqdm(total=sample_size, desc="Sampling queries") as pbar:
             if not hasattr(dataset, 'queries_iter'):
-                 print("Error: queries_iter not found on the dataset object.")
-                 return
+                raise AttributeError("queries_iter not found on the dataset object.")
 
             for i, query in enumerate(dataset.queries_iter()):
                 if i in indices_to_keep:
@@ -129,30 +158,38 @@ def sample_queries():
                     count += 1
                     pbar.update(1)
 
-                if count == config.subset.QUERY_SAMPLE_SIZE:
+                if count == sample_size:
                     break
 
-    print(f"Successfully sampled {count:,} queries.\n")
+    logger.info("Successfully sampled %s queries.", f"{count:,}")
 
 def main():
-    print("--- MSMARCO v1 Subsampler ---")
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(levelname)s - %(message)s",
+    )
+    logger.info("--- MSMARCO v1 Subsampler ---")
 
-    # Check and print the IR_DATASETS_HOME environment variable
-    ir_datasets_home_str = os.environ.get('IR_DATASETS_HOME') # this has to be set from the slurm job (hardcoded)
-    
-    if ir_datasets_home_str:
-        print(f"Using IR_DATASETS_HOME: {ir_datasets_home_str}")
-        print(f"Output directory will be: {OUTPUT_DIR}") # Show output path
+    ir_home = _ensure_ir_datasets_home(config)
+
+    if ir_home:
+        logger.info("Using IR_DATASETS_HOME=%s", ir_home)
     else:
-        print("Warning: IR_DATASETS_HOME environment variable not set.")
-        print(f"Output directory will be relative: {OUTPUT_DIR}")
+        logger.warning(
+            "IR_DATASETS_HOME not set. ir_datasets will fall back to its default cache location."
+        )
 
-    # Run the random sampling from the documents and the sampling from the queries
-    sample_corpus()
-    sample_queries()
+    output_dir = _resolve_output_dir(ir_home, config)
+    logger.info("Output directory resolved to: %s", output_dir)
 
-    print(f"Subsampled data should be in: {OUTPUT_DIR}")
+    seed = int(config.subset.SEED)
+    corpus_sample_size = int(config.subset.CORPUS_SAMPLE_SIZE)
+    query_sample_size = int(config.subset.QUERY_SAMPLE_SIZE)
+
+    sample_corpus(output_dir, corpus_sample_size, seed)
+    sample_queries(output_dir, query_sample_size, seed)
+
+    logger.info("Subsampled data written to: %s", output_dir)
 
 if __name__ == "__main__":
     main()
-

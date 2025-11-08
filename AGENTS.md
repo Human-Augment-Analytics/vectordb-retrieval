@@ -63,3 +63,8 @@ This is a research repository for benchmarking the existing vector DB retrieval 
 - When the user requests a commit, describe the code changes and propose the commit message for approval before running `git commit`.
 - MSMARCO subsampling/embedding lives in `src/dataprep/`; keep `configs/ms_marco_subset_embed.yaml`, README.md, and this file in sync whenever the sampling parameters, output locations, or artefact layout change.
 - keep readme.md and agents.mdup-to-date with new features and changes.
+
+## Known Follow-ups (keep in sync as you investigate)
+
+- **LSH metrics look identical to ExactSearch** (see `benchmark_results/benchmark_20251108_095624/benchmark_summary.md`). This is almost certainly a bug: reproduce the run with `configs/benchmark_config.yaml`, inspect the LSH pipeline, and document findings in `methodology/lsh_benchmarking.md` (created for this purpose). Fix the implementation/config once the root cause is known.
+- **Random dataset triggers FAISS k-means warnings** when building IVF/PQ indexes because we only keep 5k training vectors. Decide whether to regenerate a larger random dataset (>= nlist*40) or downsize the IVF/PQ configs; track the discussion in this file once you pick a direction. The warning is emitted repeatedly in `slurm_logs/VectorDB-Retrieval-Guarantee_FULL-3513016-atl1-1-03-004-5-1.log`.

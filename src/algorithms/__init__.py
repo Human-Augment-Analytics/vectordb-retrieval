@@ -2,6 +2,7 @@ from typing import Any, Dict, Type
 
 from .approximate_search import ApproximateSearch
 from .base_algorithm import BaseAlgorithm
+from .covertree import CoverTree
 from .exact_search import ExactSearch
 from .hnsw import HNSW
 from .lsh import LSH
@@ -24,6 +25,7 @@ ALGORITHM_REGISTRY: Dict[str, Type[BaseAlgorithm]] = {
     "ApproximateSearch": ApproximateSearch,
     "HNSW": HNSW,
     "LSH": LSH,
+    "CoverTree": CoverTree,
     "Composite": CompositeAlgorithm,
     "CompositeAlgorithm": CompositeAlgorithm,
     "Modular": CompositeAlgorithm,
@@ -49,6 +51,7 @@ __all__ = [
     "ApproximateSearch",
     "HNSW",
     "LSH",
+    "CoverTree",
     "CompositeAlgorithm",
     "BaseIndexer",
     "BaseSearcher",

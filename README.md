@@ -9,6 +9,7 @@ This repository provides a comprehensive framework for researching, benchmarking
 - **Modular Index/Search Pipelines**: Combine any indexing strategy with any search strategy through declarative config (e.g., pair FAISS HNSW indexing with linear or FAISS searchers).
 - **Expanded FAISS Coverage**: Benchmark flat, IVF-Flat, IVF-PQ, IVF-SQ8, and stand-alone PQ indexes side by side without code changes by updating YAML configs.
 - **Locality-Sensitive Hashing Baseline**: Compare an LSH retriever (cosine or Euclidean) with tunable recall guarantees using the same declarative pipeline.
+- **Cover Tree Prototype**: Run a lightweight cover tree baseline (random + subsampled GloVe) via `configs/covertree_smoke.yaml` to vet hierarchical metric search behavior.
 - **Standard Datasets**: Built-in support for benchmark datasets like SIFT1M, GloVe, and MS MARCO (TF-IDF projection or pre-embedded Cohere vectors), with automated download and preprocessing.
 - **Comprehensive Metrics**: Tracks key performance indicators including recall, queries per second (QPS), index build time, and index memory usage.
 - **Automated Reporting**: Automatically generates detailed Markdown summary reports and raw JSON results for each benchmark run.
@@ -87,6 +88,18 @@ The script will automatically download the required datasets if they are not fou
 Dataset entries can carry bespoke options via the `dataset_options` key. For example, the MS MARCO configuration in `configs/benchmark_config.yaml` now consumes the pre-embedded Cohere vectors by pointing at the shared parquet cache, constraining how many passages/queries are loaded, and routing processed caches to the writable results folder. Additional knobs (`query_relevance_offsets_column`, `relevance_candidates_limit`) control how many of the provided top-1k references are considered when constructing ground-truth labels. Tweak those knobs (`base_limit`, `query_limit`, `cache_dir`, etc.) to balance fidelity and runtime for your environment.
 
 When you evaluate at higher cut-offs (e.g., top-1000), raise both `ground_truth_k` in the dataset options and the global `topk` setting so the cache retains enough positives and the benchmark actually requests that many neighbors. Expect the first run with a larger window (e.g., `base_limit: 200000`, `query_limit: 1000`) to spend more time materialising the cache; subsequent runs reuse the processed pickle.
+
+The `glove50` loader also accepts new smoke-friendly knobs: `test_size`, `test_limit`, `train_limit`, `ground_truth_k`, and `seed`. They make it easy to subsample a few thousand base vectors plus a couple hundred queries—perfect for validating slower research prototypes such as the cover tree without processing all ~400k embeddings.
+
+### CoverTree Smoke Run
+
+To validate the CoverTree baseline end-to-end (random dataset first, then a subsampled GloVe split), run:
+
+```bash
+python scripts/run_full_benchmark.py --config configs/covertree_smoke.yaml
+```
+
+The config limits the random dataset to 5k train / 512 queries and trims GloVe to ~20k train / 256 queries while switching the metric to cosine. It also mirrors the repo-standard paths from `AGENTS.md`, so all data reads come from `/storage/ice-shared/cs8903onl/vectordb-retrieval/datasets` (no fresh downloads) and results land in `/storage/ice-shared/cs8903onl/vectordb-retrieval/results`, right next to the other benchmark suites.
 
 > **Memory-bound runs:** set `use_memmap_cache: true` under `dataset_options` to stream large pre-embedded datasets (MS MARCO) directly into a memory-mapped file instead of materialising all passages in RAM. The loader now writes `<dataset>_<digest>_train.memmap` alongside JSON metadata inside `cache_dir`, while queries/ground-truth stay in compact `.npy` files. This avoids the double-copy previously required for `np.vstack` + FAISS warm-up and is especially helpful on PACE nodes with tight memory quotas. You can still cap working set via `base_limit`, `query_limit`, and lower `batch_size` if the parquet reader spikes memory during iteration. Combine this with `query_batch_size` (global or per-dataset) to execute searches in controllable mini-batches and keep runtime under cluster limits. Short on walltime? Disable strict relevance resolution (`strict_relevance_resolution: false`) and/or bound the parquet scan (`max_passage_scan`) so loading stops once the `base_limit` budget is filled; any missing positives are reported and skipped.
 

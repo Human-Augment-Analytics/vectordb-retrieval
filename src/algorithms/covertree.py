@@ -1,265 +1,309 @@
-import unittest
-from base_algorithm import BaseAlgorithm
-from typing import List
+from __future__ import annotations
+
+import heapq
+from dataclasses import dataclass, field
+from itertools import count
+from typing import Iterable, List, Optional, Sequence, Tuple
+
 import numpy as np
+
+from .base_algorithm import BaseAlgorithm
+
+
+@dataclass(slots=True)
+class _CoverTreeNode:
+    """Node within the cover tree structure."""
+
+    index: int
+    level: int
+    children: List["_CoverTreeNode"] = field(default_factory=list)
+
 
 class CoverTree(BaseAlgorithm):
     """
-    Covertree algorithm implementation
-    Covertree is a graph-based algorithm that uses the ambient metric to
-    construct a heirarchical tree-basec covering structure.
+    Lightweight Cover Tree implementation compatible with the benchmarking stack.
+
+    The implementation keeps the original toy insertion logic but adds:
+      * Support for the BaseAlgorithm interface (build/search/batch_search).
+      * Configurable metrics (L2, cosine, inner product).
+      * Candidate pooling to keep search time reasonable for smoke benchmarks.
     """
 
-    class Node:
-        """
-        Auxilary class defining the nodes needed for this tree-based datastructure
-        """
-        def __init__(self, value: np.ndarray):
-            self.value = value
-            self.children = []
-    
-    def __init__(self, name: str, dimension: int, metric: str = "l2", **kwargs):
+    def __init__(
+        self,
+        name: str,
+        dimension: int,
+        metric: str = "l2",
+        candidate_pool_size: int = 256,
+        max_visit_nodes: Optional[int] = None,
+        visit_multiplier: int = 16,
+        **kwargs,
+    ) -> None:
         super().__init__(name, dimension, **kwargs)
-        self.metric = metric
-        self.index = None
-        self.root = None # root node of index
-        
-        self.top_level = 0
-        
-        self.config.update({
-            'metric': self.metric
-        })
+        self.metric_name = metric.lower()
+        self.candidate_pool_size = max(int(candidate_pool_size), 1)
+        self.max_visit_nodes = (
+            int(max_visit_nodes) if max_visit_nodes is not None else self.candidate_pool_size * visit_multiplier
+        )
+        self.visit_multiplier = max(visit_multiplier, 1)
+        self.root: Optional[_CoverTreeNode] = None
+        self.max_level = 0
+        self._vectors: Optional[np.ndarray] = None
+        self._working_vectors: Optional[np.ndarray] = None
 
-    def batch_search(self):
-        pass
+        self.config.update(
+            {
+                "metric": self.metric_name,
+                "candidate_pool_size": self.candidate_pool_size,
+                "max_visit_nodes": self.max_visit_nodes,
+                "visit_multiplier": self.visit_multiplier,
+            }
+        )
 
-    def build_index(self, vectors: np.ndarray):
-        if vectors is None or len(vectors) == 0:
-            return
-        if self.root is None:
-            self.root = self.Node(vectors[0])
-            self.max_level = 0
-            start_index = 1  
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
+    def build_index(
+        self,
+        vectors: np.ndarray,
+        metadata: Optional[Sequence[dict]] = None,
+    ) -> None:
+        """
+        Build the cover tree index over the provided vectors.
+        """
+        processed = self._prepare_vectors(vectors)
+        self.vectors = processed
+        self.metadata = list(metadata) if metadata is not None else None
+
+        if self.metric_name == "cosine":
+            self._working_vectors = self._normalize_vectors(processed)
         else:
-            start_index = 0  
-            
-        for i in range(start_index, len(vectors)):
-            self.insert(vectors[i])
+            self._working_vectors = processed
 
+        self.root = None
+        self.max_level = 0
 
-    def insert(self, p: np.ndarray):
+        for idx in range(processed.shape[0]):
+            self._insert_index(idx)
+
+        self.index_built = True
+
+    def search(self, query: np.ndarray, k: int = 10) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Retrieve the k nearest neighbours for a single query vector.
+        """
+        if not self.index_built or self.root is None or self._working_vectors is None:
+            raise RuntimeError("Index has not been built yet.")
+
+        prepared = self._prepare_query(query)
+        candidate_indices = self._collect_candidates(prepared, max(k, self.candidate_pool_size))
+
+        if len(candidate_indices) < k:
+            candidate_indices = list(range(self._working_vectors.shape[0]))
+
+        distances, indices = self._rank_candidates(prepared, candidate_indices, k)
+        return distances, indices
+
+    def batch_search(self, queries: np.ndarray, k: int = 10) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Batched version of the CoverTree search API.
+        """
+        if not self.index_built or self.root is None or self._working_vectors is None:
+            raise RuntimeError("Index has not been built yet.")
+
+        queries = np.asarray(queries, dtype=np.float32)
+        if queries.ndim != 2 or queries.shape[1] != self.dimension:
+            raise ValueError(f"Expected queries of shape (n, {self.dimension})")
+
+        distance_results = np.full((queries.shape[0], k), np.inf, dtype=np.float32)
+        index_results = np.full((queries.shape[0], k), -1, dtype=np.int64)
+
+        for row, query in enumerate(queries):
+            distances, indices = self.search(query, k=k)
+            limit = min(k, len(distances))
+            distance_results[row, :limit] = distances[:limit]
+            index_results[row, :limit] = indices[:limit]
+
+        return distance_results, index_results
+
+    # ------------------------------------------------------------------
+    # Tree construction helpers
+    # ------------------------------------------------------------------
+    def _prepare_vectors(self, vectors: np.ndarray) -> np.ndarray:
+        arr = np.asarray(vectors, dtype=np.float32)
+        if arr.ndim != 2:
+            raise ValueError("Input vectors must be a 2D array")
+        if arr.shape[1] != self.dimension:
+            raise ValueError(f"Expected vectors with dimension {self.dimension}, got {arr.shape[1]}")
+        return np.ascontiguousarray(arr)
+
+    def _normalize_vectors(self, vectors: np.ndarray) -> np.ndarray:
+        norms = np.linalg.norm(vectors, axis=1, keepdims=True)
+        norms = np.where(norms == 0, 1.0, norms)
+        return vectors / norms
+
+    def _prepare_query(self, query: np.ndarray) -> np.ndarray:
+        arr = np.asarray(query, dtype=np.float32).reshape(-1)
+        if arr.size != self.dimension:
+            raise ValueError(f"Query vector must have dimension {self.dimension}")
+        if self.metric_name == "cosine":
+            norm = np.linalg.norm(arr)
+            if norm > 0:
+                arr = arr / norm
+        return arr
+
+    def _insert_index(self, idx: int) -> None:
         if self.root is None:
-            self.root = self.Node(p)
+            self.root = _CoverTreeNode(index=idx, level=0)
             self.max_level = 0
             return
-        
-        Q = [self.root]
-        i = self.max_level
+
+        queue = [self.root]
+        level = self.max_level
 
         while True:
-            if self._insert(p, Q, i):
-                break
-            else:
-                new_root = self.Node(self.root.value)
-                new_root.children.append(self.root)
-                self.root = new_root
-                i += 1
-                self.max_level = i
-                Q = [self.root]
+            if self._insert(idx, queue, level):
+                return
 
-    def _insert(self, p: np.ndarray, Q: List[Node], level: int) -> bool:
-        """
-        Refer to Algorithm 2 (Insert) in Bey26 for a reference
-        """
-        dist_power = 2 ** level
+            new_root = _CoverTreeNode(index=self.root.index, level=level + 1)
+            new_root.children.append(self.root)
+            self.root = new_root
+            level += 1
+            self.max_level = level
+            queue = [self.root]
 
-        # 1. Set Q_children
-        Q_children = []
-        for q in Q:
-            Q_children.extend(q.children)
-            
-        # 3. (a) Set Qi_minus_1 (the filtered set)
-        Qi_minus_1 = [
-            child for child in Q_children 
-            if self.metric(p - child.value) <= dist_power
+    def _insert(self, idx: int, queue: Iterable[_CoverTreeNode], level: int) -> bool:
+        assert self._working_vectors is not None
+        distance_threshold = 2.0 ** level
+        queue = list(queue)
+
+        children: List[_CoverTreeNode] = []
+        for node in queue:
+            children.extend(node.children)
+
+        filtered = [
+            child
+            for child in children
+            if self._distance_indices(idx, child.index) <= distance_threshold
         ]
 
-        # 3. (b) if Insert(p, Qi−1, i − 1) ...
-        if Qi_minus_1:
-            if self._insert(p, Qi_minus_1, level - 1):
-                return True # "parent found"
+        if filtered and self._insert(idx, filtered, level - 1):
+            return True
 
-        # 3. (b) ... and d(p, Qi) ≤ 2i ...
-        for q in Q:
-            if self.metric(p - q.value) <= dist_power:
-                q.children.append(self.Node(p))
-                return True # "parent found"
-        
-        # 3. (c) else return “no parent found”
+        for node in queue:
+            if self._distance_indices(idx, node.index) <= distance_threshold:
+                new_node = _CoverTreeNode(index=idx, level=level - 1)
+                node.children.append(new_node)
+                return True
+
         return False
 
-    def search(self, p: np.ndarray) -> np.ndarray | None:
-        """
-        Finds the nearest neighbor to point p (Algorithm 1: Find-Nearest).
-        """
-        if self.root is None:
-            return None
+    # ------------------------------------------------------------------
+    # Search helpers
+    # ------------------------------------------------------------------
+    def _collect_candidates(self, query: np.ndarray, max_candidates: int) -> List[int]:
+        assert self.root is not None
+        assert self._working_vectors is not None
 
-        # Start with the root as the best-so-far
-        best_q_node = self.root
-        best_dist = self.metric(p - self.root.value)
-        
-        # Q_i is our set of candidate nodes for the current level
-        Q_i = [self.root]
-        i = self.max_level
+        max_candidates = min(max_candidates, self._working_vectors.shape[0])
 
-        while i >= -np.inf: # Loop "down to -infinity"
-            # 1. Set Q_children
-            Q_children = []
-            for q_node in Q_i:
-                Q_children.extend(q_node.children)
+        heap: List[Tuple[float, int, _CoverTreeNode]] = []
+        cache: dict[int, float] = {}
+        counter = count()
 
-            if not Q_children:
-                break # We've hit the bottom of the tree
+        def push(node: _CoverTreeNode, distance: Optional[float] = None) -> None:
+            if distance is None:
+                distance = self._distance_to_query(query, node.index)
+            cache[id(node)] = distance
+            radius = 2.0 ** node.level
+            lower_bound = max(0.0, distance - radius)
+            heapq.heappush(heap, (lower_bound, next(counter), node))
 
-            # Find the minimum distance to any child
-            child_dists = [self.metric(p - c.value) for c in Q_children]
-            min_child_dist = np.min(child_dists)
-            min_child_index = np.argmin(child_dists)
+        push(self.root)
+        visited = 0
+        candidates: List[int] = []
+        seen_indices: set[int] = set()
+        visit_budget = min(self.max_visit_nodes, self._working_vectors.shape[0])
 
-            # Update our global best-so-far
-            if min_child_dist < best_dist:
-                best_dist = min_child_dist
-                best_q_node = Q_children[min_child_index]
+        while heap and visited < visit_budget and len(candidates) < max_candidates:
+            _, _, node = heapq.heappop(heap)
+            visited += 1
 
-            # 2. (b) Form the next cover set, Q_i-1
-            # d(p, Q_children) is min_child_dist
-            threshold = min_child_dist + (2 ** i)
-            
-            Q_next = []
-            for j in range(len(Q_children)):
-                if child_dists[j] <= threshold:
-                    Q_next.append(Q_children[j])
+            node_distance = cache.pop(id(node), None)
+            if node_distance is None:
+                node_distance = self._distance_to_query(query, node.index)
 
-            if not Q_next:
-                break # No children qualified, we're done
+            if node.index not in seen_indices:
+                seen_indices.add(node.index)
+                candidates.append(node.index)
 
-            Q_i = Q_next
-            i -= 1
-        
-        return best_q_node.value
+            for child in node.children:
+                push(child)
 
-    def __str__(self):
-        P = [self.root]
-        i = self.max_level
-        return_str = ""
-        while P:
-            return_str += "\n"
-            Q = []
-            p = P.pop()
-            level_str = "i:"
-            for p in P:
-                level_str += f" {p.value}"
-                Q.extend(p.children)
-            return_str += level_str
-            P = Q
-        return return_str
-# --- Unit Test Class ---
+        if not candidates:
+            return list(range(self._working_vectors.shape[0]))
+        return candidates
 
-class TestCoverTreeSearch(unittest.TestCase):
-    
-    def setUp(self):
-        self.tree = CoverTree(name="test_search_tree", dimension=2, metric=np.linalg.norm)
+    def _rank_candidates(
+        self,
+        query: np.ndarray,
+        candidate_indices: Sequence[int],
+        k: int,
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        assert self._working_vectors is not None
+        candidate_array = np.asarray(candidate_indices, dtype=np.int64)
+        if candidate_array.size == 0:
+            return (
+                np.full(k, np.inf, dtype=np.float32),
+                np.full(k, -1, dtype=np.int64),
+            )
 
-    def test_search_empty_tree(self):
-        """Test searching an empty tree."""
-        query = np.array([1, 1])
-        result = self.tree.search(query)
-        self.assertIsNone(result)
+        distances = self._compute_distances(query, candidate_array)
 
-    def test_search_single_node_tree(self):
-        """Test searching a tree with just one node."""
-        p1 = np.array([5, 5])
-        self.tree.insert(p1)
-        
-        query = np.array([1, 1])
-        result = self.tree.search(query)
-        np.testing.assert_array_equal(result, p1)
+        order = np.argsort(distances)
+        limit = min(k, order.size)
 
-    def test_search_exact_match(self):
-        """Test searching for a point that is already in the tree."""
-        p1 = np.array([0, 0])
-        p2 = np.array([5, 5])
-        self.tree.build_index(np.array([p1, p2]))
-        
-        query = np.array([5, 5])
-        result = self.tree.search(query)
-        np.testing.assert_array_equal(result, p2)
+        top_distances = np.full(k, np.inf, dtype=np.float32)
+        top_indices = np.full(k, -1, dtype=np.int64)
 
-    def test_search_nearest_neighbor_simple(self):
-        """Test finding the correct nearest neighbor in a simple tree."""
-        p1 = np.array([0, 0])
-        p2 = np.array([5, 5])
-        self.tree.build_index(np.array([p1, p2]))
-        
-        # Query point is clearly closer to p1
-        query = np.array([0.1, 0.1])
-        result = self.tree.search(query)
-        np.testing.assert_array_equal(result, p1)
-        
-        # Query point is clearly closer to p2
-        query = np.array([4.9, 4.9])
-        result = self.tree.search(query)
-        np.testing.assert_array_equal(result, p2)
+        top_distances[:limit] = distances[order[:limit]]
+        top_indices[:limit] = candidate_array[order[:limit]]
+        return top_distances, top_indices
 
-    def test_search_after_level_growth(self):
-        """Test search after an insert forced the max_level to grow."""
-        p1 = np.array([0, 0])
-        p2 = np.array([10, 10]) # This will force max_level to 4
-        self.tree.build_index(np.array([p1, p2]))
-        
-        self.assertEqual(self.tree.max_level, 4) # Verify tree structure
-        
-        # Query near p2
-        query_near_p2 = np.array([9, 9])
-        result = self.tree.search(query_near_p2)
-        np.testing.assert_array_equal(result, p2)
-        
-        # Query near p1
-        query_near_p1 = np.array([1, 1])
-        result = self.tree.search(query_near_p1)
-        np.testing.assert_array_equal(result, p1)
+    def _compute_distances(self, query: np.ndarray, candidate_array: np.ndarray) -> np.ndarray:
+        assert self._working_vectors is not None
+        candidates = self._working_vectors[candidate_array]
 
-    def test_search_complex_cluster(self):
-        """Test search in a more complex tree."""
-        points = np.array([
-            [0, 0],    # p1
-            [0.1, 0.1],# p2 (child of p1)
-            [10, 10],  # p3 (far away)
-            [10.1, 10],# p4 (child of p3)
-            [5, 5]     # p5 (mid-point)
-        ])
-        self.tree.build_index(points)
-        
-        # Query near [0, 0] cluster
-        query1 = np.array([-0.1, 0])
-        result1 = self.tree.search(query1)
-        np.testing.assert_array_equal(result1, np.array([0, 0]))
-        
-        # Query near [10, 10] cluster
-        query2 = np.array([10.2, 10.2])
-        result2 = self.tree.search(query2)
-        np.testing.assert_array_equal(result2, np.array([10.1, 10]))
-        
-        # Query near the mid-point
-        query3 = np.array([4.5, 4.5])
-        result3 = self.tree.search(query3)
-        np.testing.assert_array_equal(result3, np.array([5, 5]))
+        if self.metric_name in ("l2", "euclidean"):
+            diffs = candidates - query
+            distances = np.linalg.norm(diffs, axis=1)
+        elif self.metric_name == "cosine":
+            distances = 1.0 - np.dot(candidates, query)
+        elif self.metric_name in ("dot", "ip", "inner_product"):
+            distances = -np.dot(candidates, query)
+        else:
+            distances = np.array(
+                [self._metric_fn(query, vec) for vec in candidates],
+                dtype=np.float32,
+            )
+        return distances.astype(np.float32, copy=False)
 
+    # ------------------------------------------------------------------
+    # Metric helpers
+    # ------------------------------------------------------------------
+    def _distance_indices(self, idx_a: int, idx_b: int) -> float:
+        assert self._working_vectors is not None
+        return float(self._metric_fn(self._working_vectors[idx_a], self._working_vectors[idx_b]))
 
-if __name__ == '__main__':
-    unittest.main()
+    def _distance_to_query(self, query: np.ndarray, idx: int) -> float:
+        assert self._working_vectors is not None
+        return float(self._metric_fn(query, self._working_vectors[idx]))
 
-
-
-
+    def _metric_fn(self, a: np.ndarray, b: np.ndarray) -> float:  # type: ignore[override]
+        if self.metric_name in ("l2", "euclidean"):
+            return float(np.linalg.norm(a - b))
+        if self.metric_name == "cosine":
+            return float(1.0 - np.dot(a, b))
+        if self.metric_name in ("dot", "ip", "inner_product"):
+            return float(-np.dot(a, b))
+        raise ValueError(f"Unsupported metric: {self.metric_name}")

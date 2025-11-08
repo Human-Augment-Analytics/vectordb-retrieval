@@ -91,17 +91,8 @@ datasets:
     metric: cosine
     dataset_options:
       use_preembedded: true
-      preembedded_passage_dir: /storage/ice-shared/cs8903onl/vectordb-retrieval/datasets/msmarco_pre_embeded/passages_parquet
-      preembedded_query_dir: /storage/ice-shared/cs8903onl/vectordb-retrieval/datasets/msmarco_pre_embeded/queries_parquet
-      passage_embedding_column: emb
-      query_embedding_column: emb
-      passage_id_column: _id
-      query_relevance_column: top1k_passage_ids
-      query_relevance_offsets_column: top1k_offsets
-      relevance_candidates_limit: 64
-      base_limit: 200000
-      query_limit: 1000
-      ground_truth_k: 1000
+      embedded_dataset_dir: /storage/ice-shared/cs8903onl/vectordb-retrieval/datasets/msmarco_v1_embeddings
+      ground_truth_k: 200
       cache_dir: /storage/ice-shared/cs8903onl/vectordb-retrieval/results/cache
     algorithms:
       exact:
@@ -119,7 +110,7 @@ datasets:
         metric: cosine
 output_dir: /storage/ice-shared/cs8903onl/vectordb-retrieval/results
 data_dir: /storage/ice-shared/cs8903onl/vectordb-retrieval/datasets
-n_queries: 10000
+n_queries: 1000
 output_prefix: benchmark
 repeat: 1
 seed: 42

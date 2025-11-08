@@ -96,10 +96,8 @@ class CoverTree(BaseAlgorithm):
             raise RuntimeError("Index has not been built yet.")
 
         prepared = self._prepare_query(query)
-        candidate_indices = self._collect_candidates(prepared, max(k, self.candidate_pool_size))
-
-        if len(candidate_indices) < k:
-            candidate_indices = list(range(self._working_vectors.shape[0]))
+        pool_size = max(k, self.candidate_pool_size)
+        candidate_indices = self._collect_candidates(prepared, pool_size)
 
         distances, indices = self._rank_candidates(prepared, candidate_indices, k)
         return distances, indices
@@ -223,7 +221,8 @@ class CoverTree(BaseAlgorithm):
         visited = 0
         candidates: List[int] = []
         seen_indices: set[int] = set()
-        visit_budget = min(self.max_visit_nodes, self._working_vectors.shape[0])
+        dyn_visit_budget = max(self.max_visit_nodes, max_candidates * self.visit_multiplier)
+        visit_budget = min(dyn_visit_budget, self._working_vectors.shape[0])
 
         while heap and visited < visit_budget and len(candidates) < max_candidates:
             _, _, node = heapq.heappop(heap)

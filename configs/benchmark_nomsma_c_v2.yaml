@@ -1,0 +1,184 @@
+# Copy of benchmark_config.yaml without the MS MARCO dataset
+
+indexers:
+  brute_force_l2:
+    type: BruteForceIndexer
+    metric: l2
+  brute_force_cosine:
+    type: BruteForceIndexer
+    metric: cosine
+  hnsw_l2:
+    type: HNSWIndexer
+    M: 16
+    efConstruction: 200
+    efSearch: 100
+    metric: l2
+  hnsw_cosine:
+    type: HNSWIndexer
+    M: 16
+    efConstruction: 200
+    efSearch: 100
+    metric: cosine
+  faiss_ivf_l2:
+    type: FaissIVFIndexer
+    index_type: IVF100,Flat
+    metric: l2
+    nprobe: 10
+  faiss_ivf_cosine:
+    type: FaissIVFIndexer
+    index_type: IVF100,Flat
+    metric: cosine
+    nprobe: 10
+  faiss_ivf_pq_l2:
+    type: FaissFactoryIndexer
+    index_key: IVF256,PQ64
+    metric: l2
+    nprobe: 24
+  faiss_ivf_pq_l2_glove:
+    type: FaissFactoryIndexer
+    index_key: IVF256,PQ50
+    metric: l2
+    nprobe: 24
+  faiss_ivf_pq_cosine:
+    type: FaissFactoryIndexer
+    index_key: IVF256,PQ64
+    metric: cosine
+    nprobe: 48
+  faiss_ivf_sq8_l2:
+    type: FaissFactoryIndexer
+    index_key: IVF256,SQ8
+    metric: l2
+    nprobe: 24
+  faiss_ivf_sq8_cosine:
+    type: FaissFactoryIndexer
+    index_key: IVF256,SQ8
+    metric: cosine
+    nprobe: 48
+  faiss_pq_l2:
+    type: FaissFactoryIndexer
+    index_key: PQ64
+    metric: l2
+  faiss_pq_cosine:
+    type: FaissFactoryIndexer
+    index_key: PQ64
+    metric: cosine
+  faiss_pq_l2_glove:
+    type: FaissFactoryIndexer
+    index_key: PQ50
+    metric: l2
+  lsh_l2:
+    type: LSHIndexer
+    metric: l2
+    num_tables: 12
+    hash_size: 18
+    bucket_width: 4.0
+    seed: 42
+  lsh_cosine:
+    type: LSHIndexer
+    metric: cosine
+    num_tables: 12
+    hash_size: 18
+    seed: 42
+
+searchers:
+  linear_l2:
+    type: LinearSearcher
+    metric: l2
+  linear_cosine:
+    type: LinearSearcher
+    metric: cosine
+  faiss_l2:
+    type: FaissSearcher
+    metric: l2
+    nprobe: 10
+  faiss_cosine:
+    type: FaissSearcher
+    metric: cosine
+    nprobe: 32
+  faiss_l2_highprobe:
+    type: FaissSearcher
+    metric: l2
+    nprobe: 24
+  faiss_cosine_highprobe:
+    type: FaissSearcher
+    metric: cosine
+    nprobe: 48
+  lsh_search_l2:
+    type: LSHSearcher
+    metric: l2
+    candidate_multiplier: 8.0
+    fallback_to_bruteforce: true
+  lsh_search_cosine:
+    type: LSHSearcher
+    metric: cosine
+    candidate_multiplier: 8.0
+    fallback_to_bruteforce: true
+
+algorithms:
+  exact:
+    indexer_ref: brute_force_l2
+    searcher_ref: linear_l2
+    metric: l2
+  hnsw:
+    indexer_ref: hnsw_l2
+    searcher_ref: faiss_l2
+    metric: l2
+  ivf_flat:
+    indexer_ref: faiss_ivf_l2
+    searcher_ref: faiss_l2
+    metric: l2
+  ivf_pq:
+    indexer_ref: faiss_ivf_pq_l2
+    searcher_ref: faiss_l2_highprobe
+    metric: l2
+  ivf_sq8:
+    indexer_ref: faiss_ivf_sq8_l2
+    searcher_ref: faiss_l2_highprobe
+    metric: l2
+  pq:
+    indexer_ref: faiss_pq_l2
+    searcher_ref: faiss_l2_highprobe
+    metric: l2
+  covertree_v2:
+    type: CoverTreeV2
+    metric: l2
+  lsh:
+    indexer_ref: lsh_l2
+    searcher_ref: lsh_search_l2
+    metric: l2
+
+datasets:
+  - name: random
+    metric: l2
+    n_queries: 256
+    topk: 20
+    dataset_options:
+      dimensions: 64
+      train_size: 5000
+      test_size: 512
+      ground_truth_k: 200
+      seed: 7
+  - name: glove50
+    metric: l2
+    n_queries: 256
+    topk: 20
+    dataset_options:
+      test_size: 256
+      train_limit: 20000
+      ground_truth_k: 200
+      seed: 11
+    algorithms:
+      ivf_pq:
+        indexer_ref: faiss_ivf_pq_l2_glove
+      pq:
+        indexer_ref: faiss_pq_l2_glove
+      covertree_v2: {}
+
+output_dir: benchmark_results
+data_dir: /storage/ice-shared/cs8903onl/vectordb-retrieval/datasets
+n_queries: 1000
+query_batch_size: 128
+output_prefix: benchmark
+repeat: 2
+seed: 42
+topk: 200

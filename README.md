@@ -106,6 +106,16 @@ The config limits the random dataset to 5k train / 512 queries and trims GloVe t
 
 > **Memory-bound runs:** set `use_memmap_cache: true` under `dataset_options` to stream large pre-embedded datasets (MS MARCO) directly into a memory-mapped file instead of materialising all passages in RAM. The loader now writes `<dataset>_<digest>_train.memmap` alongside JSON metadata inside `cache_dir`, while queries/ground-truth stay in compact `.npy` files. This avoids the double-copy previously required for `np.vstack` + FAISS warm-up and is especially helpful on PACE nodes with tight memory quotas. You can still cap working set via `base_limit`, `query_limit`, and lower `batch_size` if the parquet reader spikes memory during iteration. Combine this with `query_batch_size` (global or per-dataset) to execute searches in controllable mini-batches and keep runtime under cluster limits. Short on walltime? Disable strict relevance resolution (`strict_relevance_resolution: false`) and/or bound the parquet scan (`max_passage_scan`) so loading stops once the `base_limit` budget is filled; any missing positives are reported and skipped.
 
+### CoverTreeV2 Perfect-Recall Benchmark
+
+Need airtight recall for CoverTree? Use the v2 implementation, which mirrors the prototype from `feature/covertree` but plugs into the benchmarking stack:
+
+```bash
+sbatch slurm_jobs/singlerun_nomsma_benchmarking_c_v2_pat.sbatch
+```
+
+The job spins up a `uv` environment, installs `requirements.txt`, and evaluates `CoverTreeV2` alongside FAISS, HNSW, and LSH using `configs/benchmark_nomsma_c_v2.yaml` (random + GloVe datasets, `topk=200`). Results and plots land under `benchmark_results/benchmark_<timestamp>/`, and the SLURM log is written to `slurm_jobs/slurm_logs/VectorDB-Retrieval-Guarantee_FULL-<jobid>-<node>.log`. See `methodology/covertree_v2_benchmarking.md` for the latest recall/QPS snapshot and troubleshooting tips.
+
 ### MS MARCO Subset and Embedding Pipeline
 
 The legacy Cohere parquet dump is retired. We now derive a reproducible MSMARCO subset via the scripts under `src/dataprep/`, both of which read `configs/ms_marco_subset_embed.yaml`:

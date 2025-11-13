@@ -57,6 +57,7 @@ This is a research repository for benchmarking the existing vector DB retrieval 
 - Do not rename top-level dirs or public APIs without updating configs, scripts, and README.
 - When adding algorithms, place them in `src/algorithms/`, document guarantees in class docstrings, and add a minimal config example under `configs/`.
 - Prefer composing new retrieval variants by wiring `indexers` + `searchers` in YAML (see `configs/benchmark_config.yaml`) before adding new composite classes.
+- For perfect-recall CoverTree baselines, use `CoverTreeV2` via `configs/benchmark_nomsma_c_v2.yaml` and submit `slurm_jobs/singlerun_nomsma_benchmarking_c_v2_pat.sbatch`; see `methodology/covertree_v2_*.md` for implementation/benchmark details before tweaking knobs.
 - Agents execute directly on PACE; run benchmarks through the SLURM helpers in `slurm_jobs/`: submit `singlerun_complete_benchmarking_pat.sbatch` for full-suite runs and update/submit `singlerun_smoke.sbatch` for smoke checks (e.g., validating fresh MSMARCO embeddings). Pick or tailor the SLURM script that fits each request before dispatching it.
 - Monitor SLURM job logs (e.g., `Report-<jobid>.log`, `slurm_logs/`) and debug issues in place. You are expected to access any project paths involved; if access is missing, ask for guidance and explain how to grant it.
 - Name any newly created SLURM helpers as `slurm_jobs/codex_<descriptive_name>.sbatch` (or `.sh`) so automation can discover agent-authored scripts.

@@ -56,6 +56,8 @@ class ExactSearch(BaseAlgorithm):
         # Faiss expects a 2D array for queries
         query_vector = np.array([query], dtype=np.float32)
         distances, indices = self.index.search(query_vector, k)
+        if self.index is not None:
+            self.record_operation("search_ops", float(self.index.ntotal), source="faiss.indexflat")
         
         return distances[0], indices[0]
 
@@ -75,4 +77,8 @@ class ExactSearch(BaseAlgorithm):
             
         if queries.dtype != np.float32 or not queries.flags["C_CONTIGUOUS"]:
             queries = np.ascontiguousarray(queries, dtype=np.float32)
-        return self.index.search(queries, k)
+        distances, indices = self.index.search(queries, k)
+        if self.index is not None:
+            ops = float(self.index.ntotal) * float(queries.shape[0])
+            self.record_operation("search_ops", ops, source="faiss.indexflat")
+        return distances, indices

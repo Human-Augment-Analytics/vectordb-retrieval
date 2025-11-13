@@ -1,10 +1,12 @@
 import os
+import os
 import json
 import logging
 import time
 import datetime
 import copy
 import yaml
+import numpy as np
 from pathlib import Path
 from typing import Dict, Any, Tuple, Optional
 
@@ -321,8 +323,8 @@ class BenchmarkRunner:
 
                 # Algorithm performance table
                 f.write(f"### Algorithm Performance\n\n")
-                f.write("| Algorithm | Recall | QPS | Mean Query Time (ms) | Build Time (s) | Index Memory (MB) |\n")
-                f.write("|-----------|--------|-----|----------------------|----------------|-------------------|\n")
+                f.write("| Algorithm | Recall | QPS | Mean Query Time (ms) | Build Time (s) | Index Memory (MB) | Vector Ops (total) | Vector Ops / Query |\n")
+                f.write("|-----------|--------|-----|----------------------|----------------|-------------------|--------------------|---------------------|\n")
 
                 for alg_name, alg_results in results.items():
                     recall_display = "0.0000"
@@ -352,9 +354,39 @@ class BenchmarkRunner:
                     query_time = alg_results.get('mean_query_time_ms', 0)
                     build_time = alg_results.get('build_time_s', 0)
                     memory = alg_results.get('index_memory_mb', 0)
+                    vector_ops = alg_results.get('vector_similarity_ops')
 
-                    f.write(f"| {alg_name} | {recall_display} | {qps:.2f}| {query_time:.2f} | {build_time:.2f} | {memory:.2f} |\n")
+                    total_ops = alg_results.get('vector_similarity_ops')
+                    ops_per_query = alg_results.get('vector_similarity_ops_per_query')
+
+                    total_ops_str = self._format_ops(total_ops)
+                    ops_per_query_str = self._format_ops(ops_per_query)
+
+                    f.write(
+                        f"| {alg_name} | {recall_display} | {qps:.2f}| {query_time:.2f} | {build_time:.2f} | "
+                        f"{memory:.2f} | {total_ops_str} | {ops_per_query_str} |\n"
+                    )
 
                 f.write(f"\n\n")
 
         self.logger.info(f"Summary report written to: {report_path}")
+
+    @staticmethod
+    def _format_ops(value: Optional[Any]) -> str:
+        if value is None:
+            return "N/A"
+        try:
+            numeric = float(value)
+        except (TypeError, ValueError):
+            return str(value)
+
+        if np.isnan(numeric):
+            return "N/A"
+
+        if abs(numeric) >= 1e9:
+            return f"{numeric / 1e9:.2f}B"
+        if abs(numeric) >= 1e6:
+            return f"{numeric / 1e6:.2f}M"
+        if abs(numeric) >= 1e3:
+            return f"{numeric / 1e3:.1f}K"
+        return f"{numeric:.0f}"

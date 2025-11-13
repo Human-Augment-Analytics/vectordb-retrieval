@@ -58,6 +58,7 @@ class BaseSearcher(ABC):
         self.metric = metric
         self.params = kwargs
         self._prepared = False
+        self._operation_counts: Dict[str, Any] = {"search_ops": 0.0}
 
     @abstractmethod
     def attach(self, artifact: IndexArtifact, vectors: np.ndarray, metadata: Optional[List[Dict[str, Any]]] = None) -> None:
@@ -80,6 +81,23 @@ class BaseSearcher(ABC):
         if self.params:
             description["params"] = copy.deepcopy(self.params)
         return description
+
+    def reset_operation_counts(self) -> None:
+        self._operation_counts = {"search_ops": 0.0}
+
+    def record_search_ops(self, count: float, source: Optional[str] = None) -> None:
+        current = float(self._operation_counts.get("search_ops", 0.0))
+        self._operation_counts["search_ops"] = current + float(count)
+        if source:
+            source_key = "search_ops_source"
+            existing = self._operation_counts.get(source_key)
+            if existing is None:
+                self._operation_counts[source_key] = source
+            elif existing != source:
+                self._operation_counts[source_key] = "mixed"
+
+    def get_operation_counts(self) -> Dict[str, Any]:
+        return dict(self._operation_counts)
 
 
 INDEXER_REGISTRY: Dict[str, Type[BaseIndexer]] = {}
@@ -116,6 +134,76 @@ def _ensure_float32(vectors: np.ndarray) -> np.ndarray:
     if vectors.dtype == np.float32 and vectors.flags["C_CONTIGUOUS"]:
         return vectors
     return np.ascontiguousarray(vectors, dtype=np.float32)
+
+
+def _prepare_faiss_stats(index: Any) -> Tuple[Optional[Any], Optional[str]]:
+    if faiss is None:
+        return None, None
+
+    stats_obj: Optional[Any] = None
+    source: Optional[str] = None
+
+    try:
+        if hasattr(index, "nlist") and hasattr(index, "nprobe") and hasattr(faiss, "cvar") and hasattr(faiss.cvar, "indexIVF_stats"):
+            stats_obj = faiss.cvar.indexIVF_stats
+            if hasattr(stats_obj, "reset"):
+                stats_obj.reset()
+                source = "faiss.stats.ivf"
+
+        if stats_obj is None and hasattr(index, "hnsw"):
+            hnsw = index.hnsw
+            if hasattr(hnsw, "reset_stats"):
+                hnsw.reset_stats()
+                stats_candidate = getattr(hnsw, "stats", None)
+                if stats_candidate is not None:
+                    stats_obj = stats_candidate
+                    source = "faiss.stats.hnsw"
+
+        if stats_obj is None and hasattr(faiss, "cvar") and hasattr(faiss.cvar, "indexHNSW_stats"):
+            stats_obj = faiss.cvar.indexHNSW_stats
+            if hasattr(stats_obj, "reset"):
+                stats_obj.reset()
+                source = source or "faiss.stats.hnsw_global"
+    except Exception:
+        stats_obj = None
+        source = None
+
+    return stats_obj, source
+
+
+def _extract_faiss_ops(stats_obj: Optional[Any]) -> Optional[float]:
+    if stats_obj is None:
+        return None
+    for attr in ("ndis", "nb_distance_computations", "n_dis"):
+        if hasattr(stats_obj, attr):
+            try:
+                return float(getattr(stats_obj, attr))
+            except Exception:
+                continue
+    return None
+
+
+def _estimate_faiss_ops(index: Any, n_queries: int) -> Tuple[float, str]:
+    ntotal = float(getattr(index, "ntotal", 0))
+    if ntotal < 0:
+        ntotal = 0.0
+
+    nlist = float(getattr(index, "nlist", 0))
+    nprobe = float(getattr(index, "nprobe", 0))
+    if nlist > 0 and nprobe > 0 and ntotal > 0:
+        avg_list_size = ntotal / max(nlist, 1.0)
+        estimate = float(n_queries) * nprobe * avg_list_size
+        return estimate, "estimate.ivf_lists"
+
+    if hasattr(index, "hnsw"):
+        ef_search = float(getattr(index.hnsw, "efSearch", getattr(index, "efSearch", 0)))
+        if ef_search > 0 and ntotal > 0:
+            log_factor = max(1.0, float(np.log2(max(ntotal, 2.0))))
+            estimate = float(n_queries) * ef_search * log_factor
+            return estimate, "estimate.hnsw_ef"
+
+    fallback = float(n_queries) * ntotal
+    return fallback, "estimate.full_scan"
 
 
 class BruteForceIndexer(BaseIndexer):
@@ -315,6 +403,8 @@ class LinearSearcher(BaseSearcher):
             if limit < k:
                 distances = np.pad(distances, ((0, 0), (0, k - limit)), constant_values=np.inf)
                 sorted_idx = np.pad(sorted_idx, ((0, 0), (0, k - limit)), constant_values=-1)
+            ops = float(queries.shape[0]) * float(self._vectors.shape[0])
+            self.record_search_ops(ops, source="linear_scan")
             return distances.astype(np.float32), sorted_idx.astype(np.int64)
 
         # Cosine similarity / inner product share similar logic
@@ -340,6 +430,8 @@ class LinearSearcher(BaseSearcher):
             if limit < k:
                 distances = np.pad(distances, ((0, 0), (0, k - limit)), constant_values=np.inf)
                 sorted_idx = np.pad(sorted_idx, ((0, 0), (0, k - limit)), constant_values=-1)
+            ops = float(queries.shape[0]) * float(self._vectors.shape[0])
+            self.record_search_ops(ops, source="linear_scan")
             return distances.astype(np.float32), sorted_idx.astype(np.int64)
 
         raise ValueError(f"Unsupported metric '{self.metric}' for LinearSearcher")
@@ -384,7 +476,13 @@ class FaissSearcher(BaseSearcher):
         if not self._prepared:
             raise RuntimeError("FaissSearcher not attached to an index")
         queries = self._prepare_query(queries)
+        stats_obj, stats_source = _prepare_faiss_stats(self.index)
         distances, indices = self.index.search(queries, k)
+        ops = _extract_faiss_ops(stats_obj)
+        source = stats_source
+        if ops is None:
+            ops, source = _estimate_faiss_ops(self.index, queries.shape[0])
+        self.record_search_ops(ops, source=source)
 
         if self.metric in {"cosine", "ip"}:
             distances = -distances
@@ -406,16 +504,19 @@ class CompositeAlgorithm(BaseAlgorithm):
         metric: str = "l2",
         **kwargs: Any,
     ) -> None:
-        super().__init__(name, dimension)
-        self.metric = metric
-        self.extra_params = kwargs
-        self.index_artifact: Optional[IndexArtifact] = None
-
+        # Stash configs and placeholders before BaseAlgorithm initialises counters.
         if not indexer or not searcher:
             raise ValueError("Both indexer_config and searcher_config must be provided for CompositeAlgorithm")
 
         self.indexer_config = copy.deepcopy(indexer)
         self.searcher_config = copy.deepcopy(searcher)
+        self.indexer: Optional[BaseIndexer] = None
+        self.searcher: Optional[BaseSearcher] = None
+
+        super().__init__(name, dimension)
+        self.metric = metric
+        self.extra_params = kwargs
+        self.index_artifact: Optional[IndexArtifact] = None
 
         self.indexer = self._instantiate_indexer(self.indexer_config)
         self.searcher = self._instantiate_searcher(self.searcher_config)
@@ -463,6 +564,25 @@ class CompositeAlgorithm(BaseAlgorithm):
         if not self.index_built:
             raise RuntimeError("Index has not been built for this algorithm")
         return self.searcher.batch_search(queries, k)
+
+    def reset_operation_counts(self) -> None:
+        super().reset_operation_counts()
+        if hasattr(self.indexer, "reset_operation_counts"):
+            self.indexer.reset_operation_counts()
+        if hasattr(self.searcher, "reset_operation_counts"):
+            self.searcher.reset_operation_counts()
+
+    def get_operation_counts(self) -> Dict[str, Any]:
+        counts = super().get_operation_counts()
+        if hasattr(self.searcher, "get_operation_counts"):
+            search_counts = self.searcher.get_operation_counts()
+            if "search_ops" in search_counts:
+                counts["search_ops"] = float(search_counts.get("search_ops", 0.0))
+            for key, value in search_counts.items():
+                if key == "search_ops":
+                    continue
+                counts.setdefault(key, value)
+        return counts
 
 
 __all__ = [

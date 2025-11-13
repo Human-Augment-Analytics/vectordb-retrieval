@@ -269,6 +269,7 @@ class LSHSearcher(BaseSearcher):
             return distances, indices
 
         candidate_indices = np.array(candidate_list, dtype=np.int64)
+        self.record_search_ops(len(candidate_indices), source="lsh_candidates")
         distances = self._compute_distances(query, candidate_indices)
 
         order = np.argsort(distances)
@@ -357,6 +358,21 @@ class LSH(BaseAlgorithm):
         if not self.index_built:
             raise RuntimeError("Index has not been built for LSH algorithm")
         return self.searcher.batch_search(queries, k)
+
+    def reset_operation_counts(self) -> None:
+        super().reset_operation_counts()
+        self.searcher.reset_operation_counts()
+
+    def get_operation_counts(self) -> Dict[str, Any]:
+        counts = super().get_operation_counts()
+        search_counts = self.searcher.get_operation_counts()
+        if "search_ops" in search_counts:
+            counts["search_ops"] = float(search_counts.get("search_ops", 0.0))
+        for key, value in search_counts.items():
+            if key == "search_ops":
+                continue
+            counts.setdefault(key, value)
+        return counts
 
 
 __all__ = ["LSHIndexer", "LSHSearcher", "LSH"]

@@ -25,6 +25,8 @@ class BaseAlgorithm(ABC):
         self.config = kwargs
         self.build_time = -1.0
         self.index_memory_usage = -1.0
+        self._operation_counts: Dict[str, Any] = {}
+        self.reset_operation_counts()
 
     @abstractmethod
     def build_index(self, vectors: np.ndarray, metadata: Optional[List[Dict[str, Any]]] = None) -> None:
@@ -86,6 +88,26 @@ class BaseAlgorithm(ABC):
             Dictionary of parameters
         """
         return self.config
+
+    def reset_operation_counts(self) -> None:
+        """Reset accumulated vector comparison counters."""
+        self._operation_counts = {"search_ops": 0.0}
+
+    def record_operation(self, key: str, value: float, source: Optional[str] = None) -> None:
+        """Accumulate numeric counters and optionally note their provenance."""
+        current = float(self._operation_counts.get(key, 0.0))
+        self._operation_counts[key] = current + float(value)
+        if source:
+            source_key = f"{key}_source"
+            existing = self._operation_counts.get(source_key)
+            if existing is None:
+                self._operation_counts[source_key] = source
+            elif existing != source:
+                self._operation_counts[source_key] = "mixed"
+
+    def get_operation_counts(self) -> Dict[str, Any]:
+        """Return a shallow copy of the accumulated counters."""
+        return dict(self._operation_counts)
 
     def __str__(self) -> str:
         return f"{self.name} (dimension={self.dimension}, parameters={self.config})"

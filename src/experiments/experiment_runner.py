@@ -157,6 +157,8 @@ class ExperimentRunner:
         """Train the algorithm, execute queries, and collect core metrics."""
         # Build phase
         build_start = time.time()
+        if hasattr(algorithm, "reset_operation_counts"):
+            algorithm.reset_operation_counts()
         algorithm.build_index(train_vectors)
         build_time = time.time() - build_start
 
@@ -270,6 +272,16 @@ class ExperimentRunner:
             "total_query_time_s": float(total_query_time),
             "timestamp": datetime.now().isoformat(),
         }
+
+        op_counts = getattr(algorithm, "get_operation_counts", lambda: {})()
+        if op_counts:
+            search_ops = float(op_counts.get("search_ops", 0.0))
+            metrics["vector_similarity_ops"] = search_ops
+            per_query = search_ops / max(len(test_queries), 1)
+            metrics["vector_similarity_ops_per_query"] = per_query
+            source = op_counts.get("search_ops_source")
+            if source:
+                metrics["vector_similarity_ops_source"] = source
 
         return metrics, indices, query_times
 

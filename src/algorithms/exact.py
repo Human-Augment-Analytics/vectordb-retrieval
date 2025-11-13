@@ -60,6 +60,8 @@ class ExactSearch(BaseAlgorithm):
         k = min(k, len(distances))  # Handle case where k > number of vectors
         indices = np.argsort(distances)[:k]
 
+        self.record_operation("search_ops", float(self.index.shape[0]), source="python.bruteforce")
+
         return indices
 
     def batch_search(self, queries: np.ndarray, k: int) -> List[np.ndarray]:

@@ -15,6 +15,7 @@ import yaml
 import json
 import time
 import copy
+import math
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Any, Optional
@@ -29,6 +30,24 @@ ensure_arm_compatible_blas()
 
 # Import the BenchmarkRunner
 from src.benchmark.runner import BenchmarkRunner
+
+
+def _format_ops(value: Any) -> str:
+    try:
+        numeric = float(value)
+    except (TypeError, ValueError):
+        return "N/A" if value is None else str(value)
+
+    if math.isnan(numeric):
+        return "N/A"
+
+    if abs(numeric) >= 1e9:
+        return f"{numeric / 1e9:.2f}B"
+    if abs(numeric) >= 1e6:
+        return f"{numeric / 1e6:.2f}M"
+    if abs(numeric) >= 1e3:
+        return f"{numeric / 1e3:.1f}K"
+    return f"{numeric:.0f}"
 
 class FullBenchmarkRunner:
     """
@@ -212,8 +231,8 @@ class FullBenchmarkRunner:
                     
                     # Add algorithm performance summary
                     f.write("\n#### Algorithm Performance\n\n")
-                    f.write("| Algorithm | Recall@10 | QPS | Mean Query Time (ms) | Build Time (s) | Index Memory (MB) |\n")
-                    f.write("|-----------|-----------|-----|----------------------|----------------|-------------------|")
+                    f.write("| Algorithm | Recall@10 | QPS | Mean Query Time (ms) | Build Time (s) | Index Memory (MB) | Vector Ops | Vector Ops / Query |\n")
+                    f.write("|-----------|-----------|-----|----------------------|----------------|-------------------|------------|---------------------|")
                     
                     for alg_name, metrics in data['results'].items():
                         if isinstance(metrics, dict):
@@ -222,6 +241,8 @@ class FullBenchmarkRunner:
                             query_time = metrics.get('mean_query_time', 'N/A')
                             build_time = metrics.get('build_time', 'N/A')
                             memory_usage = metrics.get('index_memory_usage_mb', 'N/A')
+                            vector_ops = metrics.get('vector_similarity_ops', 'N/A')
+                            vector_ops_per_query = metrics.get('vector_similarity_ops_per_query', 'N/A')
 
                             # Formatting
                             recall_str = f"{recall:.4f}" if isinstance(recall, float) else str(recall)
@@ -229,8 +250,13 @@ class FullBenchmarkRunner:
                             query_time_str = f"{query_time:.2f}" if isinstance(query_time, float) else str(query_time)
                             build_time_str = f"{build_time:.2f}" if isinstance(build_time, float) else str(build_time)
                             memory_usage_str = f"{memory_usage:.2f}" if isinstance(memory_usage, float) else str(memory_usage)
+                            vector_ops_str = _format_ops(vector_ops)
+                            vector_ops_per_query_str = _format_ops(vector_ops_per_query)
 
-                            f.write(f"| {alg_name} | {recall_str} | {qps_str} | {query_time_str} | {build_time_str} | {memory_usage_str} |\n")
+                            f.write(
+                                f"| {alg_name} | {recall_str} | {qps_str} | {query_time_str} | {build_time_str} | "
+                                f"{memory_usage_str} | {vector_ops_str} | {vector_ops_per_query_str} |\n"
+                            )
                 
                 f.write("\n")
         

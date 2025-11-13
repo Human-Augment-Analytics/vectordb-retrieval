@@ -67,6 +67,8 @@ class ApproximateSearch(BaseAlgorithm):
         # Faiss expects a 2D array for queries
         query_vector = np.array([query], dtype=np.float32)
         distances, indices = self.index.search(query_vector, k)
+        if self.index is not None:
+            self.record_operation("search_ops", float(self.index.ntotal), source="faiss.factory_single")
         
         return distances[0], indices[0]
 
@@ -84,4 +86,8 @@ class ApproximateSearch(BaseAlgorithm):
         if not self.index_built:
             raise RuntimeError("Index has not been built yet.")
             
-        return self.index.search(queries.astype(np.float32), k)
+        results = self.index.search(queries.astype(np.float32), k)
+        if self.index is not None:
+            ops = float(self.index.ntotal) * float(queries.shape[0])
+            self.record_operation("search_ops", ops, source="faiss.factory_batch")
+        return results

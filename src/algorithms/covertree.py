@@ -9,7 +9,9 @@ import numpy as np
 
 from .base_algorithm import BaseAlgorithm
 
-
+# todo: bubble up, then have redendent code , it can cause more redency with more dimension,
+# should delete the node in the middle, and then pop the root node, then insert the node to the root,
+# and then pop the root node, and then insert the node to the root, and then pop the root node, and then insert the node to the root, and then pop the root node
 @dataclass(slots=True)
 class _CoverTreeNode:
     """Node within the cover tree structure."""
@@ -37,6 +39,7 @@ class CoverTree(BaseAlgorithm):
         candidate_pool_size: int = 256,
         max_visit_nodes: Optional[int] = None,
         visit_multiplier: int = 16,
+        candidate_limits_enabled: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(name, dimension, **kwargs)
@@ -46,6 +49,8 @@ class CoverTree(BaseAlgorithm):
             int(max_visit_nodes) if max_visit_nodes is not None else self.candidate_pool_size * visit_multiplier
         )
         self.visit_multiplier = max(visit_multiplier, 1)
+        # Temporarily disable candidate/visit limits to investigate search quality.
+        self.candidate_limits_enabled = candidate_limits_enabled
         self.root: Optional[_CoverTreeNode] = None
         self.max_level = 0
         self._vectors: Optional[np.ndarray] = None
@@ -57,6 +62,7 @@ class CoverTree(BaseAlgorithm):
                 "candidate_pool_size": self.candidate_pool_size,
                 "max_visit_nodes": self.max_visit_nodes,
                 "visit_multiplier": self.visit_multiplier,
+                "candidate_limits_enabled": self.candidate_limits_enabled,
             }
         )
 
@@ -96,7 +102,10 @@ class CoverTree(BaseAlgorithm):
             raise RuntimeError("Index has not been built yet.")
 
         prepared = self._prepare_query(query)
-        pool_size = max(k, self.candidate_pool_size)
+        if self.candidate_limits_enabled:
+            pool_size = max(k, self.candidate_pool_size)
+        else:
+            pool_size = self._working_vectors.shape[0]
         candidate_indices = self._collect_candidates(prepared, pool_size)
 
         distances, indices = self._rank_candidates(prepared, candidate_indices, k)
@@ -203,7 +212,12 @@ class CoverTree(BaseAlgorithm):
         assert self.root is not None
         assert self._working_vectors is not None
 
-        max_candidates = min(max_candidates, self._working_vectors.shape[0])
+        if self.candidate_limits_enabled:
+            max_candidates = min(max_candidates, self._working_vectors.shape[0])
+            visit_limit = self.max_visit_nodes
+        else:
+            max_candidates = self._working_vectors.shape[0]
+            visit_limit = self._working_vectors.shape[0]
 
         heap: List[Tuple[float, int, _CoverTreeNode]] = []
         cache: dict[int, float] = {}
@@ -221,7 +235,7 @@ class CoverTree(BaseAlgorithm):
         visited = 0
         candidates: List[int] = []
         seen_indices: set[int] = set()
-        dyn_visit_budget = max(self.max_visit_nodes, max_candidates * self.visit_multiplier)
+        dyn_visit_budget = max(visit_limit, max_candidates * self.visit_multiplier)
         visit_budget = min(dyn_visit_budget, self._working_vectors.shape[0])
 
         while heap and visited < visit_budget and len(candidates) < max_candidates:

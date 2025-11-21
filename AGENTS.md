@@ -63,6 +63,7 @@ This is a research repository for benchmarking the existing vector DB retrieval 
 - Name any newly created SLURM helpers as `slurm_jobs/codex_<descriptive_name>.sbatch` (or `.sh`) so automation can discover agent-authored scripts.
 - When the user requests a commit, describe the code changes and propose the commit message for approval before running `git commit`.
 - MSMARCO subsampling/embedding lives in `src/dataprep/`; keep `configs/ms_marco_subset_embed.yaml`, README.md, and this file in sync whenever the sampling parameters, output locations, or artefact layout change.
+- CoverTree (v1) is temporarily running with `candidate_limits_enabled=false` to debug recall; configs may still carry pool/visit knobs but they are ignored until we flip the flag back on.
 - keep readme.md and agents.mdup-to-date with new features and changes.
 
 > **Open items:** before starting a new session, review `methodology/known_followups.md` for the current debugging queue (LSH recall anomaly, FAISS random-dataset warnings, CoverTree QPS sanity checks, etc.). Keep that file updated as you investigate so the next agent knows where to resume.

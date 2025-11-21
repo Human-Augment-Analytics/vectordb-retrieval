@@ -1,17 +1,16 @@
 # LSH Benchmarking Status
 
-*Last updated: 2025-11-08*
+*Last updated: 2025-11-21*
 
-During the `benchmark_results/benchmark_20251108_095624/` run (config `configs/benchmark_config.yaml`), the LSH rows report **perfect recall and precision identical to ExactSearch** on both random and GloVe50. That is not expected from the current LSH pipeline (8 tables, 18-bit hashes, candidate multiplier 8). Hypotheses:
+During the `benchmark_results/benchmark_20251108_095624/` run (config `configs/benchmark_config.yaml`), the LSH rows reported **perfect recall and precision identical to ExactSearch** on both random and GloVe50. Root cause: the candidate sets were empty under the old `(num_tables=12, hash_size=18, bucket_width=4, candidate_multiplier=8, fallback=true)` settings, so `LSHSearcher` always fell back to brute force.
 
-1. **Indexer/searcher fallback path**: `LSHSearcher` may always fall back to brute-force because the candidate set is empty; if so we are effectively re-running exact search.
-2. **Metrics mis-plumbed**: Results may be picked up from the wrong algorithm key when the evaluator aggregates metrics.
-3. **Dataset-specific overrides**: Some configs might replace LSH with the brute-force indexer for particular datasets.
+### Fix applied
+
+- Retuned the CoverTree benchmark config (`configs/benchmark_nomsma_c_v2.yaml`) to use wider buckets and smaller hashes: `hash_size=4`, `bucket_width=20.0`, `candidate_multiplier=64`, `fallback_to_bruteforce=false` for L2; cosine mirror uses `hash_size=12`, `candidate_multiplier=32`, also with fallback disabled.
+- Quick local probes on the random dataset (first 50 queries; see shell snippets in this session) showed recall@10 rising from ~0 to ~0.22 with the new params (no fallback).
+- Full SLURM rerun `3611844` (`benchmark_results/benchmark_20251121_151457/`) now shows approximate behaviour: random recall ≈0.32 (QPS ≈203) and glove50 recall ≈0.51 (QPS ≈94).
 
 ### Next Steps
 
-- Reproduce the issue by running `python scripts/run_full_benchmark.py --config configs/benchmark_config.yaml` (or PACE `slurm_jobs/singlerun_complete_benchmarking_pat.sbatch`). Inspect `benchmark_results/.../random/lsh_results.json` and `.../glove50/lsh_results.json` to confirm the candidate indices really match exact search.
-- Instrument `src/algorithms/modular.py` and `src/algorithms/lsh.py` to log when the fallback path is hit.
-- Validate whether `candidate_multiplier` or hash params are insufficient after we shrank the random dataset (5k train vectors). Adjust parameters or regenerate the dataset so LSH exercises its approximate behavior.
-
-Document findings and fixes here so future agents know the resolution before re-running the full benchmark.
+- If we need higher recall without brute-force fallback, sweep `hash_size`, `bucket_width`, and `candidate_multiplier` systematically (consider a multiprobe variant instead of bumping `candidate_multiplier` further).
+- Add lightweight logging around `_gather_candidates` / `_select_candidates` if candidate depletion resurfaces in other configs.

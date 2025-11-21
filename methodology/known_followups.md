@@ -4,37 +4,19 @@ Use this checklist to pick up the outstanding benchmarking/debugging work before
 
 ---
 
-## 1. LSH reporting perfect recall
+## 1. LSH reporting perfect recall (addressed for current configs)
 
-- **Symptom:** `benchmark_results/benchmark_20251108_095624/benchmark_summary.md` shows `lsh` rows identical to `exact` (recall/precision/QPS), which is unrealistic for the current configuration (8 tables, 18-bit hashes, candidate multiplier 8).
-- **Hypotheses:**
-  - `LSHSearcher` might always fall back to brute force when its candidate set is empty, effectively cloning ExactSearch.
-  - Metrics wiring could be pulling the wrong indices when aggregating results.
-  - Dataset overrides may silently replace the LSH index/search pair with brute-force components.
-- **Reproduce:** `python scripts/run_full_benchmark.py --config configs/benchmark_config.yaml` (or `sbatch slurm_jobs/singlerun_complete_benchmarking_pat.sbatch`).
-- **Action items:**
-  1. Inspect `benchmark_results/.../random/lsh_results.json` and `.../glove50/lsh_results.json` to confirm returned indices match the exact baseline.
-  2. Instrument `src/algorithms/modular.py` / `src/algorithms/lsh.py` to log when the fallback path executes.
-  3. Adjust LSH parameters or fallback handling so the algorithm exhibits meaningful approximate behaviour.
-  4. Document findings and fixes in `methodology/lsh_benchmarking.md`.
+- **Original symptom:** `benchmark_results/benchmark_20251108_095624/benchmark_summary.md` showed `lsh` rows identical to `exact` (recall/precision/QPS). Root cause was the fallback-to-bruteforce path firing because candidate sets were empty under the old `(num_tables=12, hash_size=18, bucket_width=4, fallback=true)` setup.
+- **Fix applied:** Retuned `configs/benchmark_nomsma_c_v2.yaml` to widen buckets and shrink hash_size, and disabled fallback. Current params: `hash_size=4`, `bucket_width=20.0`, `candidate_multiplier=64`, `fallback_to_bruteforce=false` (cosine searcher mirrors the fallback-off stance with `candidate_multiplier=32`). See the sampling notebook in this session (`python` snippets in shell) for quick recall probes on the random dataset.
+- **Result check:** SLURM job `3611844` (`benchmark_results/benchmark_20251121_151457/`) now reports approximate behaviour: random recall ≈0.32 (QPS ≈203) and glove50 recall ≈0.51 (QPS ≈94). Earlier rerun `3611497` confirmed the fallback-path hypothesis by producing ~0 recall once fallback was disabled without retuning.
+- **Next steps (if revisiting):** If we need better recall/QPS trade-offs, consider tuning `num_tables/hash_size/bucket_width` systematically or adding a “multi-probe” style expansion instead of brute-force fallback. No instrumentation added yet.
 
 ---
 
-## 2. Random dataset too small for FAISS IVF/PQ
+## 2. Random dataset size vs. FAISS IVF/PQ (resolved)
 
-- **Symptom:** `slurm_logs/VectorDB-Retrieval-Guarantee_FULL-3513016-atl1-1-03-004-5-1.log` (and later runs) spam:
-
-  ```
-  WARNING clustering 5000 points to 256 centroids: please provide at least 9984 training points
-  ```
-
-  because we now limit the random dataset to 5k training vectors but still request `nlist=256` for IVF/PQ.
-
-- **Options:**
-  1. Regenerate a larger random dataset (e.g., 20k train vectors) specifically for FAISS algorithms.
-  2. Reduce the IVF/PQ `nlist` settings when running the downsized dataset.
-
-- **Action items:** Decide which path is more appropriate, implement it, and document the change (config + README + AGENTS). Until then, expect FAISS warnings on every run.
+- **Status:** Fixed in `configs/benchmark_config*.yaml` / `configs/covertree_smoke.yaml` on 2025‑11‑13 by bumping `train_size` to 20 000 (test size unchanged) and deleting `/storage/ice-shared/cs8903onl/vectordb-retrieval/datasets/random` so the cache regenerates. Subsequent `slurm_jobs/singlerun_complete_benchmarking_pat.sbatch` run (job `3532085`) no longer emits the FAISS warning.
+- **Follow-up:** Nothing pending—just remember to wipe the cached `random` dataset if you tweak `train_size` again so future jobs pick up the change.
 
 ---
 
@@ -52,7 +34,7 @@ Use this checklist to pick up the outstanding benchmarking/debugging work before
   2. Verify that `query_times` reflect reality (time the `search()` call with `time.perf_counter()`).
   3. If the numbers are legitimate, document why (e.g., 256 queries * 20 ms ≈ 5 s ⇒ 49 QPS); if not, fix the timing logic.
 
-- **Note:** The smoke run and the latest benchmark both show ~20 ms/query, so the QPS figure is mathematically consistent; confirm whether the concern is about realism or instrumentation.
+- **Note:** We temporarily disabled CoverTree candidate/visit caps (`candidate_limits_enabled=false`) and reran (`benchmark_results/benchmark_20251121_151457/` via job `3611844`). QPS now drops to ~9–12 with perfect recall (full traversal) and long build times (~18–20 min index build recorded as ~110–113 ms/query search). Leave the logging steps above if we re-enable pruning; current numbers look internally consistent.
 
 ---
 

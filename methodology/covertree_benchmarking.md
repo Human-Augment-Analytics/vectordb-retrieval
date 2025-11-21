@@ -27,7 +27,7 @@ Cover Trees are hierarchical metric indexes that recursively build “covers” 
 
 3. **Search Routine**  
    - Maintain a priority queue keyed by `max(0, dist(q, node) - 2^level)`—a lower bound on any descendant’s distance. We lazily compute exact distances only when popping from the heap, caching results per node to avoid duplicate work.
-   - Candidate pooling (`candidate_pool_size`) limits how many point IDs we track for the final scoring pass; `max_visit_nodes` bounds the number of heap pops so the algorithm can’t thrash on high-degree layers.
+   - Candidate pooling (`candidate_pool_size`) limits how many point IDs we track for the final scoring pass; `max_visit_nodes` bounds the number of heap pops so the algorithm can’t thrash on high-degree layers. **For the current investigation we temporarily disable both limits** (collect all points and visit all nodes) to rule out recall loss coming from aggressive pruning.
    - Once the heap is exhausted or the visit budget runs out, we score the collected candidate IDs exactly (`_compute_distances`) and return the top-k results. Cosine and inner-product metrics reuse the same logic with normalized vectors.
 
 4. **Batch Search**  
@@ -44,7 +44,8 @@ Cover Trees are hierarchical metric indexes that recursively build “covers” 
    - `candidate_pool_size`: max number of unique point IDs to re-score exactly.  
    - `max_visit_nodes`: cap on the number of nodes popped from the heap.  
    - `visit_multiplier`: used to derive a default `max_visit_nodes` when the user only sets the pool size.  
-   These knobs mirror the “ef” controls seen in HNSW—turn them up for higher recall, down for faster smoke runs.
+   These knobs mirror the “ef” controls seen in HNSW—turn them up for higher recall, down for faster smoke runs.  
+   - **Temporary change:** we currently run with `candidate_limits_enabled: false`, meaning both pool size and visit caps are ignored so every node is considered. This is intentional to validate correctness; re-enable once recall investigations conclude.
 
 ### Implementation Highlights (`src/algorithms/covertree.py`)
 
@@ -63,12 +64,12 @@ Cover Trees are hierarchical metric indexes that recursively build “covers” 
 
 ### Configuration
 
-CoverTree is first-class in `configs/benchmark_config.yaml`:
+CoverTree is first-class in `configs/benchmark_config.yaml`, and the CoverTree/CovertreeV2 comparison lives in `configs/benchmark_nomsma_c_v2.yaml`:
 
 | Dataset  | Metric | Parameters                                | Rationale                                    |
 |----------|--------|-------------------------------------------|----------------------------------------------|
-| random   | L2     | pool 256 / visits 4096                    | Matches synthetic 5k×64 workload.            |
-| glove50  | L2     | pool 512 / visits 8192                    | Slightly larger collection (20k base).       |
+| random   | L2     | pools/visits disabled (full traversal)    | Eliminates pruning effects while debugging recall. |
+| glove50  | L2     | pools/visits disabled (full traversal)    | Same rationale; keeps per-query latency measurable. |
 | msmarco  | Cosine | pool 1024 / visits 16384                  | Handles higher dimensional Cohere embeddings.|
 
 Run `python scripts/run_full_benchmark.py --config configs/benchmark_config.yaml` (or the SLURM wrapper) to evaluate CoverTree alongside FAISS, HNSW, LSH, etc.

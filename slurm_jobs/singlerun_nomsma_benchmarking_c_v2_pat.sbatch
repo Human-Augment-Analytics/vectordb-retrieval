@@ -1,8 +1,8 @@
 #!/bin/bash
 #SBATCH -J VectorDB-Retrieval-Guarantee_FULL        # Job name
 #SBATCH -N 1 --ntasks-per-node=1                # Number of nodes
-#SBATCH --cpus-per-task=24                      # Number of CPU
-#SBATCH --mem-per-cpu=16G                       # Memory per CPU
+#SBATCH --cpus-per-task=8                       # Number of CPU
+#SBATCH --mem-per-cpu=4G                        # Memory per CPU
 #SBATCH -t 15:00:00                              # Duration
 #SBATCH --output=slurm_jobs/slurm_logs/%x-%j-%N.log  # Combined output and error messages file
 #SBATCH --mail-type=BEGIN,END,FAIL              # Mail preferences

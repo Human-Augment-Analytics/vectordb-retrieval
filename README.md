@@ -9,7 +9,7 @@ This repository provides a comprehensive framework for researching, benchmarking
 - **Modular Index/Search Pipelines**: Combine any indexing strategy with any search strategy through declarative config (e.g., pair FAISS HNSW indexing with linear or FAISS searchers).
 - **Expanded FAISS Coverage**: Benchmark flat, IVF-Flat, IVF-PQ, IVF-SQ8, and stand-alone PQ indexes side by side without code changes by updating YAML configs.
 - **Locality-Sensitive Hashing Baseline**: Compare an LSH retriever (cosine or Euclidean) with tunable recall guarantees using the same declarative pipeline.
-- **Cover Tree Prototype**: Run a lightweight cover tree baseline (random + subsampled GloVe) via `configs/covertree_smoke.yaml` to vet hierarchical metric search behavior.
+- **Cover Tree Prototype**: Run a lightweight cover tree baseline (random + subsampled GloVe) via `configs/covertree_smoke.yaml` to vet hierarchical metric search behavior; candidate/visit limits are currently disabled while we validate recall.
 - **Standard Datasets**: Built-in support for benchmark datasets like SIFT1M, GloVe, and MS MARCO (TF-IDF projection or pre-embedded Cohere vectors), with automated download and preprocessing.
 - **Comprehensive Metrics**: Tracks key performance indicators including recall, queries per second (QPS), index build time, and index memory usage.
 - **Automated Reporting**: Automatically generates detailed Markdown summary reports and raw JSON results for each benchmark run.
@@ -102,7 +102,7 @@ To validate the CoverTree baseline end-to-end (random dataset first, then a subs
 python scripts/run_full_benchmark.py --config configs/covertree_smoke.yaml
 ```
 
-The config limits the random dataset to 5k train / 512 queries and trims GloVe to ~20k train / 256 queries while switching the metric to cosine. It also mirrors the repo-standard paths from `AGENTS.md`, so all data reads come from `/storage/ice-shared/cs8903onl/vectordb-retrieval/datasets` (no fresh downloads) and results land in `/storage/ice-shared/cs8903onl/vectordb-retrieval/results`, right next to the other benchmark suites.
+The config limits the random dataset to ~20k train / 512 queries and trims GloVe to ~20k train / 256 queries while switching the metric to cosine. It also mirrors the repo-standard paths from `AGENTS.md`, so all data reads come from `/storage/ice-shared/cs8903onl/vectordb-retrieval/datasets` (no fresh downloads) and results land in `/storage/ice-shared/cs8903onl/vectordb-retrieval/results`, right next to the other benchmark suites.
 
 > **Memory-bound runs:** set `use_memmap_cache: true` under `dataset_options` to stream large pre-embedded datasets (MS MARCO) directly into a memory-mapped file instead of materialising all passages in RAM. The loader now writes `<dataset>_<digest>_train.memmap` alongside JSON metadata inside `cache_dir`, while queries/ground-truth stay in compact `.npy` files. This avoids the double-copy previously required for `np.vstack` + FAISS warm-up and is especially helpful on PACE nodes with tight memory quotas. You can still cap working set via `base_limit`, `query_limit`, and lower `batch_size` if the parquet reader spikes memory during iteration. Combine this with `query_batch_size` (global or per-dataset) to execute searches in controllable mini-batches and keep runtime under cluster limits. Short on walltime? Disable strict relevance resolution (`strict_relevance_resolution: false`) and/or bound the parquet scan (`max_passage_scan`) so loading stops once the `base_limit` budget is filled; any missing positives are reported and skipped.
 
@@ -114,7 +114,7 @@ Need airtight recall for CoverTree? Use the v2 implementation, which mirrors the
 sbatch slurm_jobs/singlerun_nomsma_benchmarking_c_v2_pat.sbatch
 ```
 
-The job spins up a `uv` environment, installs `requirements.txt`, and evaluates `CoverTreeV2` alongside FAISS, HNSW, and LSH using `configs/benchmark_nomsma_c_v2.yaml` (random + GloVe datasets, `topk=200`). Results and plots land under `benchmark_results/benchmark_<timestamp>/`, and the SLURM log is written to `slurm_jobs/slurm_logs/VectorDB-Retrieval-Guarantee_FULL-<jobid>-<node>.log`. See `methodology/covertree_v2_benchmarking.md` for the latest recall/QPS snapshot and troubleshooting tips.
+The job spins up a `uv` environment, installs `requirements.txt`, and evaluates **both CoverTree (with candidate limits disabled) and CoverTreeV2** alongside FAISS, HNSW, and LSH using `configs/benchmark_nomsma_c_v2.yaml` (random + GloVe datasets, `topk=200`). Results and plots land under `benchmark_results/benchmark_<timestamp>/`, and the SLURM log is written to `slurm_jobs/slurm_logs/VectorDB-Retrieval-Guarantee_FULL-<jobid>-<node>.log`. See `methodology/covertree_v2_benchmarking.md` for the latest recall/QPS snapshot and troubleshooting tips.
 
 ### MS MARCO Subset and Embedding Pipeline
 

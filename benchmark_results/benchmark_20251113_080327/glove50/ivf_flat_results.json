@@ -1,0 +1,45 @@
+{
+  "algorithm": "ivf_flat",
+  "parameters": {
+    "metric": "l2",
+    "indexer": {
+      "name": "FaissIVFIndexer",
+      "type": "FaissIVFIndexer",
+      "metric": "l2",
+      "params": {
+        "nprobe": 10,
+        "index_type": "IVF100,Flat",
+        "index_key": "IVF100,Flat"
+      }
+    },
+    "searcher": {
+      "name": "FaissSearcher",
+      "type": "FaissSearcher",
+      "metric": "l2",
+      "params": {
+        "nprobe": 10
+      }
+    }
+  },
+  "dataset": "glove50",
+  "n_train": 20000,
+  "n_test": 256,
+  "dimensions": 50,
+  "topk": 20,
+  "build_time_s": 0.04897284507751465,
+  "index_memory_mb": 3.814697265625,
+  "qps": 222860.48650892486,
+  "mean_query_time_ms": 0.0044871121644973755,
+  "total_query_time_s": 0.0011487007141113281,
+  "timestamp": "2025-11-13T08:05:24.973954",
+  "recall@1": 0.94140625,
+  "precision@1": 1.0,
+  "recall@10": 0.869921875,
+  "precision@10": 1.0,
+  "map@10": 0.05000000000000001,
+  "mean_query_time": 0.0044871121644973755,
+  "median_query_time": 0.0044871121644973755,
+  "min_query_time": 0.0034067779779434204,
+  "max_query_time": 0.005567446351051331,
+  "recall": 0.869921875
+}

@@ -1,0 +1,104 @@
+algorithms:
+  covertree_v2:
+    metric: l2
+    type: CoverTreeV2
+  exact:
+    indexer:
+      metric: l2
+      type: BruteForceIndexer
+    metric: l2
+    searcher:
+      metric: l2
+      type: LinearSearcher
+    type: Composite
+  hnsw:
+    indexer:
+      M: 16
+      efConstruction: 200
+      efSearch: 100
+      metric: l2
+      type: HNSWIndexer
+    metric: l2
+    searcher:
+      metric: l2
+      nprobe: 10
+      type: FaissSearcher
+    type: Composite
+  ivf_flat:
+    indexer:
+      index_type: IVF100,Flat
+      metric: l2
+      nprobe: 10
+      type: FaissIVFIndexer
+    metric: l2
+    searcher:
+      metric: l2
+      nprobe: 10
+      type: FaissSearcher
+    type: Composite
+  ivf_pq:
+    indexer:
+      index_key: IVF256,PQ64
+      metric: l2
+      nprobe: 24
+      type: FaissFactoryIndexer
+    metric: l2
+    searcher:
+      metric: l2
+      nprobe: 24
+      type: FaissSearcher
+    type: Composite
+  ivf_sq8:
+    indexer:
+      index_key: IVF256,SQ8
+      metric: l2
+      nprobe: 24
+      type: FaissFactoryIndexer
+    metric: l2
+    searcher:
+      metric: l2
+      nprobe: 24
+      type: FaissSearcher
+    type: Composite
+  lsh:
+    indexer:
+      bucket_width: 4.0
+      hash_size: 18
+      metric: l2
+      num_tables: 12
+      seed: 42
+      type: LSHIndexer
+    metric: l2
+    searcher:
+      candidate_multiplier: 8.0
+      fallback_to_bruteforce: true
+      metric: l2
+      type: LSHSearcher
+    type: Composite
+  pq:
+    indexer:
+      index_key: PQ64
+      metric: l2
+      type: FaissFactoryIndexer
+    metric: l2
+    searcher:
+      metric: l2
+      nprobe: 24
+      type: FaissSearcher
+    type: Composite
+data_dir: /storage/ice-shared/cs8903onl/vectordb-retrieval/datasets
+dataset: random
+dataset_options:
+  dimensions: 64
+  ground_truth_k: 200
+  seed: 7
+  test_size: 512
+  train_size: 5000
+force_download: false
+metric: l2
+n_queries: 256
+output_prefix: random_20251113_080327
+query_batch_size: 128
+repeat: 2
+seed: 42
+topk: 20

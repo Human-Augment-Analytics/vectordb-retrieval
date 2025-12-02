@@ -1,0 +1,30 @@
+{
+  "algorithm": "covertree",
+  "parameters": {
+    "metric": "l2",
+    "candidate_pool_size": 256,
+    "max_visit_nodes": 4096,
+    "visit_multiplier": 16
+  },
+  "dataset": "random",
+  "n_train": 5000,
+  "n_test": 256,
+  "dimensions": 64,
+  "topk": 20,
+  "build_time_s": 83.27527904510498,
+  "index_memory_mb": 1.220703125,
+  "qps": 48.80240481901908,
+  "mean_query_time_ms": 20.490793511271477,
+  "total_query_time_s": 5.245643138885498,
+  "timestamp": "2025-11-08T09:58:17.878542",
+  "recall@1": 0.46875,
+  "precision@1": 1.0,
+  "recall@10": 0.49101562500000007,
+  "precision@10": 1.0,
+  "map@10": 0.05000000000000001,
+  "mean_query_time": 20.490793511271477,
+  "median_query_time": 20.490793511271477,
+  "min_query_time": 20.464537665247917,
+  "max_query_time": 20.517049357295036,
+  "recall": 0.49101562500000007
+}

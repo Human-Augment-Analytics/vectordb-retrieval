@@ -1,0 +1,45 @@
+{
+  "algorithm": "hnsw",
+  "parameters": {
+    "metric": "l2",
+    "indexer": {
+      "name": "HNSWIndexer",
+      "type": "HNSWIndexer",
+      "metric": "l2",
+      "params": {
+        "M": 16,
+        "efConstruction": 200,
+        "efSearch": 100
+      }
+    },
+    "searcher": {
+      "name": "FaissSearcher",
+      "type": "FaissSearcher",
+      "metric": "l2",
+      "params": {
+        "nprobe": 10
+      }
+    }
+  },
+  "dataset": "glove50",
+  "n_train": 20000,
+  "n_test": 256,
+  "dimensions": 50,
+  "topk": 20,
+  "build_time_s": 0.16078495979309082,
+  "index_memory_mb": 3.814697265625,
+  "qps": 213044.0126984127,
+  "mean_query_time_ms": 0.004693865776062012,
+  "total_query_time_s": 0.001201629638671875,
+  "timestamp": "2025-11-08T08:48:43.595632",
+  "recall@1": 0.97265625,
+  "precision@1": 1.0,
+  "recall@10": 0.9753906250000001,
+  "precision@10": 1.0,
+  "map@10": 0.05000000000000001,
+  "mean_query_time": 0.004693865776062012,
+  "median_query_time": 0.004693865776062012,
+  "min_query_time": 0.004526227712631226,
+  "max_query_time": 0.004861503839492798,
+  "recall": 0.9753906250000001
+}

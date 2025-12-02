@@ -1,0 +1,44 @@
+{
+  "algorithm": "ivf_sq8",
+  "parameters": {
+    "metric": "l2",
+    "indexer": {
+      "name": "FaissFactoryIndexer",
+      "type": "FaissFactoryIndexer",
+      "metric": "l2",
+      "params": {
+        "nprobe": 24,
+        "index_key": "IVF256,SQ8"
+      }
+    },
+    "searcher": {
+      "name": "FaissSearcher",
+      "type": "FaissSearcher",
+      "metric": "l2",
+      "params": {
+        "nprobe": 24
+      }
+    }
+  },
+  "dataset": "glove50",
+  "n_train": 20000,
+  "n_test": 256,
+  "dimensions": 50,
+  "topk": 20,
+  "build_time_s": 0.09817695617675781,
+  "index_memory_mb": 3.814697265625,
+  "qps": 70710.68975963122,
+  "mean_query_time_ms": 0.014142133295536041,
+  "total_query_time_s": 0.0036203861236572266,
+  "timestamp": "2025-11-08T09:58:32.993426",
+  "recall@1": 0.9453125,
+  "precision@1": 1.0,
+  "recall@10": 0.911328125,
+  "precision@10": 1.0,
+  "map@10": 0.05000000000000001,
+  "mean_query_time": 0.014142133295536041,
+  "median_query_time": 0.014142133295536041,
+  "min_query_time": 0.01333281397819519,
+  "max_query_time": 0.014951452612876892,
+  "recall": 0.911328125
+}

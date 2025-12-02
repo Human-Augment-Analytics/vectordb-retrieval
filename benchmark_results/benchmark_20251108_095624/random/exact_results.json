@@ -1,0 +1,37 @@
+{
+  "algorithm": "exact",
+  "parameters": {
+    "metric": "l2",
+    "indexer": {
+      "name": "BruteForceIndexer",
+      "type": "BruteForceIndexer",
+      "metric": "l2"
+    },
+    "searcher": {
+      "name": "LinearSearcher",
+      "type": "LinearSearcher",
+      "metric": "l2"
+    }
+  },
+  "dataset": "random",
+  "n_train": 5000,
+  "n_test": 256,
+  "dimensions": 64,
+  "topk": 20,
+  "build_time_s": 1.4066696166992188e-05,
+  "index_memory_mb": 1.220703125,
+  "qps": 873.0353599290996,
+  "mean_query_time_ms": 1.145428977906704,
+  "total_query_time_s": 0.2932298183441162,
+  "timestamp": "2025-11-08T09:56:25.032718",
+  "recall@1": 1.0,
+  "precision@1": 1.0,
+  "recall@10": 1.0,
+  "precision@10": 1.0,
+  "map@10": 0.05000000000000001,
+  "mean_query_time": 1.145428977906704,
+  "median_query_time": 1.145428977906704,
+  "min_query_time": 1.1326894164085388,
+  "max_query_time": 1.158168539404869,
+  "recall": 1.0
+}

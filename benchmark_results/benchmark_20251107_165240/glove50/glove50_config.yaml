@@ -1,0 +1,21 @@
+algorithms:
+  covertree:
+    candidate_pool_size: 512
+    max_visit_nodes: 8192
+    metric: cosine
+    type: CoverTree
+data_dir: data
+dataset: glove50
+dataset_options:
+  ground_truth_k: 200
+  seed: 11
+  test_size: 256
+  train_limit: 20000
+force_download: false
+metric: cosine
+n_queries: 200
+output_prefix: glove50_20251107_165240
+query_batch_size: 0
+repeat: 1
+seed: 42
+topk: 20

@@ -1,0 +1,22 @@
+algorithms:
+  covertree:
+    candidate_pool_size: 256
+    max_visit_nodes: 4096
+    metric: l2
+    type: CoverTree
+data_dir: data
+dataset: random
+dataset_options:
+  dimensions: 64
+  ground_truth_k: 200
+  seed: 7
+  test_size: 512
+  train_size: 5000
+force_download: false
+metric: l2
+n_queries: 256
+output_prefix: random_20251107_165240
+query_batch_size: 0
+repeat: 1
+seed: 42
+topk: 20

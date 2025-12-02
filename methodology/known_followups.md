@@ -36,6 +36,20 @@ Use this checklist to pick up the outstanding benchmarking/debugging work before
 
 - **Note:** We temporarily disabled CoverTree candidate/visit caps (`candidate_limits_enabled=false`) and reran (`benchmark_results/benchmark_20251121_151457/` via job `3611844`). QPS now drops to ~9–12 with perfect recall (full traversal) and long build times (~18–20 min index build recorded as ~110–113 ms/query search). Leave the logging steps above if we re-enable pruning; current numbers look internally consistent.
 
+## 4. Benchmark summary shows identical index memory across algorithms
+
+- **Symptom:** In `benchmark_results/benchmark_20251121_151457/benchmark_summary.md`, every algorithm reports the same index memory (e.g., 4.88 MB for random, 3.81 MB for glove50), which is implausible given differing index structures.
+- **Fix:** Updated `ExperimentRunner._estimate_memory_usage` to introspect FAISS indices (including PQ/SQ code sizes and HNSW link overhead), LSH artifacts, and tree structures before falling back to raw train-vector size. Added debug logging (file handler only) for the computed components.
+- **Status:** Fixed. Smoke run `3681003` (`configs/benchmark_config_smoke.yaml`) and full job `3681007` (`configs/benchmark_nomsma_c_v2.yaml`) both show differentiated footprints: e.g., `benchmark_results/benchmark_20251128_173147/benchmark_summary.md` lists covertree 5.49 MB vs. HNSW 7.32 MB vs. IVF_PQ 1.22 MB (random), and covertree 4.43 MB vs. HNSW 6.26 MB vs. IVF_PQ 0.95 MB (glove50). The estimator now inspects FAISS code sizes, HNSW links, LSH buffers, and tree nodes before falling back to raw vectors.
+- **Follow-up:** If future FAISS runs still look too uniform, consider adding centroid memory for IVF and enabling DEBUG logs to inspect the per-algorithm breakdowns.
+
 ---
 
 Keep this file updated whenever you start/complete work on any item above or add new follow-ups.
+
+## 5. Inflated QPS metrics on random dataset (20251128_154708)
+
+- **Symptom:** `benchmark_results/benchmark_20251128_154708/random/random_results.json` reports extreme QPS values (e.g., `ivf_sq8` ≈162k, `ivf_flat` ≈104k, `hnsw` ≈11k) that are out of line with realistic throughput.
+- **What the logs show:** The run’s `benchmark.log` spans 15:47:08 → 16:29:24 because the CoverTree variants each spent ~1 200 s building (`covertree`/`covertree_v2` `build_time_s` ≈1207 s) and ~20–30 s searching, while the FAISS/HNSW algorithms finished in milliseconds. The inflated QPS is purely from the per-query timing path, not from overall wall clock.
+- **Root cause in metric calculation:** `Evaluator.evaluate` sets `qps = 1 / np.mean(query_times)` using the per-query latencies emitted by `ExperimentRunner`’s batch path. With only 256 queries and sub-millisecond batch timings from FAISS, the mean latency drops to single-digit microseconds, so `1 / mean` explodes even though end-to-end runtime is dominated by slow builds that the QPS metric ignores.
+- **Next steps:** Recompute QPS from total search wall time (`len(test_queries) / total_query_time`) using `time.perf_counter()` for better resolution, and consider a “throughput including build” metric for fairness. Also bump the query count for sanity checks so per-query timing isn’t dominated by timer noise on tiny batches.

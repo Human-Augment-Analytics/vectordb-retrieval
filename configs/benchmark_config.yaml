@@ -159,7 +159,7 @@ datasets:
     topk: 20
     dataset_options:
       dimensions: 64
-      train_size: 5000
+      train_size: 20000
       test_size: 512
       ground_truth_k: 200
       seed: 7

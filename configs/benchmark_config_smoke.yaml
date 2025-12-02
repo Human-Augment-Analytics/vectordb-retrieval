@@ -87,6 +87,12 @@ algorithms:
 datasets:
   - name: random
     metric: l2
+    dataset_options:
+      dimensions: 64
+      train_size: 20000
+      test_size: 256
+      ground_truth_k: 100
+      seed: 7
   - name: msmarco
     metric: cosine
     dataset_options:

@@ -8,7 +8,7 @@ This repository provides a comprehensive framework for researching, benchmarking
 - **Automated Benchmark Suite**: A single script (`scripts/run_full_benchmark.py`) to run a full suite of experiments across multiple datasets.
 - **Modular Index/Search Pipelines**: Combine any indexing strategy with any search strategy through declarative config (e.g., pair FAISS HNSW indexing with linear or FAISS searchers).
 - **Expanded FAISS Coverage**: Benchmark flat, IVF-Flat, IVF-PQ, IVF-SQ8, and stand-alone PQ indexes side by side without code changes by updating YAML configs.
-- **Locality-Sensitive Hashing Baseline**: Compare an LSH retriever (cosine or Euclidean) with tunable recall guarantees using the same declarative pipeline.
+- **Locality-Sensitive Hashing Baseline**: Compare an LSH retriever (cosine or Euclidean) with tunable recall guarantees using the same declarative pipeline, including a FAISS-backed IndexLSH variant that reranks expanded candidate sets for improved recall.
 - **Cover Tree Prototype**: Run a lightweight cover tree baseline (random + subsampled GloVe) via `configs/covertree_smoke.yaml` to vet hierarchical metric search behavior; candidate/visit limits are currently disabled while we validate recall.
 - **Standard Datasets**: Built-in support for benchmark datasets like SIFT1M, GloVe, and MS MARCO (TF-IDF projection or pre-embedded Cohere vectors), with automated download and preprocessing.
 - **Comprehensive Metrics**: Tracks key performance indicators including recall, queries per second (QPS), index build time, and index memory usage.

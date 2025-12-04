@@ -53,3 +53,20 @@ Keep this file updated whenever you start/complete work on any item above or add
 - **What the logs show:** The run’s `benchmark.log` spans 15:47:08 → 16:29:24 because the CoverTree variants each spent ~1 200 s building (`covertree`/`covertree_v2` `build_time_s` ≈1207 s) and ~20–30 s searching, while the FAISS/HNSW algorithms finished in milliseconds. The inflated QPS is purely from the per-query timing path, not from overall wall clock.
 - **Root cause in metric calculation:** `Evaluator.evaluate` sets `qps = 1 / np.mean(query_times)` using the per-query latencies emitted by `ExperimentRunner`’s batch path. With only 256 queries and sub-millisecond batch timings from FAISS, the mean latency drops to single-digit microseconds, so `1 / mean` explodes even though end-to-end runtime is dominated by slow builds that the QPS metric ignores.
 - **Next steps:** Recompute QPS from total search wall time (`len(test_queries) / total_query_time`) using `time.perf_counter()` for better resolution, and consider a “throughput including build” metric for fairness. Also bump the query count for sanity checks so per-query timing isn’t dominated by timer noise on tiny batches.
+
+---
+
+## 6. CoverTree full-suite run timed out on MSMARCO (20251202)
+
+- **Symptom:** `Codex-Covertree-All` job (`3778745`) using `configs/benchmark_all_covertree.yaml` produced `benchmark_results/benchmark_20251202_182606/` with only random and glove50 outputs; MSMARCO results are missing.
+- **Log evidence:** `slurm_jobs/slurm_logs/Codex-Covertree-All-3778745-atl1-1-02-010-1-2.log` shows the run reached MSMARCO at 19:37:41 and was cancelled at 06:25:53 due to the 12-hour walltime limit (`slurmstepd: ... CANCELLED ... DUE TO TIME LIMIT`). A numpy overflow warning appeared just before cancellation but no stack trace was logged.
+- **Follow-up:** Re-run MSMARCO (or the full config) with a longer walltime or narrower algorithm set (e.g., drop CoverTree variants) to keep within limits. Capture the new slurm log and benchmark summary once complete.
+
+---
+
+## 7. FAISS IndexLSH recall under baseline configs (resolved)
+
+- **Symptom:** In `benchmark_results/benchmark_20251204_091614/benchmark_summary.md`, `faiss_lsh` shows markedly lower recall (≈0.21 on `random`, ≈0.38 on `glove50`) despite extremely high reported QPS, making it a weak baseline compared to both HNSW/IVF and the custom Python LSH.
+- **Root cause:** The `FaissLSHIndexer` built a plain `faiss.IndexLSH` and `FaissSearcher` delegated directly to `index.search`, so results were ranked purely by the LSH backend with no candidate expansion or re-scoring against the true metric (L2/cosine). This kept latency tiny but sacrificed recall.
+- **Fix:** `FaissLSHIndexer` now tags its artifacts with `faiss_index_kind='lsh'`, and `FaissSearcher` detects this and performs an optional rerank pass: it asks the FAISS index for an expanded candidate set (`lsh_candidate_multiplier`, default 8×; set to 64× in `configs/benchmark_nomsma_c_v2.yaml` via `faiss_l2.lsh_candidate_multiplier`), then re-scores those candidates against the original vectors using the configured metric before returning the top‑k. Non-LSH FAISS indexes still use the original fast path.
+- **Expected behaviour:** Future runs of `configs/benchmark_nomsma_c_v2.yaml` (e.g., via `slurm_jobs/singlerun_complete_benchmarking_pat.sbatch`) should report substantially improved `faiss_lsh` recall at modest additional query cost, with index memory still reflecting the compact LSH codes. Tune `lsh_candidate_multiplier` in the searcher config to trade QPS for recall if needed.

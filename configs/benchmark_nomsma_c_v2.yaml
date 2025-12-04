@@ -79,6 +79,10 @@ indexers:
     num_tables: 12
     hash_size: 12
     seed: 42
+  faiss_lsh_l2:
+    type: FaissLSHIndexer
+    metric: l2
+    num_bits: 256
 
 searchers:
   linear_l2:
@@ -91,6 +95,7 @@ searchers:
     type: FaissSearcher
     metric: l2
     nprobe: 10
+    lsh_candidate_multiplier: 64.0
   faiss_cosine:
     type: FaissSearcher
     metric: cosine
@@ -139,16 +144,16 @@ algorithms:
     indexer_ref: faiss_pq_l2
     searcher_ref: faiss_l2_highprobe
     metric: l2
+  faiss_lsh:
+    indexer_ref: faiss_lsh_l2
+    searcher_ref: faiss_l2
+    metric: l2
   covertree:
     type: CoverTree
     metric: l2
     candidate_limits_enabled: false
   covertree_v2:
     type: CoverTreeV2
-    metric: l2
-  lsh:
-    indexer_ref: lsh_l2
-    searcher_ref: lsh_search_l2
     metric: l2
 
 datasets:

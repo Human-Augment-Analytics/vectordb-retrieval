@@ -179,6 +179,48 @@ class HNSWIndexer(BaseIndexer):
 register_indexer("HNSWIndexer", HNSWIndexer)
 
 
+class FaissLSHIndexer(BaseIndexer):
+    """FAISS-backed LSH indexer using random-hyperplane hashes."""
+
+    SUPPORTED_METRICS = {"l2", "cosine", "ip"}
+
+    def __init__(self, name: str, dimension: int, metric: str = "l2", num_bits: int = 256, **kwargs: Any) -> None:
+        if faiss is None:
+            raise ImportError("faiss is required for FaissLSHIndexer")
+        if metric not in self.SUPPORTED_METRICS:
+            raise ValueError(f"FaissLSHIndexer supports metrics {self.SUPPORTED_METRICS}, received '{metric}'")
+        if num_bits <= 0:
+            raise ValueError("num_bits must be positive")
+
+        super().__init__(name, dimension, metric, num_bits=num_bits, **kwargs)
+        self.num_bits = num_bits
+
+    def build(self, vectors: np.ndarray, metadata: Optional[List[Dict[str, Any]]] = None) -> IndexArtifact:
+        if vectors.shape[1] != self.dimension:
+            raise ValueError(f"Expected dimension {self.dimension}, got {vectors.shape[1]}")
+
+        data = _ensure_float32(vectors)
+        artefact_metadata: Dict[str, Any] = {
+            "metric": self.metric,
+            "num_bits": self.num_bits,
+            "faiss_index_kind": "lsh",
+        }
+
+        if self.metric == "cosine":
+            data = _safe_normalize(data)
+            artefact_metadata["normalize_queries"] = True
+        elif self.metric == "ip":
+            artefact_metadata["faiss_metric"] = "ip"
+
+        index = faiss.IndexLSH(self.dimension, self.num_bits)
+        index.add(data)
+
+        return IndexArtifact(kind="faiss", data=index, metadata=artefact_metadata)
+
+
+register_indexer("FaissLSHIndexer", FaissLSHIndexer)
+
+
 class FaissFactoryIndexer(BaseIndexer):
     """Generic FAISS indexer driven by the index_factory grammar."""
 
@@ -349,7 +391,29 @@ register_searcher("LinearSearcher", LinearSearcher)
 
 
 class FaissSearcher(BaseSearcher):
-    """Searcher that delegates to a FAISS index."""
+    """Searcher that delegates to a FAISS index.
+
+    For standard FAISS indexes, this is a thin wrapper around ``index.search``.
+    When attached to an ``IndexLSH`` artifact (marked via ``faiss_index_kind='lsh'``),
+    it optionally performs a lightweight reranking step: it asks FAISS for an
+    expanded candidate set, then re-scores those candidates against the original
+    vectors using the configured metric. This significantly improves recall for
+    LSH while keeping QPS competitive.
+    """
+
+    def __init__(self, name: str, dimension: int, metric: str = "l2", **kwargs: Any) -> None:
+        super().__init__(name, dimension, metric, **kwargs)
+        self.index: Any = None
+        self.normalize_queries: bool = False
+        self.index_kind: Optional[str] = None
+        self._base_vectors: Optional[np.ndarray] = None
+        self._normalized_vectors: Optional[np.ndarray] = None
+
+        # LSH-specific knobs (ignored for non-LSH indexes).
+        self._lsh_rerank: bool = bool(self.params.get("lsh_rerank", True))
+        self._lsh_candidate_multiplier: float = float(self.params.get("lsh_candidate_multiplier", 8.0))
+        max_candidates = self.params.get("lsh_max_candidates")
+        self._lsh_max_candidates: Optional[int] = int(max_candidates) if max_candidates is not None else None
 
     def attach(self, artifact: IndexArtifact, vectors: np.ndarray, metadata: Optional[List[Dict[str, Any]]] = None) -> None:
         if artifact.kind != "faiss":
@@ -360,7 +424,15 @@ class FaissSearcher(BaseSearcher):
         artefact_metadata = artifact.metadata or {}
         self.metric = artefact_metadata.get("metric", self.metric)
         self.normalize_queries = artefact_metadata.get("normalize_queries", False)
+        self.index_kind = artefact_metadata.get("faiss_index_kind")
         self._prepared = True
+
+        # For LSH, keep a reference to the original vectors so we can rerank
+        # candidates by the true metric (e.g., L2 or cosine).
+        if self.index_kind == "lsh" and self._lsh_rerank:
+            self._base_vectors = _ensure_float32(vectors)
+            if self.metric == "cosine":
+                self._normalized_vectors = _safe_normalize(self._base_vectors)
 
         desired_nprobe = self.params.get("nprobe")
         if desired_nprobe is None:
@@ -380,14 +452,99 @@ class FaissSearcher(BaseSearcher):
         distances, indices = self.batch_search(self._prepare_query(query), k)
         return distances[0], indices[0]
 
+    def _batch_search_lsh_rerank(self, queries: np.ndarray, k: int) -> Tuple[np.ndarray, np.ndarray]:
+        if self.index is None or self._base_vectors is None:
+            raise RuntimeError("LSH rerank path requires an attached index and base vectors")
+
+        num_db = int(getattr(self.index, "ntotal", 0) or self._base_vectors.shape[0])
+        if num_db <= 0:
+            raise RuntimeError("LSH index has no vectors to search")
+
+        candidate_k = max(k, 1)
+        if self._lsh_candidate_multiplier > 1.0:
+            candidate_k = int(max(candidate_k, k * self._lsh_candidate_multiplier))
+        if self._lsh_max_candidates is not None:
+            candidate_k = min(candidate_k, self._lsh_max_candidates)
+        candidate_k = min(candidate_k, num_db)
+
+        if candidate_k <= 0:
+            # Fall back to the raw FAISS path in degenerate cases.
+            distances, indices = self.index.search(queries, k)
+            if self.metric in {"cosine", "ip"}:
+                distances = -distances
+            return distances.astype(np.float32), indices.astype(np.int64)
+
+        _, candidate_indices = self.index.search(queries, candidate_k)
+
+        n_queries = queries.shape[0]
+        reranked_distances = np.full((n_queries, k), np.inf, dtype=np.float32)
+        reranked_indices = np.full((n_queries, k), -1, dtype=np.int64)
+
+        for i in range(n_queries):
+            row_candidates = candidate_indices[i]
+            valid = row_candidates[row_candidates >= 0]
+            if valid.size == 0:
+                # No candidates: rely on raw FAISS ordering for this query.
+                raw_distances, raw_indices = self.index.search(queries[i : i + 1], k)
+                if self.metric in {"cosine", "ip"}:
+                    raw_distances = -raw_distances
+                reranked_distances[i, :] = raw_distances[0].astype(np.float32)
+                reranked_indices[i, :] = raw_indices[0].astype(np.int64)
+                continue
+
+            if self.metric == "l2":
+                cand_vectors = self._base_vectors[valid]
+                diffs = cand_vectors - queries[i : i + 1]
+                sq_dists = np.sum(diffs ** 2, axis=1)
+                limit = min(k, sq_dists.shape[0])
+                kth = max(limit - 1, 0)
+                topk_idx = np.argpartition(sq_dists, kth=kth)[:limit]
+                topk_sq = sq_dists[topk_idx]
+                order = np.argsort(topk_sq)
+                sorted_sq = topk_sq[order]
+                sorted_idx = valid[topk_idx[order]]
+                reranked_distances[i, :limit] = np.sqrt(sorted_sq).astype(np.float32)
+                reranked_indices[i, :limit] = sorted_idx.astype(np.int64)
+            elif self.metric in {"cosine", "ip"}:
+                # Queries are already normalized when metric == "cosine".
+                if self.metric == "cosine":
+                    if self._normalized_vectors is None:
+                        raise RuntimeError("Normalized vectors are missing for cosine LSH rerank")
+                    cand_vectors = self._normalized_vectors[valid]
+                    query_vec = queries[i : i + 1]
+                else:  # inner product
+                    cand_vectors = self._base_vectors[valid]
+                    query_vec = queries[i : i + 1]
+
+                scores = (query_vec @ cand_vectors.T).ravel()
+                limit = min(k, scores.shape[0])
+                kth = max(limit - 1, 0)
+                topk_idx = np.argpartition(-scores, kth=kth)[:limit]
+                topk_scores = scores[topk_idx]
+                order = np.argsort(-topk_scores)
+                sorted_scores = topk_scores[order]
+                sorted_idx = valid[topk_idx[order]]
+                # Higher scores are better; convert to distances for consistency.
+                distances = -sorted_scores
+                reranked_distances[i, :limit] = distances.astype(np.float32)
+                reranked_indices[i, :limit] = sorted_idx.astype(np.int64)
+            else:
+                raise ValueError(f"Unsupported metric '{self.metric}' for FaissSearcher LSH rerank")
+
+        return reranked_distances, reranked_indices
+
     def batch_search(self, queries: np.ndarray, k: int = 10) -> Tuple[np.ndarray, np.ndarray]:
         if not self._prepared:
             raise RuntimeError("FaissSearcher not attached to an index")
         queries = self._prepare_query(queries)
-        distances, indices = self.index.search(queries, k)
 
-        if self.metric in {"cosine", "ip"}:
-            distances = -distances
+        if self.index_kind == "lsh" and self._lsh_rerank and self._base_vectors is not None:
+            distances, indices = self._batch_search_lsh_rerank(queries, k)
+        else:
+            distances, indices = self.index.search(queries, k)
+            if self.metric in {"cosine", "ip"}:
+                distances = -distances
+
         return distances.astype(np.float32), indices.astype(np.int64)
 
 
@@ -474,4 +631,5 @@ __all__ = [
     "register_searcher",
     "INDEXER_REGISTRY",
     "SEARCHER_REGISTRY",
+    "FaissLSHIndexer",
 ]

@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from src.algorithms.modular import CompositeAlgorithm
+from src.algorithms.modular import CompositeAlgorithm, FaissSearcher, IndexArtifact
 
 
 try:
@@ -164,3 +164,63 @@ def test_composite_lsh_l2_recovers_identical_vectors():
 
     np.testing.assert_allclose(distances[:, 0], 0.0, atol=1e-6)
     np.testing.assert_array_equal(indices[:, 0], np.arange(10, 20))
+
+
+def test_faiss_searcher_lsh_reranks_candidates_without_faiss_dependency():
+    """FaissSearcher should rerank LSH candidates using base vectors when marked as LSH.
+
+    This test exercises the rerank path without requiring a real faiss.IndexLSH instance
+    by using a lightweight dummy index that exposes the same ``search`` API.
+    """
+
+    class DummyLSHIndex:
+        def __init__(self, ntotal: int) -> None:
+            self.ntotal = ntotal
+
+        def search(self, queries: np.ndarray, k: int) -> tuple[np.ndarray, np.ndarray]:
+            # Return candidates in *reverse* true-distance order so that reranking
+            # must reorder them to recover the nearest neighbour.
+            batch_size = queries.shape[0]
+            all_indices = np.arange(self.ntotal - 1, -1, -1, dtype=np.int64)
+            indices = np.tile(all_indices[:k], (batch_size, 1))
+            distances = np.zeros_like(indices, dtype=np.float32)
+            return distances, indices
+
+    train = np.array(
+        [
+            [0.0, 0.0],
+            [1.0, 0.0],
+            [0.0, 1.0],
+            [1.0, 1.0],
+        ],
+        dtype=np.float32,
+    )
+    queries = np.array([[0.0, 0.0]], dtype=np.float32)
+
+    # Patch the module-level faiss symbol so FaissSearcher does not raise ImportError.
+    import src.algorithms.modular as modular_module
+
+    original_faiss = modular_module.faiss
+    modular_module.faiss = object()  # type: ignore[assignment]
+    try:
+        searcher = FaissSearcher(
+            name="faiss_lsh_rerank_test",
+            dimension=train.shape[1],
+            metric="l2",
+            lsh_rerank=True,
+            lsh_candidate_multiplier=4.0,
+        )
+        artifact = IndexArtifact(
+            kind="faiss",
+            data=DummyLSHIndex(ntotal=train.shape[0]),
+            metadata={"metric": "l2", "faiss_index_kind": "lsh"},
+        )
+        searcher.attach(artifact, train)
+        distances, indices = searcher.batch_search(queries, k=2)
+    finally:
+        modular_module.faiss = original_faiss
+
+    # After reranking, the closest point [0, 0] (index 0) should be returned first.
+    assert indices.shape == (1, 2)
+    assert indices[0, 0] == 0
+    assert distances[0, 0] == pytest.approx(0.0, abs=1e-6)

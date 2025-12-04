@@ -1,0 +1,48 @@
+{
+  "algorithm": "lsh",
+  "parameters": {
+    "metric": "l2",
+    "indexer": {
+      "name": "LSHIndexer",
+      "type": "LSHIndexer",
+      "metric": "l2",
+      "params": {
+        "num_tables": 12,
+        "hash_size": 4,
+        "bucket_width": 20.0,
+        "seed": 42
+      }
+    },
+    "searcher": {
+      "name": "LSHSearcher",
+      "type": "LSHSearcher",
+      "metric": "l2",
+      "params": {
+        "candidate_multiplier": 64.0,
+        "max_candidates": null,
+        "fallback_to_bruteforce": false
+      }
+    }
+  },
+  "dataset": "random",
+  "n_train": 20000,
+  "n_test": 256,
+  "dimensions": 64,
+  "topk": 20,
+  "build_time_s": 0.3915698528289795,
+  "index_memory_mb": 7.887748718261719,
+  "qps": 169.01236747086472,
+  "mean_query_time_ms": 5.916726775467396,
+  "total_query_time_s": 1.5146820545196533,
+  "timestamp": "2025-12-02T19:07:27.538617",
+  "recall@1": 0.34765625,
+  "precision@1": 1.0,
+  "recall@10": 0.31914062499999996,
+  "precision@10": 1.0,
+  "map@10": 0.05000000000000001,
+  "mean_query_time": 5.916726775467396,
+  "median_query_time": 5.916726775467396,
+  "min_query_time": 5.663616582751274,
+  "max_query_time": 6.1698369681835175,
+  "recall": 0.31914062499999996
+}

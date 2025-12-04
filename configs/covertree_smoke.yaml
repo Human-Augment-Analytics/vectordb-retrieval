@@ -1,0 +1,39 @@
+data_dir: /storage/ice-shared/cs8903onl/vectordb-retrieval/datasets
+output_dir: /storage/ice-shared/cs8903onl/vectordb-retrieval/results
+output_prefix: covertree_smoke
+seed: 42
+query_batch_size: 0
+
+algorithms:
+  covertree:
+    type: CoverTree
+    metric: l2
+    candidate_pool_size: 256
+    max_visit_nodes: 4096
+
+datasets:
+  - name: random
+    metric: l2
+    n_queries: 256
+    topk: 20
+    dataset_options:
+      dimensions: 64
+      train_size: 20000
+      test_size: 512
+      ground_truth_k: 200
+      seed: 7
+
+  - name: glove50
+    metric: cosine
+    n_queries: 200
+    topk: 20
+    dataset_options:
+      test_size: 256
+      train_limit: 20000
+      ground_truth_k: 200
+      seed: 11
+    algorithms:
+      covertree:
+        metric: cosine
+        candidate_pool_size: 512
+        max_visit_nodes: 8192

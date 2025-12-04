@@ -174,6 +174,12 @@ class Dataset:
         """
         url = self.AVAILABLE_DATASETS['glove50']['url']
         zip_path = os.path.join(self.data_dir, "glove.6B.zip")
+        target_txt = os.path.join(self.data_dir, "glove.6B.50d.txt")
+
+        # If the desired text file already exists, skip download/extraction entirely.
+        if os.path.exists(target_txt):
+            print(f"File {target_txt} already exists, skipping download and extraction.")
+            return
         
         if os.path.exists(zip_path):
             print(f"File {zip_path} already exists, skipping download.")
@@ -540,13 +546,21 @@ class Dataset:
 
     def _process_glove(self) -> None:
         """
-        Process GloVe dataset.
+        Process GloVe dataset with optional subsampling controls.
         """
         txt_file = os.path.join(self.data_dir, "glove.6B.50d.txt")
         if not os.path.exists(txt_file):
             raise FileNotFoundError(f"glove.6B.50d.txt not found. Please run download first.")
 
         print("Processing GloVe dataset from text file...")
+        options = self.options or {}
+        seed = int(options.get("seed", 42))
+        rng = np.random.default_rng(seed)
+        requested_test_size = int(options.get("test_size", 1000))
+        train_limit_raw = options.get("train_limit")
+        test_limit_raw = options.get("test_limit")
+        ground_truth_k = int(options.get("ground_truth_k", 100))
+
         vectors = []
         with open(txt_file, 'r', encoding='utf-8') as f:
             for line in tqdm(f, desc="Reading GloVe vectors"):
@@ -555,22 +569,30 @@ class Dataset:
                 vectors.append(vector)
         
         all_vectors = np.array(vectors)
-        
-        # Use a random subset as queries and the rest as the base set
-        np.random.seed(42)
-        test_size = 1000
-        if all_vectors.shape[0] <= test_size:
+        available = all_vectors.shape[0]
+
+        test_size = min(requested_test_size, available - 1)
+        if test_size <= 0:
             raise ValueError("Dataset is too small to create a test split.")
             
-        test_indices = np.random.choice(all_vectors.shape[0], test_size, replace=False)
-        train_indices = np.setdiff1d(np.arange(all_vectors.shape[0]), test_indices)
+        test_indices = rng.choice(available, test_size, replace=False)
+        train_indices = np.setdiff1d(np.arange(available), test_indices)
+
+        if test_limit_raw is not None:
+            test_limit = min(int(test_limit_raw), test_indices.size)
+            test_indices = test_indices[:test_limit]
+
+        if train_limit_raw is not None:
+            train_limit = min(int(train_limit_raw), train_indices.size)
+            if train_limit < train_indices.size:
+                train_indices = rng.choice(train_indices, train_limit, replace=False)
 
         self.test_vectors = all_vectors[test_indices]
         self.train_vectors = all_vectors[train_indices]
 
         # Compute ground truth for the test set
         print("Computing ground truth for GloVe...")
-        k = 100  # Number of nearest neighbors for ground truth
+        k = min(ground_truth_k, self.train_vectors.shape[0])
         self.ground_truth = np.zeros((self.test_vectors.shape[0], k), dtype=np.int32)
         for i in tqdm(range(self.test_vectors.shape[0]), desc="Computing GloVe ground truth"):
             distances = np.linalg.norm(self.train_vectors - self.test_vectors[i], axis=1)

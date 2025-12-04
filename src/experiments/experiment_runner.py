@@ -5,9 +5,10 @@ from __future__ import annotations
 import json
 import logging
 import os
+import sys
 import time
 from datetime import datetime
-from typing import Dict, Any, Optional, Tuple
+from typing import Dict, Any, Optional, Tuple, List
 
 import numpy as np
 import yaml
@@ -275,16 +276,259 @@ class ExperimentRunner:
 
     def _estimate_memory_usage(self, algorithm: BaseAlgorithm, train_vectors: np.ndarray) -> float:
         """Return algorithm-reported memory when available, otherwise estimate."""
+        # Prefer an explicit algorithm implementation when present.
         if hasattr(algorithm, "get_memory_usage"):
             try:
                 usage = algorithm.get_memory_usage()
-                if usage is not None:
+                if usage is not None and usage > 0:
                     return float(usage)
-            except Exception:
-                pass
+            except Exception as exc:  # pragma: no cover - defensive guardrail
+                self.logger.warning(f"Failed to read memory usage for {algorithm.get_name()}: {exc}")
+
+        size_bytes = self._introspect_memory_bytes(algorithm, train_vectors=train_vectors)
+        if size_bytes > 0:
+            return size_bytes / (1024.0 * 1024.0)
 
         # Fallback: size of the raw training vectors in MB.
         return float(train_vectors.nbytes) / (1024.0 * 1024.0)
+
+    def _introspect_memory_bytes(self, algorithm: BaseAlgorithm, train_vectors: Optional[np.ndarray] = None) -> int:
+        """Best-effort memory estimation for algorithms without explicit reporting."""
+        # 1) Check common FAISS-backed indices.
+        index = getattr(algorithm, "index", None)
+        size_bytes = max(0, self._faiss_index_size_bytes(index, train_vectors=train_vectors, algorithm=algorithm))
+        if size_bytes > 0:
+            size_bytes = self._enforce_minimum_vector_footprint(size_bytes, train_vectors)
+            return size_bytes
+
+        # 2) Composite/modular algorithms expose an index artifact.
+        artifact = getattr(algorithm, "index_artifact", None)
+        size_bytes = max(size_bytes, self._artifact_size_bytes(artifact, algorithm=algorithm, train_vectors=train_vectors))
+        if size_bytes > 0:
+            size_bytes = self._enforce_minimum_vector_footprint(size_bytes, train_vectors)
+            return size_bytes
+
+        # 3) LSH convenience wrapper keeps state on the searcher.
+        size_bytes = max(size_bytes, self._lsh_state_size_bytes(getattr(algorithm, "searcher", None)))
+        if size_bytes > 0:
+            return size_bytes
+
+        # 4) CoverTree variants store working vectors and explicit nodes.
+        size_bytes = max(size_bytes, self._covertree_size_bytes(algorithm))
+        if size_bytes > 0:
+            return size_bytes
+
+        # 5) As a minimal signal, fall back to any retained vectors.
+        vectors = getattr(algorithm, "vectors", None)
+        if isinstance(vectors, np.ndarray):
+            return int(vectors.nbytes)
+
+        return 0
+
+    def _enforce_minimum_vector_footprint(self, size_bytes: int, train_vectors: Optional[np.ndarray]) -> int:
+        """
+        Guard against faiss.index_size() returning placeholder values (e.g., 0–few bytes).
+        Clamp to at least the raw training-vector footprint when we know the index
+        stores the full dataset.
+        """
+        if train_vectors is None or not isinstance(train_vectors, np.ndarray):
+            return size_bytes
+
+        if size_bytes < 1024:  # clearly too small to hold an index
+            return int(max(size_bytes, train_vectors.nbytes))
+
+        return size_bytes
+
+    def _faiss_index_size_bytes(self, index: Any, train_vectors: Optional[np.ndarray] = None, algorithm: Optional[BaseAlgorithm] = None) -> int:
+        if index is None:
+            return 0
+        try:
+            import faiss  # type: ignore
+        except Exception:
+            return 0
+
+        try:
+            base_size = int(faiss.index_size(index))
+        except Exception:
+            base_size = 0
+
+        ntotal = int(getattr(index, "ntotal", 0) or 0)
+        code_size = self._faiss_code_size(index, train_vectors)
+        vector_bytes = ntotal * code_size if ntotal > 0 and code_size > 0 else 0
+
+        # Add a rough adjacency overhead for HNSW graphs.
+        graph_overhead = 0
+        hnsw = getattr(index, "hnsw", None)
+        if hnsw is not None:
+            m_links = int(getattr(hnsw, "M", 0) or 0)
+            if m_links <= 0 and algorithm is not None:
+                m_links = int(getattr(getattr(algorithm, "indexer", None), "M", 0) or 0)
+            # Two floats per edge (dist + id) as a coarse upper bound.
+            graph_overhead = ntotal * max(m_links, 0) * 8
+
+        total = max(base_size, vector_bytes) + graph_overhead
+        try:
+            alg_name = algorithm.get_name() if algorithm is not None else "<unknown>"
+            index_name = index.__class__.__name__
+            self.logger.debug(
+                "Estimated index memory for %s (%s): base=%s bytes, vector_bytes=%s, "
+                "graph_overhead=%s, total=%s, ntotal=%s, code_size=%s, M=%s",
+                alg_name,
+                index_name,
+                base_size,
+                vector_bytes,
+                graph_overhead,
+                total,
+                ntotal,
+                code_size,
+                getattr(hnsw, "M", None) if hnsw is not None else None,
+            )
+        except Exception:
+            pass
+
+        return total
+
+    def _faiss_code_size(self, index: Any, train_vectors: Optional[np.ndarray]) -> int:
+        code_size = int(getattr(index, "code_size", 0) or 0)
+        pq = getattr(index, "pq", None)
+        if code_size <= 0 and pq is not None:
+            code_size = int(getattr(pq, "code_size", 0) or 0)
+
+        if code_size <= 0:
+            dim = int(getattr(index, "d", 0) or 0)
+            if dim <= 0 and train_vectors is not None:
+                dim = train_vectors.shape[1]
+            code_size = dim * 4 if dim > 0 else 0
+
+        return code_size
+
+    def _artifact_size_bytes(
+        self,
+        artifact: Any,
+        algorithm: Optional[BaseAlgorithm] = None,
+        train_vectors: Optional[np.ndarray] = None,
+    ) -> int:
+        if artifact is None:
+            return 0
+
+        data = getattr(artifact, "data", None)
+        kind = getattr(artifact, "kind", None)
+
+        if kind == "faiss":
+            size_bytes = self._faiss_index_size_bytes(data, train_vectors=train_vectors, algorithm=algorithm)
+            if size_bytes > 0:
+                return size_bytes
+
+        if kind == "raw_vectors" and hasattr(data, "nbytes"):
+            return int(getattr(data, "nbytes", 0))
+
+        if kind == "lsh" and isinstance(data, dict):
+            return self._lsh_artifact_bytes(data)
+
+        return self._approximate_object_bytes(data)
+
+    def _lsh_artifact_bytes(self, data: Dict[str, Any]) -> int:
+        """Estimate memory for LSH artifacts (projections, offsets, tables, vector store)."""
+        size_bytes = 0
+        for key in ("projections", "offsets", "vector_store", "bit_weights"):
+            arr = data.get(key)
+            if isinstance(arr, np.ndarray):
+                size_bytes += int(arr.nbytes)
+
+        tables = data.get("tables")
+        if tables:
+            size_bytes += self._lsh_tables_bytes(tables)
+
+        return size_bytes
+
+    def _lsh_state_size_bytes(self, searcher: Any) -> int:
+        """Estimate memory when only the LSH searcher is accessible (LSH convenience wrapper)."""
+        if searcher is None:
+            return 0
+
+        size_bytes = 0
+        for attr in ("projections", "offsets", "vector_store", "bit_weights"):
+            value = getattr(searcher, attr, None)
+            if isinstance(value, np.ndarray):
+                size_bytes += int(value.nbytes)
+
+        tables = getattr(searcher, "tables", None)
+        if tables:
+            size_bytes += self._lsh_tables_bytes(tables)
+
+        return size_bytes
+
+    def _lsh_tables_bytes(self, tables: Any) -> int:
+        """Roughly estimate memory for LSH hash tables (list[dict[hash_key -> list[int]]])."""
+        if not isinstance(tables, list):
+            return 0
+
+        total_entries = 0
+        overhead = 0
+        for table in tables:
+            if not isinstance(table, dict):
+                continue
+            overhead += sys.getsizeof(table)
+            for bucket in table.values():
+                if isinstance(bucket, list):
+                    overhead += sys.getsizeof(bucket)
+                    total_entries += len(bucket)
+
+        # Assume 4 bytes per stored index plus container overhead.
+        return overhead + int(total_entries * 4)
+
+    def _covertree_size_bytes(self, algorithm: BaseAlgorithm) -> int:
+        """Estimate memory used by CoverTree/CoverTreeV2 implementations."""
+        working = getattr(algorithm, "_working_vectors", None)
+        size_bytes = int(working.nbytes) if isinstance(working, np.ndarray) else 0
+
+        root = getattr(algorithm, "root", None)
+        if root is None:
+            return size_bytes
+
+        # Traverse nodes to account for lightweight structural overhead.
+        stack: List[Any] = [root]
+        node_count = 0
+        while stack:
+            node = stack.pop()
+            node_count += 1
+            children = getattr(node, "children", None)
+            if children:
+                stack.extend(children)
+
+        # Approximate 32 bytes per node for indexes/links.
+        size_bytes += node_count * 32
+        return size_bytes
+
+    def _approximate_object_bytes(self, obj: Any) -> int:
+        """Fallback: recursively approximate Python container sizes."""
+        visited: set[int] = set()
+
+        def _estimate(item: Any) -> int:
+            obj_id = id(item)
+            if obj_id in visited:
+                return 0
+            visited.add(obj_id)
+
+            if isinstance(item, np.ndarray):
+                return int(item.nbytes)
+            if isinstance(item, dict):
+                size = sys.getsizeof(item)
+                for key, value in item.items():
+                    size += _estimate(key)
+                    size += _estimate(value)
+                return size
+            if isinstance(item, (list, tuple, set)):
+                size = sys.getsizeof(item)
+                for elem in item:
+                    size += _estimate(elem)
+                return size
+            try:
+                return sys.getsizeof(item)
+            except Exception:
+                return 0
+
+        return _estimate(obj)
 
     def _save_algorithm_results(self, name: str, metrics: Dict[str, Any]) -> None:
         path = os.path.join(self.output_dir, f"{name}_results.json")

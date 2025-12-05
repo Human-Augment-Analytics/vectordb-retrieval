@@ -70,3 +70,14 @@ Keep this file updated whenever you start/complete work on any item above or add
 - **Root cause:** The `FaissLSHIndexer` built a plain `faiss.IndexLSH` and `FaissSearcher` delegated directly to `index.search`, so results were ranked purely by the LSH backend with no candidate expansion or re-scoring against the true metric (L2/cosine). This kept latency tiny but sacrificed recall.
 - **Fix:** `FaissLSHIndexer` now tags its artifacts with `faiss_index_kind='lsh'`, and `FaissSearcher` detects this and performs an optional rerank pass: it asks the FAISS index for an expanded candidate set (`lsh_candidate_multiplier`, default 8×; set to 64× in `configs/benchmark_nomsma_c_v2.yaml` via `faiss_l2.lsh_candidate_multiplier`), then re-scores those candidates against the original vectors using the configured metric before returning the top‑k. Non-LSH FAISS indexes still use the original fast path.
 - **Expected behaviour:** Future runs of `configs/benchmark_nomsma_c_v2.yaml` (e.g., via `slurm_jobs/singlerun_complete_benchmarking_pat.sbatch`) should report substantially improved `faiss_lsh` recall at modest additional query cost, with index memory still reflecting the compact LSH codes. Tune `lsh_candidate_multiplier` in the searcher config to trade QPS for recall if needed.
+
+---
+
+## 8. CoverTree Optimization Next Steps (Post-V2.2)
+
+- **Status:** `CoverTreeV2_2` (Python + NumPy vectorization) improved QPS by ~3x and build time by ~3.5x over V2, reaching ~30 QPS on random/glove50. However, this is still orders of magnitude slower than FAISS HNSW (~3500-8000 QPS).
+- **Next Steps for Optimization:**
+    1.  **JIT Compilation (Numba):** The current overhead is dominated by Python interpreter steps during tree traversal. Decorating the distance/traversal logic with `@numba.jit` could yield C-like performance without rewriting in C++.
+    2.  **Cython/C++ Extension:** Moving the `_CoverTreeV2Node` structure and traversal logic entirely to C++ (wrapped via Cython or PyBind11) would eliminate pointer-chasing overhead and Python object creation costs.
+    3.  **Memory Layout:** Convert the pointer-based tree to a flat array (CSR-like or similar) to improve cache locality.
+    4.  **Approximate variants:** Implement epsilon-approximate search or limit the traversal depth/nodes visited to trade recall for QPS, as V2.2 currently enforces strict exact search.

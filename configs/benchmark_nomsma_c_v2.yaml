@@ -155,6 +155,9 @@ algorithms:
   covertree_v2:
     type: CoverTreeV2
     metric: l2
+  covertree_v2_2:
+    type: CoverTreeV2_2
+    metric: l2
 
 datasets:
   - name: random
@@ -184,6 +187,7 @@ datasets:
       covertree:
         candidate_limits_enabled: false
       covertree_v2: {}
+      covertree_v2_2: {}
 
 output_dir: benchmark_results
 data_dir: /storage/ice-shared/cs8903onl/vectordb-retrieval/datasets

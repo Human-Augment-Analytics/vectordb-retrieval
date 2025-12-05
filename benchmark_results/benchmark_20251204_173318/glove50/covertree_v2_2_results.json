@@ -1,0 +1,27 @@
+{
+  "algorithm": "covertree_v2_2",
+  "parameters": {
+    "metric": "l2"
+  },
+  "dataset": "glove50",
+  "n_train": 20000,
+  "n_test": 256,
+  "dimensions": 50,
+  "topk": 20,
+  "build_time_s": 256.6695258617401,
+  "index_memory_mb": 4.4251708984375,
+  "qps": 31.144878317375383,
+  "mean_query_time_ms": 32.10800793021917,
+  "total_query_time_s": 8.219650030136108,
+  "timestamp": "2025-12-04T18:58:33.570903",
+  "recall@1": 1.0,
+  "precision@1": 1.0,
+  "recall@10": 1.0,
+  "precision@10": 1.0,
+  "map@10": 0.05000000000000001,
+  "mean_query_time": 32.10800793021917,
+  "median_query_time": 32.10800793021917,
+  "min_query_time": 32.09076635539532,
+  "max_query_time": 32.12524950504303,
+  "recall": 1.0
+}

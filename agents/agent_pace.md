@@ -9,7 +9,7 @@ Practical checklist for running and validating benchmarks on PACE via SLURM.
 
 2) Submit the job
 - From repo root: `sbatch slurm_jobs/singlerun_nomsma_benchmarking_c_v2_pat.sbatch`
-- Resources baked in: `--cpus-per-task=8`, `--mem-per-cpu=4G`, walltime `15:00:00`, partition `coc-cpu`, QOS `coc-ice`., adjust the cpus and mem-per-cpu if necessary.
+- Resources baked in: `--cpus-per-task=24`, `--mem-per-cpu=8G`, walltime `15:00:00`, partition `coc-cpu`, QOS `coc-ice`., adjust the number of cpus (maximum 24) and mem-per-cpu (maximum 16G) if necessary.
 - Scripts auto-create a `uv` venv at `$HOME/scratch/vector-db-venv` and install `requirements.txt` before running.
 
 3) Monitor progress

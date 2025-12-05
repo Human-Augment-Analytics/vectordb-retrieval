@@ -40,3 +40,21 @@ In `CoverTreeV2`, the search phase returned a list of candidates, and a separate
 ## Usage
 
 `CoverTreeV2_2` is registered in the algorithm registry and can be used in benchmarks by setting the algorithm type to `"CoverTreeV2_2"`.
+
+## Performance Results (Benchmark 2025-12-04)
+
+Testing against `random` and `glove50` datasets confirms significant improvements over previous versions while maintaining 100% recall.
+
+| Algorithm | Dataset | Recall | QPS | Mean Query Time (ms) | Build Time (s) |
+|-----------|---------|--------|-----|----------------------|----------------|
+| CoverTree (V1) | random | 1.0 | 7.85 | 127.32 | 1198.45 |
+| CoverTreeV2 | random | 1.0 | 11.66 | 85.74 | 1205.80 |
+| **CoverTreeV2_2** | **random** | **1.0** | **30.44** | **32.85** | **350.22** |
+| CoverTree (V1) | glove50 | 1.0 | 7.82 | 127.81 | 870.54 |
+| CoverTreeV2 | glove50 | 1.0 | 11.50 | 86.98 | 870.47 |
+| **CoverTreeV2_2** | **glove50** | **1.0** | **31.14** | **32.11** | **256.67** |
+
+**Key Observations:**
+1.  **Speedup:** V2.2 achieves roughly **2.6x - 2.7x higher QPS** compared to V2, and **~3.9x** compared to V1.
+2.  **Build Time:** Construction is drastically faster (~3.4x speedup vs V2), likely due to vectorization in the insertion path.
+3.  **Recall:** 100% recall is preserved, validating the exact search logic.

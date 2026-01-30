@@ -1,6 +1,8 @@
 # QPS vs Recall Trade-off Summary (Dec 4, 2025)
 
-**Sources**: `benchmark_results/benchmark_20251204_173318/benchmark_summary.md` (generated 2025-12-04 18:58:34) and `benchmark_results/benchmark_20251204_152957/benchmark_summary.md` (generated 2025-12-04 16:44:04).
+**Sources**: `benchmark_results/benchmark_20251204_173318/benchmark_summary.md` (generated 2025-12-04 18:58:34).
+
+**Report created**: 2026-01-30 17:08:20
 
 ## Plots
 

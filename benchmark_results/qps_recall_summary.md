@@ -6,11 +6,11 @@
 
 **Random (64-D synthetic)**
 
-![](qps_recall_random.svg)
+![](qps_recall_random.png)
 
 **GloVe50 (50-D word vectors)**
 
-![](qps_recall_glove50.svg)
+![](qps_recall_glove50.png)
 
 ## Algorithms and implementation details
 

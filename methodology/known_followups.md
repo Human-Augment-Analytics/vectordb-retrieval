@@ -60,7 +60,7 @@ Keep this file updated whenever you start/complete work on any item above or add
 
 - **Symptom:** `Codex-Covertree-All` job (`3778745`) using `configs/benchmark_all_covertree.yaml` produced `benchmark_results/benchmark_20251202_182606/` with only random and glove50 outputs; MSMARCO results are missing.
 - **Log evidence:** `slurm_jobs/slurm_logs/Codex-Covertree-All-3778745-atl1-1-02-010-1-2.log` shows the run reached MSMARCO at 19:37:41 and was cancelled at 06:25:53 due to the 12-hour walltime limit (`slurmstepd: ... CANCELLED ... DUE TO TIME LIMIT`). A numpy overflow warning appeared just before cancellation but no stack trace was logged.
-- **Follow-up:** Re-run MSMARCO (or the full config) with a longer walltime or narrower algorithm set (e.g., drop CoverTree variants) to keep within limits. Capture the new slurm log and benchmark summary once complete.
+- **Follow-up:** Updated `slurm_jobs/codex_all_covertree_benchmark.sbatch` to request a 24-hour walltime so MSMARCO can finish; re-run MSMARCO (or the full config) and capture the new SLURM log + benchmark summary once complete.
 
 ---
 

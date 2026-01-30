@@ -3,7 +3,7 @@
 #SBATCH -N 1 --ntasks-per-node=1            # Number of nodes
 #SBATCH --cpus-per-task=16                  # CPU cores
 #SBATCH --mem=64G                           # Total memory
-#SBATCH -t 12:00:00                         # Max runtime
+#SBATCH -t 24:00:00                         # Max runtime (MSMARCO phase exceeded 12h)
 #SBATCH --output=slurm_jobs/slurm_logs/%x-%j-%N.log  # Log file
 #SBATCH --mail-type=BEGIN,END,FAIL          # Mail preferences
 set -xeu

@@ -24,4 +24,4 @@ uv venv "$VENV_DIR"
 source "$VENV_DIR/bin/activate"
 uv pip install -r requirements.txt
 
-python scripts/run_full_benchmark.py --config configs/covertree_smoke.yaml
+python scripts/run_full_benchmark.py --config configs/covertree_v2_2_smoke.yaml

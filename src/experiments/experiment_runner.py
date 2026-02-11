@@ -313,7 +313,7 @@ class ExperimentRunner:
         if size_bytes > 0:
             return size_bytes
 
-        # 4) CoverTree variants store working vectors and explicit nodes.
+        # 4) CoverTreeV2_2 stores working vectors and explicit nodes.
         size_bytes = max(size_bytes, self._covertree_size_bytes(algorithm))
         if size_bytes > 0:
             return size_bytes
@@ -478,7 +478,7 @@ class ExperimentRunner:
         return overhead + int(total_entries * 4)
 
     def _covertree_size_bytes(self, algorithm: BaseAlgorithm) -> int:
-        """Estimate memory used by CoverTree/CoverTreeV2 implementations."""
+        """Estimate memory used by the CoverTreeV2_2 implementation."""
         working = getattr(algorithm, "_working_vectors", None)
         size_bytes = int(working.nbytes) if isinstance(working, np.ndarray) else 0
 

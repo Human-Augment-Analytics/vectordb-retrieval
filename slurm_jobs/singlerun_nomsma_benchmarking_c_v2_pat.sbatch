@@ -67,4 +67,4 @@ echo "To activate this environment in the future, run: source $VENV_DIR/bin/acti
 cd $REPO_DIR
 
 # Run benchmarking setup
-python scripts/run_full_benchmark.py --config configs/benchmark_nomsma_c_v2.yaml
+python scripts/run_full_benchmark.py --config configs/benchmark_nomsma_covertree_v2_2.yaml

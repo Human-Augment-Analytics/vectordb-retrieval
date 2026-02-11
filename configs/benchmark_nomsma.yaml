@@ -139,11 +139,9 @@ algorithms:
     indexer_ref: faiss_pq_l2
     searcher_ref: faiss_l2_highprobe
     metric: l2
-  covertree:
-    type: CoverTree
+  covertree_v2_2:
+    type: CoverTreeV2_2
     metric: l2
-    candidate_pool_size: 256
-    max_visit_nodes: 4096
   lsh:
     indexer_ref: lsh_l2
     searcher_ref: lsh_search_l2
@@ -174,9 +172,7 @@ datasets:
         indexer_ref: faiss_ivf_pq_l2_glove
       pq:
         indexer_ref: faiss_pq_l2_glove
-      covertree:
-        candidate_pool_size: 512
-        max_visit_nodes: 8192
+      covertree_v2_2: {}
 
 output_dir: benchmark_results
 data_dir: /storage/ice-shared/cs8903onl/vectordb-retrieval/datasets

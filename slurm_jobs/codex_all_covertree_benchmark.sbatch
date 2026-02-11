@@ -49,4 +49,4 @@ echo "Installing requirements from requirements.txt..."
 uv pip install -r requirements.txt
 
 echo "Environment ready. Running benchmark..."
-python scripts/run_full_benchmark.py --config configs/benchmark_all_covertree.yaml
+python scripts/run_full_benchmark.py --config configs/benchmark_all_covertree_v2_2.yaml

@@ -1,6 +1,6 @@
 import numpy as np
 
-from src.algorithms.covertree_v2 import CoverTreeV2
+from src.algorithms.covertree_v2_2 import CoverTreeV2_2
 
 
 def brute_force_neighbors(vectors: np.ndarray, query: np.ndarray, k: int) -> np.ndarray:
@@ -8,12 +8,12 @@ def brute_force_neighbors(vectors: np.ndarray, query: np.ndarray, k: int) -> np.
     return np.argsort(distances)[:k]
 
 
-def test_covertree_v2_search_matches_brute_force() -> None:
+def test_covertree_v2_2_search_matches_brute_force() -> None:
     rng = np.random.default_rng(123)
     vectors = rng.standard_normal((256, 12)).astype(np.float32)
     query = rng.standard_normal(12).astype(np.float32)
 
-    tree = CoverTreeV2(name="covertree_v2_test", dimension=12, metric="l2")
+    tree = CoverTreeV2_2(name="covertree_v2_2_test", dimension=12, metric="l2")
     tree.build_index(vectors)
 
     for k in (1, 5, 20):
@@ -25,19 +25,18 @@ def test_covertree_v2_search_matches_brute_force() -> None:
         np.testing.assert_array_equal(indices, expected)
 
 
-def test_covertree_v2_batch_search_shapes() -> None:
+def test_covertree_v2_2_batch_search_shapes() -> None:
     rng = np.random.default_rng(321)
     vectors = rng.standard_normal((128, 4)).astype(np.float32)
     queries = rng.standard_normal((7, 4)).astype(np.float32)
 
-    tree = CoverTreeV2(name="covertree_v2_batch", dimension=4, metric="l2")
+    tree = CoverTreeV2_2(name="covertree_v2_2_batch", dimension=4, metric="l2")
     tree.build_index(vectors)
 
     distances, indices = tree.batch_search(queries, k=7)
     assert distances.shape == (7, 7)
     assert indices.shape == (7, 7)
 
-    # spot check a query to make sure recall is perfect
     query = queries[3]
     expected = brute_force_neighbors(vectors, query, 7)
     np.testing.assert_array_equal(indices[3], expected)

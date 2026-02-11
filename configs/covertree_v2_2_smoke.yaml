@@ -1,15 +1,13 @@
 data_dir: /storage/ice-shared/cs8903onl/vectordb-retrieval/datasets
 output_dir: /storage/ice-shared/cs8903onl/vectordb-retrieval/results
-output_prefix: covertree_smoke
+output_prefix: covertree_v2_2_smoke
 seed: 42
 query_batch_size: 0
 
 algorithms:
-  covertree:
-    type: CoverTree
+  covertree_v2_2:
+    type: CoverTreeV2_2
     metric: l2
-    candidate_pool_size: 256
-    max_visit_nodes: 4096
 
 datasets:
   - name: random
@@ -33,7 +31,5 @@ datasets:
       ground_truth_k: 200
       seed: 11
     algorithms:
-      covertree:
+      covertree_v2_2:
         metric: cosine
-        candidate_pool_size: 512
-        max_visit_nodes: 8192

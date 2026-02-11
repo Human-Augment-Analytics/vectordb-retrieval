@@ -1,4 +1,4 @@
-# Copy of benchmark_nomsma_c_v2.yaml with MS MARCO re-enabled for full CoverTree runs
+# Copy of benchmark_nomsma_covertree_v2_2.yaml with MS MARCO re-enabled
 
 indexers:
   brute_force_l2:
@@ -139,12 +139,8 @@ algorithms:
     indexer_ref: faiss_pq_l2
     searcher_ref: faiss_l2_highprobe
     metric: l2
-  covertree:
-    type: CoverTree
-    metric: l2
-    candidate_limits_enabled: false
-  covertree_v2:
-    type: CoverTreeV2
+  covertree_v2_2:
+    type: CoverTreeV2_2
     metric: l2
   lsh:
     indexer_ref: lsh_l2
@@ -176,9 +172,7 @@ datasets:
         indexer_ref: faiss_ivf_pq_l2_glove
       pq:
         indexer_ref: faiss_pq_l2_glove
-      covertree:
-        candidate_limits_enabled: false
-      covertree_v2: {}
+      covertree_v2_2: {}
   - name: msmarco
     metric: cosine
     n_queries: 128
@@ -216,10 +210,7 @@ datasets:
         indexer_ref: faiss_pq_cosine
         searcher_ref: faiss_cosine_highprobe
         metric: cosine
-      covertree:
-        metric: cosine
-        candidate_limits_enabled: false
-      covertree_v2:
+      covertree_v2_2:
         metric: cosine
       lsh:
         indexer_ref: lsh_cosine

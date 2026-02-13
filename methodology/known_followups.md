@@ -81,3 +81,18 @@ Keep this file updated whenever you start/complete work on any item above or add
     2.  **Cython/C++ Extension:** Moving the `_CoverTreeV2Node` structure and traversal logic entirely to C++ (wrapped via Cython or PyBind11) would eliminate pointer-chasing overhead and Python object creation costs.
     3.  **Memory Layout:** Convert the pointer-based tree to a flat array (CSR-like or similar) to improve cache locality.
     4.  **Approximate variants:** Implement epsilon-approximate search or limit the traversal depth/nodes visited to trade recall for QPS, as V2.2 currently enforces strict exact search.
+
+---
+
+## 9. Re-run CoverTree Benchmark on PACE After `_search_exact_k` Hot-Loop Changes (2026-02-13)
+
+- **Reason:** `_search_exact_k` in `src/algorithms/covertree_v2_2.py` was optimized (child flattening, heap-update gating by current k-th bound, vectorized next-frontier pruning). We need benchmark-level confirmation in the standard PACE environment.
+- **Important constraint:** Do **not** run this benchmark locally. Local runs in this repo use `/storage/...` dataset paths and fail on non-PACE machines (`OSError: [Errno 30] Read-only file system: '/storage'`).
+- **PACE command (recommended):**
+  - `sbatch slurm_jobs/singlerun_nomsma_benchmarking_c_v2_pat.sbatch`
+  - or equivalently run `python scripts/run_full_benchmark.py --config configs/benchmark_nomsma_covertree_v2_2.yaml` inside an approved PACE job environment.
+- **What to record after run:**
+  1. New results directory under `benchmark_results/benchmark_<timestamp>/`
+  2. `benchmark_summary.md` deltas for `covertree_v2_2` (QPS, recall, mean query time, build time) on `random` and `glove50`
+  3. SLURM job id + log path in `slurm_jobs/slurm_logs/`
+  4. A short run note in `methodology/change_log_<date>.md` with command/config/job id.

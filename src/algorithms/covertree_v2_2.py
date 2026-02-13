@@ -227,9 +227,7 @@ class CoverTreeV2_2(BaseAlgorithm):
         while current_nodes and level >= -self.dimension: # Safety break at very low levels
             
             # 1. Collect all children of current nodes
-            all_children = []
-            for node in current_nodes:
-                all_children.extend(node.children)
+            all_children = [child for node in current_nodes for child in node.children]
             
             if not all_children:
                 break
@@ -238,33 +236,52 @@ class CoverTreeV2_2(BaseAlgorithm):
             child_vectors = np.stack([c.vector for c in all_children])
             child_distances = self._compute_distance_batch_to_1(query, child_vectors)
             
-            # 3. Update heap with these children (they are candidate points)
-            for child, dist in zip(all_children, child_distances):
-                update_heap(float(dist), child.index)
-            
-            # 4. Determine Pruning Bound
+            # 3. Determine current pruning bound before heap updates.
             # The k-th nearest neighbor distance found so far is our pruning bound.
             # If we haven't found k points yet, bound is infinity.
             if len(candidates_heap) < k:
                 pruning_bound = float('inf')
             else:
                 pruning_bound = -candidates_heap[0][0]
+
+            # 4. Update heap with promising children only.
+            if np.isfinite(pruning_bound):
+                heap_update_mask = child_distances < pruning_bound
+                candidate_positions = np.flatnonzero(heap_update_mask)
+            else:
+                candidate_positions = range(len(all_children))
+
+            for pos in candidate_positions:
+                child = all_children[pos]
+                update_heap(float(child_distances[pos]), child.index)
+
+            # 5. Recompute pruning bound after candidate updates.
+            if len(candidates_heap) < k:
+                pruning_bound = float('inf')
+            else:
+                pruning_bound = -candidates_heap[0][0]
             
-            # 5. Filter children for next iteration
+            # 6. Filter children for next iteration
             # Rule: Keep a child node 'c' if it *could* contain a point closer than pruning_bound.
             # A node 'c' at level `child.level` covers a radius of approx 2^(child.level + 1).
             # Lower bound distance to any descendant of c is: dist(p, c) - radius(c)
             # If lower_bound > pruning_bound, we prune.
             # So: dist(p, c) - 2^(c.level + 1) <= pruning_bound
-            
-            next_nodes = []
-            for child, dist in zip(all_children, child_distances):
-                # child.level should be `level - 1` roughly, but strict check:
-                radius = 2.0 ** (child.level + 1)
-                min_possible_dist = dist - radius
-                
-                if min_possible_dist <= pruning_bound:
-                    next_nodes.append(child)
+            if np.isfinite(pruning_bound):
+                first_child_level = all_children[0].level
+                if all(child.level == first_child_level for child in all_children):
+                    max_cover_radius = 2.0 ** (first_child_level + 1)
+                    next_mask = child_distances <= (pruning_bound + max_cover_radius)
+                else:
+                    child_levels = np.fromiter(
+                        (child.level for child in all_children),
+                        dtype=np.int32,
+                        count=len(all_children),
+                    )
+                    next_mask = child_distances <= (pruning_bound + np.power(2.0, child_levels + 1))
+                next_nodes = [all_children[i] for i in np.flatnonzero(next_mask)]
+            else:
+                next_nodes = all_children
             
             current_nodes = next_nodes
             level -= 1

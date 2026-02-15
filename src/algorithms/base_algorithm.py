@@ -89,11 +89,11 @@ class BaseAlgorithm(ABC):
         return self.config
 
     def record_operation(self, key: str, value: float):
-        current = float(self._operation_counter.get(key, 0.0))
-        self._operation_counter[key] = current + float(value)
+        current = float(self.operation_counter.get(key, 0.0))
+        self.operation_counter[key] = current + float(value)
 
     def get_operations(self):
-        return dict(self._operation_counter)
+        return dict(self.operation_counter)
 
     def __str__(self) -> str:
         return f"{self.name} (dimension={self.dimension}, parameters={self.config})"

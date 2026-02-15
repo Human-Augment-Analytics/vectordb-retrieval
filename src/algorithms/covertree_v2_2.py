@@ -105,6 +105,7 @@ class CoverTreeV2_2(BaseAlgorithm):
     def _normalize_vectors(self, vectors: np.ndarray) -> np.ndarray:
         norms = np.linalg.norm(vectors, axis=1, keepdims=True)
         norms = np.where(norms == 0, 1.0, norms)
+        self.record_operation('ndis', float(len(vectors)))
         return vectors / norms
 
     def _prepare_query(self, query: np.ndarray) -> np.ndarray:
@@ -113,6 +114,7 @@ class CoverTreeV2_2(BaseAlgorithm):
             raise ValueError(f"Query vector must have dimension {self.dimension}")
         if self.metric_name == "cosine":
             norm = np.linalg.norm(arr)
+            self.record_operation("ndis", float(1.0))
             if norm > 0:
                 arr = arr / norm
         return arr
@@ -315,11 +317,14 @@ class CoverTreeV2_2(BaseAlgorithm):
         """
         if self.metric_name in ("l2", "euclidean"):
             diff = vectors - query
+            self.record_operation("ndis", float(len(vectors)))
             return np.linalg.norm(diff, axis=1)
         elif self.metric_name == "cosine":
             # vectors and query are assumed normalized
+            self.record_operation("ndis", float(len(vectors)))
             return 1.0 - np.dot(vectors, query)
         elif self.metric_name in ("dot", "ip", "inner_product"):
+            self.record_operation("ndis", float(len(vectors)))
             return -np.dot(vectors, query)
         else:
             return np.array(

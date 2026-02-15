@@ -25,6 +25,7 @@ class BaseAlgorithm(ABC):
         self.config = kwargs
         self.build_time = -1.0
         self.index_memory_usage = -1.0
+        self.operation_counter: Dict[str, Any] = {}
 
     @abstractmethod
     def build_index(self, vectors: np.ndarray, metadata: Optional[List[Dict[str, Any]]] = None) -> None:
@@ -86,6 +87,13 @@ class BaseAlgorithm(ABC):
             Dictionary of parameters
         """
         return self.config
+
+    def record_operation(self, key: str, value: float):
+        current = float(self.operation_counter.get(key, 0.0))
+        self.operation_counter[key] = current + float(value)
+
+    def get_operations(self):
+        return dict(self.operation_counter)
 
     def __str__(self) -> str:
         return f"{self.name} (dimension={self.dimension}, parameters={self.config})"

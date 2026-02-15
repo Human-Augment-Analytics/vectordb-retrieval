@@ -40,3 +40,17 @@ def test_covertree_v2_2_batch_search_shapes() -> None:
     query = queries[3]
     expected = brute_force_neighbors(vectors, query, 7)
     np.testing.assert_array_equal(indices[3], expected)
+
+
+def test_covertree_v2_2_records_distance_operations() -> None:
+    rng = np.random.default_rng(42)
+    vectors = rng.standard_normal((5, 3)).astype(np.float32)
+    query = rng.standard_normal(3).astype(np.float32)
+
+    tree = CoverTreeV2_2(name="covertree_v2_2_ops", dimension=3, metric="l2")
+
+    tree._compute_distance_batch_to_1(query, vectors)
+    np.testing.assert_allclose(tree.operation_counter["ndis"], 5)
+
+    tree._compute_distance_batch_to_1(query, vectors[:2])
+    np.testing.assert_allclose(tree.operation_counter["ndis"], 7)

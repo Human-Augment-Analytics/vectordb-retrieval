@@ -256,9 +256,15 @@ class ExperimentRunner:
 
         qps = len(test_queries) / total_query_time if total_query_time > 0 else 0.0
 
+        ndis = None
+        ndis_per_query = None
+        operation_counter = getattr(algorithm, "operation_counter", None)
+        if operation_counter is not None and hasattr(operation_counter, "get"):
+            ndis = operation_counter.get("ndis")
+            ndis_per_query = 1.0 * ndis / len(test_queries)
+
         metrics: Dict[str, Any] = {
             "algorithm": name,
-            "parameters": algorithm.get_parameters(),
             "dataset": self.config.dataset,
             "n_train": int(train_vectors.shape[0]),
             "n_test": int(len(test_queries)),
@@ -267,6 +273,8 @@ class ExperimentRunner:
             "build_time_s": float(build_time),
             "index_memory_mb": float(memory_usage_mb),
             "qps": float(qps),
+            "ndis": int(ndis) if ndis is not None else None,
+            "ndis_per_query": float(ndis_per_query) if ndis_per_query is not None else None,
             "mean_query_time_ms": float(mean_query_time_ms),
             "total_query_time_s": float(total_query_time),
             "timestamp": datetime.now().isoformat(),

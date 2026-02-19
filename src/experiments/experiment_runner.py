@@ -557,3 +557,11 @@ class ExperimentRunner:
             output_file=plot_path,
             title_suffix=self.config.dataset,
         )
+
+        dataset_name = str(self.config.dataset).lower()
+        if "glove" in dataset_name:
+            operations_plot_path = os.path.join(plots_dir, "operations_vs_recall.png")
+            evaluator.plot_operations_vs_recall(
+                output_file=operations_plot_path,
+                title_suffix=self.config.dataset,
+            )

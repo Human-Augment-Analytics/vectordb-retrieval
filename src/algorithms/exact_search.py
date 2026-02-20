@@ -3,6 +3,7 @@ import numpy as np
 from typing import List, Dict, Any, Tuple, Optional
 from .base_algorithm import BaseAlgorithm
 
+
 class ExactSearch(BaseAlgorithm):
     """
     Exact nearest neighbor search using Faiss IndexFlatL2.
@@ -38,6 +39,7 @@ class ExactSearch(BaseAlgorithm):
         self.index = faiss.IndexFlat(self.dimension, self.metric)
         self.index.add(self.vectors)
         self.index_built = True
+        self.reset_operation_counters()
 
     def search(self, query: np.ndarray, k: int = 10) -> Tuple[np.ndarray, np.ndarray]:
         """
@@ -56,6 +58,7 @@ class ExactSearch(BaseAlgorithm):
         # Faiss expects a 2D array for queries
         query_vector = np.array([query], dtype=np.float32)
         distances, indices = self.index.search(query_vector, k)
+        self.record_operation("ndis", float(self.index.ntotal))
         
         return distances[0], indices[0]
 
@@ -75,4 +78,10 @@ class ExactSearch(BaseAlgorithm):
             
         if queries.dtype != np.float32 or not queries.flags["C_CONTIGUOUS"]:
             queries = np.ascontiguousarray(queries, dtype=np.float32)
-        return self.index.search(queries, k)
+        distances, indices = self.index.search(queries, k)
+        self.record_operation("ndis", float(self.index.ntotal * queries.shape[0]))
+        return distances, indices
+
+    def reset_operation_counters(self) -> None:
+        super().reset_operation_counters()
+        self.record_operation("ndis", 0.0)

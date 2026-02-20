@@ -261,10 +261,11 @@ class ExperimentRunner:
 
         ndis = None
         ndis_per_query = None
-        operation_counter = getattr(algorithm, "operation_counter", None)
-        if operation_counter is not None and hasattr(operation_counter, "get"):
-            ndis = operation_counter.get("ndis")
-            ndis_per_query = 1.0 * ndis / len(test_queries)
+        operation_counter = algorithm.get_operations()
+        if operation_counter is not None:
+            ndis = operation_counter.get("ndis", None)
+            if ndis is not None:
+                ndis_per_query = 1.0 * ndis / len(test_queries)
 
         metrics: Dict[str, Any] = {
             "algorithm": name,

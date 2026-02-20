@@ -117,7 +117,10 @@ def test_benchmark_runner_hnsw_reports_ndis(tmp_path):
     dataset_results = results["random"]
     assert "hnsw" in dataset_results
 
+
     metrics = dataset_results["hnsw"]
+    print(f"{metrics['ndis']=}")
+
     assert metrics["n_test"] == 6
     assert metrics["ndis"] is not None
     assert metrics["ndis"] > 0

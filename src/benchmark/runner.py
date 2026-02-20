@@ -321,8 +321,8 @@ class BenchmarkRunner:
 
                 # Algorithm performance table
                 f.write(f"### Algorithm Performance\n\n")
-                f.write("| Algorithm | Recall | QPS | Mean Query Time (ms) | Build Time (s) | Index Memory (MB) |\n")
-                f.write("|-----------|--------|-----|----------------------|----------------|-------------------|\n")
+                f.write("| Algorithm | Recall | QPS | Mean Query Time (ms) | Build Time (s) | Index Memory (MB) | Dist. Comps | Dist. Comps/Query |\n")
+                f.write("|-----------|--------|-----|----------------------|----------------|-------------------|-------------|-------------------|\n")
 
                 for alg_name, alg_results in results.items():
                     recall_display = "0.0000"
@@ -352,8 +352,12 @@ class BenchmarkRunner:
                     query_time = alg_results.get('mean_query_time_ms', 0)
                     build_time = alg_results.get('build_time_s', 0)
                     memory = alg_results.get('index_memory_mb', 0)
+                    dist_comps = alg_results.get('distance_computations')
+                    ops_per_query = alg_results.get('operations_per_query')
+                    dist_str = f"{dist_comps:,.0f}" if dist_comps is not None else "N/A"
+                    ops_str = f"{ops_per_query:,.0f}" if ops_per_query is not None else "N/A"
 
-                    f.write(f"| {alg_name} | {recall_display} | {qps:.2f}| {query_time:.2f} | {build_time:.2f} | {memory:.2f} |\n")
+                    f.write(f"| {alg_name} | {recall_display} | {qps:.2f}| {query_time:.2f} | {build_time:.2f} | {memory:.2f} | {dist_str} | {ops_str} |\n")
 
                 f.write(f"\n\n")
 

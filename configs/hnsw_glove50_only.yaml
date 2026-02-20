@@ -1,0 +1,38 @@
+indexers:
+  hnsw_l2:
+    type: HNSWIndexer
+    M: 16
+    efConstruction: 200
+    efSearch: 100
+    metric: l2
+
+searchers:
+  faiss_l2:
+    type: FaissSearcher
+    metric: l2
+    nprobe: 10
+    lsh_candidate_multiplier: 64.0
+
+algorithms:
+  hnsw:
+    indexer_ref: hnsw_l2
+    searcher_ref: faiss_l2
+    metric: l2
+
+datasets:
+  - name: glove50
+    metric: l2
+    n_queries: 256
+    topk: 20
+    dataset_options:
+      test_size: 256
+      train_limit: 20000
+      ground_truth_k: 200
+      seed: 11
+
+output_dir: benchmark_results
+data_dir: /storage/ice-shared/cs8903onl/vectordb-retrieval/datasets
+query_batch_size: 128
+output_prefix: hnsw_only
+repeat: 2
+seed: 42

@@ -9,7 +9,7 @@ import numpy as np
 from .base_algorithm import BaseAlgorithm
 
 
-@dataclass(slots=True)
+@dataclass
 class _CoverTreeV2Node:
     """Node in the CoverTreeV2 structure."""
 

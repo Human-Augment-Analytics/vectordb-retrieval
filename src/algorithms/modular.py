@@ -312,6 +312,14 @@ register_indexer("FaissIVFIndexer", FaissIVFIndexer)
 class LinearSearcher(BaseSearcher):
     """Linear scanning searcher over raw vectors."""
 
+    def __init__(self, name: str, dimension: int, metric: str = "l2", **kwargs: Any) -> None:
+        super().__init__(name, dimension, metric, **kwargs)
+        self._search_stats: Dict[str, float] = {}
+
+    def get_search_stats(self) -> Dict[str, float]:
+        """Return accumulated search statistics."""
+        return dict(self._search_stats)
+
     def attach(self, artifact: IndexArtifact, vectors: np.ndarray, metadata: Optional[List[Dict[str, Any]]] = None) -> None:
         if artifact.kind != "raw_vectors":
             raise ValueError("LinearSearcher requires 'raw_vectors' artifact")
@@ -337,6 +345,11 @@ class LinearSearcher(BaseSearcher):
         if not self._prepared:
             raise RuntimeError("LinearSearcher not attached to an index")
         queries = self._prepare_query(queries)
+
+        n_vectors = self._vectors.shape[0]
+        self._search_stats["ndis"] = (
+            self._search_stats.get("ndis", 0) + float(n_vectors * len(queries))
+        )
 
         if self.metric == "l2":
             # Compute squared L2 distances and take sqrt for final distances
@@ -408,6 +421,7 @@ class FaissSearcher(BaseSearcher):
         self.index_kind: Optional[str] = None
         self._base_vectors: Optional[np.ndarray] = None
         self._normalized_vectors: Optional[np.ndarray] = None
+        self._search_stats: Dict[str, float] = {}
 
         # LSH-specific knobs (ignored for non-LSH indexes).
         self._lsh_rerank: bool = bool(self.params.get("lsh_rerank", True))
@@ -448,6 +462,62 @@ class FaissSearcher(BaseSearcher):
             query = _safe_normalize(query)
         return query
 
+    @staticmethod
+    def _faiss_cvar() -> Any:
+        """Safely access the FAISS C-variable namespace (returns None when unavailable)."""
+        if faiss is None:
+            return None
+        return getattr(faiss, "cvar", None)
+
+    def _reset_faiss_stats(self) -> None:
+        """Reset all FAISS global stats counters before a search."""
+        cvar = self._faiss_cvar()
+        if cvar is None:
+            return
+        ivf_stats = getattr(cvar, "indexIVF_stats", None)
+        if ivf_stats is not None:
+            ivf_stats.reset()
+        hnsw_stats = getattr(cvar, "hnsw_stats", None)
+        if hnsw_stats is not None:
+            hnsw_stats.reset()
+
+    def _collect_faiss_stats(self, n_queries: int) -> None:
+        """Read FAISS global stats and accumulate into ``_search_stats``."""
+        cvar = self._faiss_cvar()
+        collected = False
+
+        if cvar is not None:
+            ivf_stats = getattr(cvar, "indexIVF_stats", None)
+            if ivf_stats is not None and ivf_stats.ndis > 0:
+                self._search_stats["ndis"] = self._search_stats.get("ndis", 0) + float(ivf_stats.ndis)
+                self._search_stats["nlist"] = self._search_stats.get("nlist", 0) + float(ivf_stats.nlist)
+                self._search_stats["nheap_updates"] = (
+                    self._search_stats.get("nheap_updates", 0) + float(ivf_stats.nheap_updates)
+                )
+                collected = True
+
+            hnsw_stats = getattr(cvar, "hnsw_stats", None)
+            if not collected and hnsw_stats is not None and getattr(hnsw_stats, "ndis", 0) > 0:
+                self._search_stats["ndis"] = self._search_stats.get("ndis", 0) + float(hnsw_stats.ndis)
+                for attr, key in (("n1", "hnsw_n1"), ("n2", "hnsw_n2"), ("n3", "hnsw_n3")):
+                    val = getattr(hnsw_stats, attr, None)
+                    if val is not None:
+                        self._search_stats[key] = self._search_stats.get(key, 0) + float(val)
+                collected = True
+
+        # Analytical fallback for indexes without built-in stats (e.g. PQ, Flat).
+        if not collected and n_queries > 0:
+            ntotal = getattr(self.index, "ntotal", 0)
+            if ntotal > 0:
+                self._search_stats["ndis"] = (
+                    self._search_stats.get("ndis", 0) + float(ntotal * n_queries)
+                )
+                self._search_stats["ndis_source"] = "analytical_fallback"
+
+    def get_search_stats(self) -> Dict[str, float]:
+        """Return accumulated search statistics."""
+        return dict(self._search_stats)
+
     def search(self, query: np.ndarray, k: int = 10) -> Tuple[np.ndarray, np.ndarray]:
         distances, indices = self.batch_search(self._prepare_query(query), k)
         return distances[0], indices[0]
@@ -479,10 +549,12 @@ class FaissSearcher(BaseSearcher):
         n_queries = queries.shape[0]
         reranked_distances = np.full((n_queries, k), np.inf, dtype=np.float32)
         reranked_indices = np.full((n_queries, k), -1, dtype=np.int64)
+        total_rerank_candidates = 0
 
         for i in range(n_queries):
             row_candidates = candidate_indices[i]
             valid = row_candidates[row_candidates >= 0]
+            total_rerank_candidates += valid.size
             if valid.size == 0:
                 # No candidates: rely on raw FAISS ordering for this query.
                 raw_distances, raw_indices = self.index.search(queries[i : i + 1], k)
@@ -531,6 +603,10 @@ class FaissSearcher(BaseSearcher):
             else:
                 raise ValueError(f"Unsupported metric '{self.metric}' for FaissSearcher LSH rerank")
 
+        self._search_stats["ndis"] = (
+            self._search_stats.get("ndis", 0) + float(total_rerank_candidates)
+        )
+        self._search_stats["ndis_source"] = "lsh_rerank"
         return reranked_distances, reranked_indices
 
     def batch_search(self, queries: np.ndarray, k: int = 10) -> Tuple[np.ndarray, np.ndarray]:
@@ -538,12 +614,15 @@ class FaissSearcher(BaseSearcher):
             raise RuntimeError("FaissSearcher not attached to an index")
         queries = self._prepare_query(queries)
 
+        self._reset_faiss_stats()
+
         if self.index_kind == "lsh" and self._lsh_rerank and self._base_vectors is not None:
             distances, indices = self._batch_search_lsh_rerank(queries, k)
         else:
             distances, indices = self.index.search(queries, k)
             if self.metric in {"cosine", "ip"}:
                 distances = -distances
+            self._collect_faiss_stats(n_queries=len(queries))
 
         return distances.astype(np.float32), indices.astype(np.int64)
 
@@ -611,15 +690,25 @@ class CompositeAlgorithm(BaseAlgorithm):
         self.searcher.attach(self.index_artifact, vectors, metadata)
         self.index_built = True
 
+    def _sync_operation_counter(self) -> None:
+        """Pull search stats from the searcher into the algorithm operation_counter."""
+        if hasattr(self.searcher, "get_search_stats"):
+            for key, value in self.searcher.get_search_stats().items():
+                self.operation_counter[key] = value
+
     def search(self, query: np.ndarray, k: int = 10) -> Tuple[np.ndarray, np.ndarray]:
         if not self.index_built:
             raise RuntimeError("Index has not been built for this algorithm")
-        return self.searcher.search(query, k)
+        result = self.searcher.search(query, k)
+        self._sync_operation_counter()
+        return result
 
     def batch_search(self, queries: np.ndarray, k: int = 10) -> Tuple[np.ndarray, np.ndarray]:
         if not self.index_built:
             raise RuntimeError("Index has not been built for this algorithm")
-        return self.searcher.batch_search(queries, k)
+        result = self.searcher.batch_search(queries, k)
+        self._sync_operation_counter()
+        return result
 
 
 __all__ = [

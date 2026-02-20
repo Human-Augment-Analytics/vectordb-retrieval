@@ -122,6 +122,12 @@ class ExperimentRunner:
         self._save_combined_results()
 
         if evaluator is not None:
+            # Feed operation counters into the evaluator so plots can use them.
+            for name in self.results:
+                for key in ("distance_computations", "operations_per_query", "operation_counts"):
+                    if key in self.results[name] and key not in evaluator.results.get(name, {}):
+                        evaluator.results.setdefault(name, {})[key] = self.results[name][key]
+
             evaluator.print_results()
             self._generate_plots(evaluator)
 
@@ -271,6 +277,15 @@ class ExperimentRunner:
             "total_query_time_s": float(total_query_time),
             "timestamp": datetime.now().isoformat(),
         }
+
+        ops = algorithm.get_operations()
+        if ops:
+            metrics["operation_counts"] = ops
+            n_queries = len(test_queries)
+            if "ndis" in ops:
+                metrics["distance_computations"] = ops["ndis"]
+                if n_queries > 0:
+                    metrics["operations_per_query"] = ops["ndis"] / n_queries
 
         return metrics, indices, query_times
 
@@ -558,10 +573,8 @@ class ExperimentRunner:
             title_suffix=self.config.dataset,
         )
 
-        dataset_name = str(self.config.dataset).lower()
-        if "glove" in dataset_name:
-            operations_plot_path = os.path.join(plots_dir, "operations_vs_recall.png")
-            evaluator.plot_operations_vs_recall(
-                output_file=operations_plot_path,
-                title_suffix=self.config.dataset,
-            )
+        operations_plot_path = os.path.join(plots_dir, "operations_vs_recall.png")
+        evaluator.plot_operations_vs_recall(
+            output_file=operations_plot_path,
+            title_suffix=self.config.dataset,
+        )

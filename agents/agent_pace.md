@@ -8,8 +8,8 @@ This file is the PACE-only execution guide. Use it when `pwd` contains `hice1`.
 
 ## 2) Pick or Create the Benchmark Job
 - Default full sweep config: `configs/benchmark_nomsma_covertree_v2_2.yaml`.
-- Default script: `slurm_jobs/singlerun_nomsma_benchmarking_c_v2_pat.sbatch`.
-- For custom runs, clone the closest SLURM script as `slurm_jobs/codex_<desc>.sbatch` and point to your config.
+- Default script: `slurm_jobs/a_slurmjob_template.sbatch`.
+- For custom runs, create a SLURM script from `slurm_jobs/a_slurmjob_template.sbatch` as `slurm_jobs/codex_<desc>.sbatch` and point to your config.
 
 ## 3) Submit Job
 - From repo root:

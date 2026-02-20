@@ -1,0 +1,37 @@
+{
+  "algorithm": "exact",
+  "parameters": {
+    "metric": "l2",
+    "indexer": {
+      "name": "BruteForceIndexer",
+      "type": "BruteForceIndexer",
+      "metric": "l2"
+    },
+    "searcher": {
+      "name": "LinearSearcher",
+      "type": "LinearSearcher",
+      "metric": "l2"
+    }
+  },
+  "dataset": "glove50",
+  "n_train": 20000,
+  "n_test": 256,
+  "dimensions": 50,
+  "topk": 20,
+  "build_time_s": 1.621246337890625e-05,
+  "index_memory_mb": 3.814697265625,
+  "qps": 290.53720203305886,
+  "mean_query_time_ms": 3.4419000148773193,
+  "total_query_time_s": 0.8811264038085938,
+  "timestamp": "2026-02-19T11:00:45.135756",
+  "recall@1": 1.0,
+  "precision@1": 1.0,
+  "recall@10": 1.0,
+  "precision@10": 1.0,
+  "map@10": 0.05000000000000001,
+  "mean_query_time": 3.4419000148773193,
+  "median_query_time": 3.4419000148773193,
+  "min_query_time": 3.4362412989139557,
+  "max_query_time": 3.447558730840683,
+  "recall": 1.0
+}

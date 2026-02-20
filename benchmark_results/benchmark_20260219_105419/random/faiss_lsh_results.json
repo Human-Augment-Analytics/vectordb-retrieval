@@ -1,0 +1,44 @@
+{
+  "algorithm": "faiss_lsh",
+  "parameters": {
+    "metric": "l2",
+    "indexer": {
+      "name": "FaissLSHIndexer",
+      "type": "FaissLSHIndexer",
+      "metric": "l2",
+      "params": {
+        "num_bits": 256
+      }
+    },
+    "searcher": {
+      "name": "FaissSearcher",
+      "type": "FaissSearcher",
+      "metric": "l2",
+      "params": {
+        "nprobe": 10,
+        "lsh_candidate_multiplier": 64.0
+      }
+    }
+  },
+  "dataset": "random",
+  "n_train": 20000,
+  "n_test": 256,
+  "dimensions": 64,
+  "topk": 20,
+  "build_time_s": 0.10733842849731445,
+  "index_memory_mb": 0.6103515625,
+  "qps": 4020.797178024842,
+  "mean_query_time_ms": 0.2487068995833397,
+  "total_query_time_s": 0.06366896629333496,
+  "timestamp": "2026-02-19T10:54:47.864488",
+  "recall@1": 0.9921875,
+  "precision@1": 1.0,
+  "recall@10": 0.9671875000000001,
+  "precision@10": 1.0,
+  "map@10": 0.05000000000000001,
+  "mean_query_time": 0.2487068995833397,
+  "median_query_time": 0.2487068995833397,
+  "min_query_time": 0.24412758648395538,
+  "max_query_time": 0.253286212682724,
+  "recall": 0.9671875000000001
+}

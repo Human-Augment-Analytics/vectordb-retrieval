@@ -96,3 +96,22 @@ Keep this file updated whenever you start/complete work on any item above or add
   2. `benchmark_summary.md` deltas for `covertree_v2_2` (QPS, recall, mean query time, build time) on `random` and `glove50`
   3. SLURM job id + log path in `slurm_jobs/slurm_logs/`
   4. A short run note in `methodology/change_log_<date>.md` with command/config/job id.
+
+- **Status update (resolved on 2026-02-19):**
+  - Completed with `configs/benchmark_nomsma_covertree_v2_2.yaml` using SLURM job `4092706`.
+  - Results directory: `benchmark_results/benchmark_20260219_105419/`
+  - Log file: `slurm_jobs/slurm_logs/Codex-NomSMA-CTv2_2-4092706-atl1-1-01-005-2-1.log`
+  - Recorded in: `methodology/change_log_20260219.md`
+  - Observed `covertree_v2_2` summary metrics:
+    - random: recall `1.0000`, qps `34.91`, mean query `28.64 ms`, build `346.95 s`
+    - glove50: recall `1.0000`, qps `38.25`, mean query `26.14 ms`, build `258.95 s`
+
+---
+
+## 10. Glove operations-vs-recall plot warning on log x-axis (open)
+
+- **Symptom:** During job `4092706`, glove plot generation emitted:
+  - `UserWarning: Attempt to set non-positive xlim on a log-scaled axis will be ignored.`
+  - Log points to `src/benchmark/evaluation.py:248`.
+- **Impact:** Non-fatal. `operations_vs_recall.png` is still written, but axis-bound handling is inconsistent for non-positive lower bounds.
+- **Follow-up:** Clamp x-axis lower bound to a strictly positive epsilon before calling `ax.set_xlim(...)` when the x-axis uses log scale.

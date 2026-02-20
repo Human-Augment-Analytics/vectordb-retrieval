@@ -92,6 +92,9 @@ class BaseAlgorithm(ABC):
         current = float(self.operation_counter.get(key, 0.0))
         self.operation_counter[key] = current + float(value)
 
+    def reset_operation_counters(self) -> None:
+        self.operation_counter.clear()
+
     def get_operations(self):
         return dict(self.operation_counter)
 

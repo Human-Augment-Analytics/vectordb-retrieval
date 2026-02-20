@@ -29,7 +29,8 @@ class HNSW(BaseAlgorithm):
         self.efSearch = efSearch
         self.metric = metric
         self.index = None
-        
+        self.stats = faiss.cvar.hnsw_stats # stats is a built in faiss module that is responsible for tracking hnsw stats
+
         # Manually add HNSW specific parameters to the config
         self.config.update({
             'M': self.M,
@@ -51,6 +52,7 @@ class HNSW(BaseAlgorithm):
 
         self.vectors = vectors
         self.metadata = metadata
+        self.reset_operation_counters()
 
         # Determine the metric type
         if self.metric == "cosine":
@@ -107,6 +109,13 @@ class HNSW(BaseAlgorithm):
 
         # Perform the search
         distances, indices = self.index.search(query, k)
+        self.record_operation(
+            key="ndis",
+            value=(
+                float(getattr(self.stats, "ndis", 0.0))
+                - float(self.get_operations().get("ndis", 0.0))
+            ),
+        )
 
         return distances[0], indices[0]
 
@@ -137,5 +146,17 @@ class HNSW(BaseAlgorithm):
             distances, indices = self.index.search(queries_copy, k)
         else:
             distances, indices = self.index.search(queries, k)
-
+        self.record_operation(
+            key="ndis",
+            value=(
+                float(getattr(self.stats, "ndis", 0.0))
+                - float(self.get_operations().get("ndis", 0.0))
+            ),
+        )
         return distances, indices
+
+    def reset_operation_counters(self) -> None:
+        super().reset_operation_counters()
+        if hasattr(self.stats, "reset"):
+            self.stats.reset()
+        self.record_operation("ndis", 0.0)

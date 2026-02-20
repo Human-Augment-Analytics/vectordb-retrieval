@@ -170,6 +170,9 @@ class ExperimentRunner:
 
         total_query_time = 0.0
         used_batch_api = False
+        reset_counters = getattr(algorithm, "reset_operation_counters", None)
+        if callable(reset_counters):
+            reset_counters()
 
         def _normalize_batch_indices(
             batch_result: Any, expected_rows: int, expected_k: int

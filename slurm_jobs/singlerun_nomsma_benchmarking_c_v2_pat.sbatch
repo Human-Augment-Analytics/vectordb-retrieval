@@ -17,7 +17,7 @@ set -xeu
 #       USER-CONFIGURABLE SECTION                         #
 ###########################################################
 # Specify the path to your repository directory.
-REPO_DIR="$HOME/PycharmProjects/vectordb-retrieval"
+REPO_DIR="$HOME/scratch/PycharmProjects/vectordb-retrieval"
 # -# Specify the name for the virtual environment directory.
 VENV_DIR="$HOME/scratch/vector-db-venv"
 LOG_DIR="$REPO_DIR/slurm_jobs/slurm_logs"
@@ -51,7 +51,7 @@ fi
 
 # Create a uv virtual environment with the specified name.
 echo "Creating uv environment in '$VENV_DIR'..."
-uv venv "$VENV_DIR"
+uv venv "$VENV_DIR" --clear
 
 # Source the newly created virtual environment.
 echo "Sourcing the new environment..."

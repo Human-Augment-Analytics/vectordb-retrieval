@@ -33,3 +33,13 @@ def test_get_operations_returns_copy():
     operations["distance"] = 10
 
     np.testing.assert_allclose(algo.operation_counter["distance"], 1)
+
+
+def test_reset_operation_counters_clears_counter():
+    algo = _DummyAlgorithm(name="dummy", dimension=2)
+    algo.record_operation("distance", 1.0)
+    algo.record_operation("insert", 2.0)
+
+    algo.reset_operation_counters()
+
+    assert algo.get_operations() == {}

@@ -1,11 +1,11 @@
 #!/bin/bash
-#SBATCH -J VectorDB-Retrieval-Guarantee_FULL        # Job name
-#SBATCH -N 1 --ntasks-per-node=1                # Number of nodes
-#SBATCH --cpus-per-task=24                      # Number of CPU
-#SBATCH --mem-per-cpu=16G                       # Memory per CPU
-#SBATCH -t 15:00:00                              # Duration
+#SBATCH -J Codex-NomSMA-CTv2_2                 # Job name
+#SBATCH -N 1 --ntasks-per-node=1               # Number of nodes
+#SBATCH --cpus-per-task=24                     # Number of CPU
+#SBATCH --mem-per-cpu=16G                      # Memory per CPU
+#SBATCH -t 15:00:00                            # Duration
 #SBATCH --output=slurm_jobs/slurm_logs/%x-%j-%N.log  # Combined output and error messages file
-#SBATCH --mail-type=BEGIN,END,FAIL              # Mail preferences
+#SBATCH --mail-type=BEGIN,END,FAIL             # Mail preferences
 set -xeu
 
 
@@ -16,9 +16,7 @@ set -xeu
 ###########################################################
 #       USER-CONFIGURABLE SECTION                         #
 ###########################################################
-# Specify the path to your repository directory.
 REPO_DIR="$HOME/PycharmProjects/vectordb-retrieval"
-# -# Specify the name for the virtual environment directory.
 VENV_DIR="$HOME/scratch/vector-db-venv"
 LOG_DIR="$REPO_DIR/slurm_jobs/slurm_logs"
 mkdir -p "$LOG_DIR"
@@ -40,5 +38,6 @@ bash "$SETUP_SCRIPT" "$REPO_DIR" "$VENV_DIR" "requirements.txt"
 
 cd "$REPO_DIR"
 
-# Run benchmarking setup
-"$VENV_DIR/bin/python" scripts/run_full_benchmark.py --config configs/benchmark_nomsma.yaml
+# Run benchmark using the requested non-MSMARCO covertree config.
+# Use unbuffered output so SLURM logs stream progress promptly.
+"$VENV_DIR/bin/python" -u scripts/run_full_benchmark.py --config configs/benchmark_nomsma_covertree_v2_2.yaml

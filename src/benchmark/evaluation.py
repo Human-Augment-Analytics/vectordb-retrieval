@@ -65,6 +65,60 @@ class Evaluator:
 
         return metrics
 
+    def _resolve_operations_metric(
+        self,
+        algorithms: List[str],
+    ) -> Tuple[str, List[float], str]:
+        """
+        Resolve which metric to use as the X-axis for operations/cost plots.
+
+        Returns:
+            Tuple of (metric_key, metric_values, axis_label)
+        """
+        # Prefer explicit operation-count style metrics when available.
+        candidates = [
+            ("operations_per_query", "Operations / Query"),
+            ("operation_count", "Operations"),
+            ("distance_computations", "Distance Computations"),
+            ("distance_operations", "Distance Operations"),
+            ("mean_query_time_ms", "Mean Query Time (ms)"),
+            ("mean_query_time", "Mean Query Time (ms)"),
+            ("total_query_time_s", "Total Query Time (s)"),
+        ]
+
+        for metric_key, axis_label in candidates:
+            values: List[float] = []
+            for alg in algorithms:
+                raw_value = self.results[alg].get(metric_key)
+                if raw_value is None:
+                    values = []
+                    break
+                try:
+                    numeric_value = float(raw_value)
+                except (TypeError, ValueError):
+                    values = []
+                    break
+                if not np.isfinite(numeric_value):
+                    values = []
+                    break
+                values.append(numeric_value)
+            if values:
+                return metric_key, values, axis_label
+
+        # Last-resort fallback: derive per-query time (ms) from QPS.
+        derived_values: List[float] = []
+        for alg in algorithms:
+            qps_value = self.results[alg].get("qps")
+            try:
+                qps = float(qps_value) if qps_value is not None else 0.0
+            except (TypeError, ValueError):
+                qps = 0.0
+            if qps <= 0:
+                return "qps", [], "Mean Query Time (ms, derived from QPS)"
+            derived_values.append((1.0 / qps) * 1000.0)
+
+        return "qps", derived_values, "Mean Query Time (ms, derived from QPS)"
+
     def print_results(self):
         """
         Print a summary of evaluation results for all algorithms.
@@ -138,6 +192,84 @@ class Evaluator:
         if output_file:
             plt.tight_layout()
             plt.savefig(output_file, dpi=300, bbox_inches='tight')
+            print(f"Plot saved to {output_file}")
+        else:
+            plt.tight_layout()
+            plt.show()
+
+    def plot_operations_vs_recall(
+        self,
+        output_file: Optional[str] = None,
+        title_suffix: Optional[str] = None,
+    ) -> None:
+        """
+        Plot operations/cost vs recall@k for all algorithms.
+
+        Args:
+            output_file: Optional file to save the plot
+            title_suffix: Optional dataset/context suffix appended to title
+        """
+        if not self.results:
+            print("No evaluation results available for plotting.")
+            return
+
+        fig, ax = plt.subplots(figsize=(10, 6))
+
+        algorithms = list(self.results.keys())
+        target_k = min(10, max(self.k_values))
+        recalls = [self.results[alg].get(f"recall@{target_k}", 0) for alg in algorithms]
+        metric_key, operations, x_label = self._resolve_operations_metric(algorithms)
+
+        if not operations:
+            print("No operations/cost metric available for plotting.")
+            plt.close(fig)
+            return
+
+        ax.scatter(operations, recalls, s=100)
+
+        for i, alg in enumerate(algorithms):
+            ax.annotate(
+                alg,
+                (operations[i], recalls[i]),
+                fontsize=9,
+                xytext=(5, 5),
+                textcoords="offset points",
+            )
+
+        if len(operations) >= 2:
+            positive_ops = [val for val in operations if val > 0]
+            if positive_ops and (max(positive_ops) / max(min(positive_ops), 1e-12) >= 20):
+                ax.set_xscale("log")
+
+            min_op = min(operations)
+            max_op = max(operations)
+            if max_op > min_op:
+                pad = (max_op - min_op) * 0.2
+                ax.set_xlim(min_op - pad, max_op + pad)
+        ax.set_ylim(0, 1.05)
+
+        ax.set_xlabel(x_label)
+        ax.set_ylabel(f"Recall@{target_k}")
+        title = "Operations vs Recall Trade-off"
+        if title_suffix:
+            title = f"{title} — {title_suffix}"
+        ax.set_title(title)
+
+        # Surface which metric powered the x-axis for traceability.
+        ax.text(
+            0.01,
+            0.01,
+            f"x-axis metric: {metric_key}",
+            transform=ax.transAxes,
+            fontsize=8,
+            alpha=0.7,
+        )
+
+        ax.grid(True, linestyle="--", alpha=0.7)
+
+        if output_file:
+            plt.tight_layout()
+            plt.savefig(output_file, dpi=300, bbox_inches="tight")
             print(f"Plot saved to {output_file}")
         else:
             plt.tight_layout()

@@ -45,7 +45,7 @@ if [ -d "$VENV_DIR" ]; then
 else
     echo "Creating uv environment in '$VENV_DIR'..."
     mkdir -p "$(dirname "$VENV_DIR")"
-    uv venv "$VENV_DIR"
+    uv venv --python 3.13.2 "$VENV_DIR"
 fi
 
 if [ ! -x "$VENV_DIR/bin/python" ]; then

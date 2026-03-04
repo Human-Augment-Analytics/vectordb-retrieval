@@ -5,7 +5,6 @@ import time
 import datetime
 import copy
 import yaml
-from pathlib import Path
 from typing import Dict, Any, Tuple, Optional
 
 from ..experiments.config import ExperimentConfig
@@ -17,13 +16,19 @@ class BenchmarkRunner:
     Orchestrates running a full benchmark across multiple datasets and algorithms.
     """
 
-    def __init__(self, config_file: str, output_dir: str = "benchmark_results"):
+    def __init__(
+        self,
+        config_file: str,
+        output_dir: Optional[str] = None,
+        data_dir: Optional[str] = None,
+    ):
         """
         Initialize the benchmark runner.
 
         Args:
             config_file: Path to the benchmark configuration file
-            output_dir: Directory to store benchmark results
+            output_dir: Optional override for benchmark results directory
+            data_dir: Optional override for dataset root directory
         """
         self.config_file = config_file
         self.timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -32,10 +37,15 @@ class BenchmarkRunner:
         with open(config_file, 'r') as f:
             self.config = json.load(f) if config_file.endswith('.json') else yaml.safe_load(f)
 
+        if output_dir:
+            self.config['output_dir'] = output_dir
+        if data_dir:
+            self.config['data_dir'] = data_dir
+
         self.global_indexers = copy.deepcopy(self.config.get('indexers', {}))
         self.global_searchers = copy.deepcopy(self.config.get('searchers', {}))
 
-        base_output_dir = self.config.get('output_dir', output_dir)
+        base_output_dir = self.config.get('output_dir', 'benchmark_results')
         self.output_dir = os.path.join(base_output_dir, f"benchmark_{self.timestamp}")
 
         # Create output directory

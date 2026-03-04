@@ -285,7 +285,18 @@ def main():
     parser = argparse.ArgumentParser(description="Run vector retrieval benchmark suite")
     parser.add_argument("--config", type=str, help="Path to benchmark configuration file")
     parser.add_argument("--create-config", action="store_true", help="Create default benchmark configuration")
-    parser.add_argument("--output-dir", type=str, default="benchmark_results", help="Directory to save results")
+    parser.add_argument(
+        "--output-dir",
+        type=str,
+        default=None,
+        help="Override benchmark output root directory (takes precedence over config output_dir)",
+    )
+    parser.add_argument(
+        "--data-dir",
+        type=str,
+        default=None,
+        help="Override dataset root directory (takes precedence over config data_dir)",
+    )
     args = parser.parse_args()
 
     # Create default configuration if requested
@@ -305,12 +316,17 @@ def main():
         print(f"Error: Config file not found: {args.config}")
         return 1
 
-    # Create output directory
-    os.makedirs(args.output_dir, exist_ok=True)
+    # Create output directory if explicitly overridden on the CLI
+    if args.output_dir:
+        os.makedirs(args.output_dir, exist_ok=True)
 
     # Run the benchmark
     try:
-        benchmark = BenchmarkRunner(args.config, args.output_dir)
+        benchmark = BenchmarkRunner(
+            args.config,
+            output_dir=args.output_dir,
+            data_dir=args.data_dir,
+        )
         benchmark.run()
         print(f"Benchmark completed successfully. Results saved to {benchmark.output_dir}")
         return 0

@@ -1,6 +1,6 @@
 import numpy as np
 
-from src.algorithms.covertree_v2_2 import CoverTreeV2_2
+from src.algorithms.covertree import CoverTreeV2_2
 
 
 def brute_force_neighbors(vectors: np.ndarray, query: np.ndarray, k: int) -> np.ndarray:

@@ -124,6 +124,9 @@ class CoverTreeV2_2(BaseAlgorithm):
         return _CoverTreeV2Node(index=idx, level=level, vector=self._working_vectors[idx])
 
     def _insert_index(self, idx: int) -> None:
+        """
+        Main insertion algorithm that handles bubbling up the root if necessary.
+        """
         if self.root is None:
             self.root = self._make_node(idx, level=0)
             self.max_level = 0
@@ -144,6 +147,9 @@ class CoverTreeV2_2(BaseAlgorithm):
             queue = [self.root]
 
     def _insert(self, idx: int, queue: Iterable[_CoverTreeV2Node], level: int) -> bool:
+        """
+        Insertion logic 
+        """
         assert self._working_vectors is not None
         point_vector = self._working_vectors[idx]
         distance_threshold = 2.0 ** level

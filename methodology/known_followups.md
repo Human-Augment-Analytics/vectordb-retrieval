@@ -86,7 +86,7 @@ Keep this file updated whenever you start/complete work on any item above or add
 
 ## 9. Re-run CoverTree Benchmark on PACE After `_search_exact_k` Hot-Loop Changes (2026-02-13)
 
-- **Reason:** `_search_exact_k` in `src/algorithms/covertree_v2_2.py` was optimized (child flattening, heap-update gating by current k-th bound, vectorized next-frontier pruning). We need benchmark-level confirmation in the standard PACE environment.
+- **Reason:** `_search_exact_k` in `src/algorithms/covertree.py` was optimized (child flattening, heap-update gating by current k-th bound, vectorized next-frontier pruning). We need benchmark-level confirmation in the standard PACE environment.
 - **Important constraint:** Prefer PACE for apples-to-apples tracking against prior numbers. Local runs are now possible by overriding paths, e.g. `--data-dir data --output-dir benchmark_results`, but should be treated as non-canonical performance data.
 - **PACE command (recommended):**
   - `sbatch slurm_jobs/singlerun_nomsma_benchmarking_c_v2_pat.sbatch`

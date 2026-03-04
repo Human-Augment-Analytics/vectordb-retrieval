@@ -4,7 +4,7 @@ from typing import Any, Dict, Type
 
 from .approximate_search import ApproximateSearch
 from .base_algorithm import BaseAlgorithm
-from .covertree_v2_2 import CoverTreeV2_2
+from .covertree import CoverTreeV2_2
 from .exact_search import ExactSearch
 from .hnsw import HNSW
 from .lsh import LSH

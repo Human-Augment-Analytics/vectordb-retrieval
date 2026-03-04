@@ -35,3 +35,32 @@ If the initial `_cover_search` stage is not effective at pruning the search spac
 ## Conclusion
 
 The `covertree_v2` implementation serves as a correct, but not performant, version of the cover tree algorithm. The observed 100x+ slowdown is expected when comparing a pure Python implementation to a production-ready, highly optimized C++ library like FAISS. The primary bottlenecks are the lack of low-level optimizations, the use of Python loops for iterative distance calculations, and a potentially expensive final ranking step.
+
+## Line-by-Line Profiling Workflow (Local)
+
+To move from high-level suspicion to concrete bottlenecks, use `line_profiler` with:
+
+- Script: `scripts/profile_covertree_lines.py`
+- Target module: `src/algorithms/covertree.py` (`CoverTreeV2_2`)
+
+### 1) Install dependency
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install line_profiler
+```
+
+### 2) Run line-by-line profiling (smoke-like settings)
+
+```powershell
+.\.venv\Scripts\python.exe scripts/profile_covertree_lines.py --train-size 20000 --query-size 256 --dimension 50 --metric cosine --k 200 --profile-phase both --search-runs 1 --output covertree_line_profile.txt --dump-raw covertree_line_profile.lprof
+```
+
+### 3) Focus on likely hotspots in `src/algorithms/covertree.py`
+
+- `build_index` insertion loop
+- `_insert` operations that repeatedly call `np.stack(...)`
+- `_search_exact_k` traversal and candidate filtering
+- `_compute_distance_batch_to_1` distance kernel
+- `batch_search` query loop (calls `search` per query)
+
+Line-profiler output reports `% Time` per line so you can directly see which exact statements dominate runtime.

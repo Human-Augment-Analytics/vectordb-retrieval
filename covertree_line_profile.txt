@@ -1,0 +1,337 @@
+# CoverTreeV2_2 Line Profiling Report
+phase=both
+metric=l2 train_size=5000 query_size=256 dimension=50 k=200 search_runs=1
+
+Timer unit: 1e-07 s
+
+Total time: 14.4404 s
+File: C:\Users\johnportin\Documents\OMSCS\haag\vectordb-retrieval\src\algorithms\covertree.py
+Function: build_index at line 46
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+    46                                               def build_index(
+    47                                                   self,
+    48                                                   vectors: np.ndarray,
+    49                                                   metadata: Optional[Sequence[dict]] = None,
+    50                                               ) -> None:
+    51         1         73.0     73.0      0.0          processed = self._prepare_vectors(vectors)
+    52         1          2.0      2.0      0.0          self.vectors = processed
+    53         1          2.0      2.0      0.0          self.metadata = list(metadata) if metadata is not None else None
+    54                                           
+    55         1          2.0      2.0      0.0          if self.metric_name == "cosine":
+    56                                                       self._working_vectors = self._normalize_vectors(processed)
+    57                                                   else:
+    58         1          2.0      2.0      0.0              self._working_vectors = processed
+    59                                           
+    60         1          2.0      2.0      0.0          self.root = None
+    61         1          1.0      1.0      0.0          self.max_level = 0
+    62                                           
+    63      5001       7922.0      1.6      0.0          for idx in range(processed.shape[0]):
+    64      5000  144396246.0  28879.2    100.0              self._insert_index(idx)
+    65                                           
+    66         1          5.0      5.0      0.0          self.index_built = True
+
+Total time: 2.33129 s
+File: C:\Users\johnportin\Documents\OMSCS\haag\vectordb-retrieval\src\algorithms\covertree.py
+Function: batch_search at line 75
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+    75                                               def batch_search(self, queries: np.ndarray, k: int = 10) -> Tuple[np.ndarray, np.ndarray]:
+    76         1          6.0      6.0      0.0          if not self.index_built or self.root is None or self._working_vectors is None:
+    77                                                       raise RuntimeError("Index has not been built yet.")
+    78                                           
+    79         1         14.0     14.0      0.0          queries = np.asarray(queries, dtype=np.float32)
+    80         1          8.0      8.0      0.0          if queries.ndim != 2 or queries.shape[1] != self.dimension:
+    81                                                       raise ValueError(f"Expected queries of shape (n, {self.dimension})")
+    82                                                   
+    83         1        126.0    126.0      0.0          distance_results = np.full((queries.shape[0], k), np.inf, dtype=np.float32)
+    84         1         75.0     75.0      0.0          index_results = np.full((queries.shape[0], k), -1, dtype=np.int64)
+    85                                           
+    86       257        883.0      3.4      0.0          for row, query in enumerate(queries):
+    87       256   23304642.0  91033.8    100.0              distances, indices = self.search(query, k=k)
+    88       256       1694.0      6.6      0.0              limit = min(k, len(distances))
+    89       256       3546.0     13.9      0.0              distance_results[row, :limit] = distances[:limit]
+    90       256       1896.0      7.4      0.0              index_results[row, :limit] = indices[:limit]
+    91                                           
+    92         1          2.0      2.0      0.0          return distance_results, index_results
+
+Total time: 2.33013 s
+File: C:\Users\johnportin\Documents\OMSCS\haag\vectordb-retrieval\src\algorithms\covertree.py
+Function: search at line 68
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+    68                                               def search(self, query: np.ndarray, k: int = 10) -> Tuple[np.ndarray, np.ndarray]:
+    69       256       1512.0      5.9      0.0          if not self.index_built or self.root is None or self._working_vectors is None:
+    70                                                       raise RuntimeError("Index has not been built yet.")
+    71                                           
+    72       256       6195.0     24.2      0.0          prepared = self._prepare_query(query)
+    73       256   23293577.0  90990.5    100.0          return self._search_exact_k(prepared, k)
+
+Total time: 14.4333 s
+File: C:\Users\johnportin\Documents\OMSCS\haag\vectordb-retrieval\src\algorithms\covertree.py
+Function: _insert_index at line 126
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+   126                                               def _insert_index(self, idx: int) -> None:
+   127                                                   """
+   128                                                   Main insertion algorithm that handles bubbling up the root if necessary.
+   129                                                   """
+   130      5000      15531.0      3.1      0.0          if self.root is None:
+   131         1         35.0     35.0      0.0              self.root = self._make_node(idx, level=0)
+   132         1          2.0      2.0      0.0              self.max_level = 0
+   133         1          0.0      0.0      0.0              return
+   134                                           
+   135      4999       9200.0      1.8      0.0          queue = [self.root]
+   136      4999       5940.0      1.2      0.0          level = self.max_level
+   137                                           
+   138      5003       5080.0      1.0      0.0          while True:
+   139      5003  144292037.0  28841.1    100.0              if self._insert(idx, queue, level):
+   140      4999       5083.0      1.0      0.0                  return
+   141                                           
+   142         4         74.0     18.5      0.0              new_root = self._make_node(self.root.index, level=level + 1)
+   143         4         13.0      3.2      0.0              new_root.children.append(self.root)
+   144         4          7.0      1.8      0.0              self.root = new_root
+   145         4          5.0      1.2      0.0              level += 1
+   146         4          4.0      1.0      0.0              self.max_level = level
+   147         4          8.0      2.0      0.0              queue = [self.root]
+
+Total time: 13.7747 s
+File: C:\Users\johnportin\Documents\OMSCS\haag\vectordb-retrieval\src\algorithms\covertree.py
+Function: _insert at line 149
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+   149                                               def _insert(self, idx: int, queue: Iterable[_CoverTreeV2Node], level: int) -> bool:
+   150                                                   """
+   151                                                   Insertion logic 
+   152                                                   """
+   153     14608      26067.0      1.8      0.0          assert self._working_vectors is not None
+   154     14608      53695.0      3.7      0.0          point_vector = self._working_vectors[idx]
+   155     14608      56522.0      3.9      0.0          distance_threshold = 2.0 ** level
+   156     14608      74539.0      5.1      0.1          queue = list(queue)
+   157                                           
+   158     14608      17590.0      1.2      0.0          children: List[_CoverTreeV2Node] = []
+   159   4272235    3296831.0      0.8      2.4          for node in queue:
+   160   4257627    6786993.0      1.6      4.9              children.extend(node.children)
+   161                                           
+   162                                                   # Optimization: Vectorized check for children
+   163     14608      19078.0      1.3      0.0          if children:
+   164     10676   71490586.0   6696.4     51.9              child_vectors = np.stack([c.vector for c in children])
+   165     10676    7213334.0    675.7      5.2              dists = self._compute_distance_batch_to_1(point_vector, child_vectors)
+   166     10676   16717380.0   1565.9     12.1              filtered = [child for child, d in zip(children, dists) if d <= distance_threshold]
+   167                                                   else:
+   168      3932       3759.0      1.0      0.0              filtered = []
+   169                                           
+   170     14608      50207.0      3.4      0.0          if filtered and self._insert(idx, filtered, level - 1):
+   171      3619       8817.0      2.4      0.0              return True
+   172                                           
+   173                                                   # Optimization: Vectorized check for queue nodes
+   174     10989      16549.0      1.5      0.0          if queue:
+   175     10989   24673542.0   2245.3     17.9              node_vectors = np.stack([n.vector for n in queue])
+   176     10989    2787855.0    253.7      2.0              dists_nodes = self._compute_distance_batch_to_1(point_vector, node_vectors)
+   177                                                       
+   178                                                       # Find first node that satisfies the condition
+   179   1677518    2036642.0      1.2      1.5              for i, d in enumerate(dists_nodes):
+   180   1671528    2255753.0      1.3      1.6                  if d <= distance_threshold:
+   181      4999     130089.0     26.0      0.1                      new_node = self._make_node(idx, level=level - 1)
+   182      4999      17390.0      3.5      0.0                      queue[i].children.append(new_node)
+   183      4999       8443.0      1.7      0.0                      return True
+   184                                           
+   185      5990       5375.0      0.9      0.0          return False
+
+Total time: 2.21749 s
+File: C:\Users\johnportin\Documents\OMSCS\haag\vectordb-retrieval\src\algorithms\covertree.py
+Function: _search_exact_k at line 190
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+   190                                               def _search_exact_k(self, query: np.ndarray, k: int) -> Tuple[np.ndarray, np.ndarray]:
+   191                                                   """
+   192                                                   Performs an exact k-nearest neighbor search using a max-heap to maintain
+   193                                                   the top-k candidates and dynamically prune the search space.
+   194                                                   """
+   195       256        530.0      2.1      0.0          assert self.root is not None
+   196                                                   
+   197                                                   # Max-heap storing (-distance, index) for top-k results.
+   198                                                   # Python's heapq is a min-heap, so we store negative distances.
+   199                                                   # Initial dummy values are not needed if we handle the size logic carefully,
+   200                                                   # but filling with infinity makes logical checks simpler.
+   201       256        284.0      1.1      0.0          candidates_heap: List[Tuple[float, int]] = [] 
+   202                                                   
+   203                                                   # Track visited POINTS (indices) to avoid duplicates in results,
+   204                                                   # since points can appear at multiple levels/nodes.
+   205       256        764.0      3.0      0.0          visited_points: set[int] = set()
+   206                                           
+   207       256        807.0      3.2      0.0          def update_heap(dist: float, idx: int):
+   208                                                       if idx in visited_points:
+   209                                                           return
+   210                                                       visited_points.add(idx)
+   211                                                       
+   212                                                       # We want to keep the SMALLEST k distances.
+   213                                                       # In a max-heap of size k, the root is the LARGEST of the k.
+   214                                                       # If new_dist < max_in_heap, we replace root.
+   215                                                       
+   216                                                       if len(candidates_heap) < k:
+   217                                                           heapq.heappush(candidates_heap, (-dist, idx))
+   218                                                       else:
+   219                                                           # Check if this point is better than the worst point in our current top-k
+   220                                                           # heap[0] is (-max_dist, index)
+   221                                                           max_dist_in_heap = -candidates_heap[0][0]
+   222                                                           if dist < max_dist_in_heap:
+   223                                                               heapq.heapreplace(candidates_heap, (-dist, idx))
+   224                                           
+   225                                                   # The current set of nodes to explore
+   226       256        596.0      2.3      0.0          current_nodes: List[_CoverTreeV2Node] = [self.root]
+   227                                                   
+   228                                                   # Add root to candidates immediately
+   229       256      26869.0    105.0      0.1          root_dist = float(self._compute_distance_batch_to_1(query, np.array([self.root.vector]))[0])
+   230       256       3748.0     14.6      0.0          update_heap(root_dist, self.root.index)
+   231                                                   
+   232       256        361.0      1.4      0.0          level = self.max_level
+   233                                                   
+   234                                                   # Traverse down
+   235      1280       5050.0      3.9      0.0          while current_nodes and level >= -self.dimension: # Safety break at very low levels
+   236                                                       
+   237                                                       # 1. Collect all children of current nodes
+   238      1280    2035077.0   1589.9      9.2              all_children = [child for node in current_nodes for child in node.children]
+   239                                                       
+   240      1280       1929.0      1.5      0.0              if not all_children:
+   241       256        561.0      2.2      0.0                  break
+   242                                                           
+   243                                                       # 2. Compute distances to all children efficiently
+   244      1024    7177040.0   7008.8     32.4              child_vectors = np.stack([c.vector for c in all_children])
+   245      1024     565516.0    552.3      2.6              child_distances = self._compute_distance_batch_to_1(query, child_vectors)
+   246                                                       
+   247                                                       # 3. Determine current pruning bound before heap updates.
+   248                                                       # The k-th nearest neighbor distance found so far is our pruning bound.
+   249                                                       # If we haven't found k points yet, bound is infinity.
+   250      1024       2858.0      2.8      0.0              if len(candidates_heap) < k:
+   251       256       1637.0      6.4      0.0                  pruning_bound = float('inf')
+   252                                                       else:
+   253       768       2179.0      2.8      0.0                  pruning_bound = -candidates_heap[0][0]
+   254                                           
+   255                                                       # 4. Update heap with promising children only.
+   256      1024      12266.0     12.0      0.1              if np.isfinite(pruning_bound):
+   257       768      10472.0     13.6      0.0                  heap_update_mask = child_distances < pruning_bound
+   258       768      34911.0     45.5      0.2                  candidate_positions = np.flatnonzero(heap_update_mask)
+   259                                                       else:
+   260       256       1889.0      7.4      0.0                  candidate_positions = range(len(all_children))
+   261                                           
+   262    720383     629898.0      0.9      2.8              for pos in candidate_positions:
+   263    719359     884139.0      1.2      4.0                  child = all_children[pos]
+   264    719359    6918188.0      9.6     31.2                  update_heap(float(child_distances[pos]), child.index)
+   265                                           
+   266                                                       # 5. Recompute pruning bound after candidate updates.
+   267      1024       1924.0      1.9      0.0              if len(candidates_heap) < k:
+   268                                                           pruning_bound = float('inf')
+   269                                                       else:
+   270      1024       1988.0      1.9      0.0                  pruning_bound = -candidates_heap[0][0]
+   271                                                       
+   272                                                       # 6. Filter children for next iteration
+   273                                                       # Rule: Keep a child node 'c' if it *could* contain a point closer than pruning_bound.
+   274                                                       # A node 'c' at level `child.level` covers a radius of approx 2^(child.level + 1).
+   275                                                       # Lower bound distance to any descendant of c is: dist(p, c) - radius(c)
+   276                                                       # If lower_bound > pruning_bound, we prune.
+   277                                                       # So: dist(p, c) - 2^(c.level + 1) <= pruning_bound
+   278      1024      12123.0     11.8      0.1              if np.isfinite(pruning_bound):
+   279      1024       2276.0      2.2      0.0                  first_child_level = all_children[0].level
+   280      1024    2147603.0   2097.3      9.7                  if all(child.level == first_child_level for child in all_children):
+   281      1024       4815.0      4.7      0.0                      max_cover_radius = 2.0 ** (first_child_level + 1)
+   282      1024      17293.0     16.9      0.1                      next_mask = child_distances <= (pruning_bound + max_cover_radius)
+   283                                                           else:
+   284                                                               child_levels = np.fromiter(
+   285                                                                   (child.level for child in all_children),
+   286                                                                   dtype=np.int32,
+   287                                                                   count=len(all_children),
+   288                                                               )
+   289                                                               next_mask = child_distances <= (pruning_bound + np.power(2.0, child_levels + 1))
+   290      1024    1420136.0   1386.9      6.4                  next_nodes = [all_children[i] for i in np.flatnonzero(next_mask)]
+   291                                                       else:
+   292                                                           next_nodes = all_children
+   293                                                       
+   294      1024      10898.0     10.6      0.0              current_nodes = next_nodes
+   295      1024       1976.0      1.9      0.0              level -= 1
+   296                                                       
+   297      1024       1457.0      1.4      0.0              if not current_nodes:
+   298                                                           break
+   299                                           
+   300                                                   # Finalize results
+   301                                                   # Sort by distance (ascending)
+   302                                                   # Heap contains (-dist, idx), so sort reverses this.
+   303                                                   
+   304       256     106537.0    416.2      0.5          sorted_candidates = sorted(candidates_heap, key=lambda x: -x[0])
+   305                                                   
+   306                                                   # Extract
+   307       256      61627.0    240.7      0.3          final_indices = np.array([x[1] for x in sorted_candidates], dtype=np.int64)
+   308       256      65561.0    256.1      0.3          final_distances = np.array([-x[0] for x in sorted_candidates], dtype=np.float32)
+   309                                                   
+   310                                                   # Pad if fewer than k found (should rare/impossible if N >= k)
+   311       256        752.0      2.9      0.0          if len(final_indices) < k:
+   312                                                        padding = k - len(final_indices)
+   313                                                        final_indices = np.pad(final_indices, (0, padding), constant_values=-1)
+   314                                                        final_distances = np.pad(final_distances, (0, padding), constant_values=np.inf)
+   315                                                        
+   316       256        369.0      1.4      0.0          return final_distances, final_indices
+
+Total time: 1.01512 s
+File: C:\Users\johnportin\Documents\OMSCS\haag\vectordb-retrieval\src\algorithms\covertree.py
+Function: _compute_distance_batch_to_1 at line 318
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+   318                                               def _compute_distance_batch_to_1(self, query: np.ndarray, vectors: np.ndarray) -> np.ndarray:
+   319                                                   """
+   320                                                   Computes distance from 1 query vector to N vectors.
+   321                                                   vectors: (N, D)
+   322                                                   query: (D,)
+   323                                                   """
+   324     22945      79411.0      3.5      0.8          if self.metric_name in ("l2", "euclidean"):
+   325     22945    3631626.0    158.3     35.8              diff = vectors - query
+   326     22945     302225.0     13.2      3.0              self.record_operation("ndis", float(len(vectors)))
+   327     22945    6137969.0    267.5     60.5              return np.linalg.norm(diff, axis=1)
+   328                                                   elif self.metric_name == "cosine":
+   329                                                       # vectors and query are assumed normalized
+   330                                                       self.record_operation("ndis", float(len(vectors)))
+   331                                                       return 1.0 - np.dot(vectors, query)
+   332                                                   elif self.metric_name in ("dot", "ip", "inner_product"):
+   333                                                       self.record_operation("ndis", float(len(vectors)))
+   334                                                       return -np.dot(vectors, query)
+   335                                                   else:
+   336                                                       return np.array(
+   337                                                           [self._metric_fn(query, vec) for vec in vectors],
+   338                                                           dtype=np.float32,
+   339                                                       )
+
+Total time: 0.00045 s
+File: C:\Users\johnportin\Documents\OMSCS\haag\vectordb-retrieval\src\algorithms\covertree.py
+Function: _prepare_query at line 111
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+   111                                               def _prepare_query(self, query: np.ndarray) -> np.ndarray:
+   112       256       3009.0     11.8     66.9          arr = np.asarray(query, dtype=np.float32).reshape(-1)
+   113       256        681.0      2.7     15.1          if arr.size != self.dimension:
+   114                                                       raise ValueError(f"Query vector must have dimension {self.dimension}")
+   115       256        593.0      2.3     13.2          if self.metric_name == "cosine":
+   116                                                       norm = np.linalg.norm(arr)
+   117                                                       self.record_operation("ndis", float(1.0))
+   118                                                       if norm > 0:
+   119                                                           arr = arr / norm
+   120       256        217.0      0.8      4.8          return arr
+
+Total time: 0 s
+File: C:\Users\johnportin\Documents\OMSCS\haag\vectordb-retrieval\src\algorithms\covertree.py
+Function: _normalize_vectors at line 105
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+   105                                               def _normalize_vectors(self, vectors: np.ndarray) -> np.ndarray:
+   106                                                   norms = np.linalg.norm(vectors, axis=1, keepdims=True)
+   107                                                   norms = np.where(norms == 0, 1.0, norms)
+   108                                                   self.record_operation('ndis', float(len(vectors)))
+   109                                                   return vectors / norms
+

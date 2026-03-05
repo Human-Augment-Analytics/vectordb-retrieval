@@ -60,3 +60,6 @@ def test_benchmark_runner_resolves_modular_components(tmp_path):
     # Verify summary artefacts created in expected directory.
     summary_candidates = list(Path(runner.output_dir).glob("benchmark_summary.md"))
     assert summary_candidates, "Benchmark summary file was not generated"
+    assert (Path(runner.output_dir) / "one-page-summary.md").exists()
+    assert (Path(runner.output_dir) / "qps_recall_summary.md").exists()
+    assert list(Path(runner.output_dir).glob("qps_recall_*.svg")), "QPS vs recall SVG plot was not generated"

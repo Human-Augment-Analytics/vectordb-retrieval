@@ -21,6 +21,8 @@ except ImportError:  # pragma: no cover - faiss is required for brute-force GT
 
 logger = logging.getLogger(__name__)
 
+MSMARCO_CACHE_KEY_VERSION = "msmarco_cache_v2_npy_memmap_loader_fix_20260304"
+
 class Dataset:
     """
     Class for handling benchmark datasets for vector retrieval.
@@ -227,6 +229,10 @@ class Dataset:
         if self.name == "msmarco" and "_ground_truth_method" not in self.options:
             # Ensure cache keys change when the ground-truth construction method changes.
             self.options["_ground_truth_method"] = "bruteforce_v3"
+        if self.name == "msmarco" and "_cache_key_version" not in self.options:
+            # One-time cache-key bump to invalidate stale memmap metadata generated before
+            # the .npy memmap loader fix.
+            self.options["_cache_key_version"] = MSMARCO_CACHE_KEY_VERSION
 
         cache_suffix = ""
         if self.options:
@@ -285,6 +291,10 @@ class Dataset:
             return path
         return os.path.join(self.cache_dir, path)
 
+    @staticmethod
+    def _infer_memmap_backend_from_path(path: str) -> str:
+        return "npy" if path.lower().endswith(".npy") else "raw"
+
     def _write_array_cache(self, array: Optional[np.ndarray], suffix: str) -> Optional[str]:
         if array is None:
             return None
@@ -306,15 +316,17 @@ class Dataset:
         if self.train_vectors is None:
             raise ValueError("Cannot cache dataset before it is loaded.")
 
-        meta: Dict[str, Any] = {"version": 1}
+        meta: Dict[str, Any] = {"version": 2}
 
         train_entry: Dict[str, Any]
         if self._train_cache_format == "memmap" and self._train_memmap_path:
+            memmap_backend = self._infer_memmap_backend_from_path(self._train_memmap_path)
             train_entry = {
                 "path": os.path.relpath(self._train_memmap_path, self.cache_dir),
                 "dtype": str(self.train_vectors.dtype),
                 "shape": list(self.train_vectors.shape),
                 "format": "memmap",
+                "memmap_backend": memmap_backend,
             }
         else:
             train_cache = self._write_array_cache(self.train_vectors, "train")
@@ -375,11 +387,63 @@ class Dataset:
         fmt = train_meta.get("format", "memmap")
 
         if fmt == "memmap":
+            backend_raw = train_meta.get("memmap_backend")
+            if backend_raw is None:
+                backend = self._infer_memmap_backend_from_path(train_path)
+            else:
+                backend = str(backend_raw).strip().lower()
+
+            if backend == "npy":
+                loaded_train_vectors = np.load(train_path, mmap_mode="r", allow_pickle=False)
+                # Pre-embedded datasets may cache a limited prefix view (base_limit) while
+                # referencing the original full .npy file. Apply prefix slicing to match the
+                # recorded metadata shape in that case.
+                if shape and tuple(loaded_train_vectors.shape) != tuple(shape):
+                    if (
+                        len(shape) == loaded_train_vectors.ndim
+                        and all(target_dim <= loaded_dim for target_dim, loaded_dim in zip(shape, loaded_train_vectors.shape))
+                    ):
+                        slicing = tuple(slice(0, target_dim) for target_dim in shape)
+                        loaded_train_vectors = loaded_train_vectors[slicing]
+            elif backend == "raw":
+                if not shape:
+                    raise ValueError(
+                        "Invalid metadata cache: missing train shape for raw memmap "
+                        f"({meta_path})"
+                    )
+                loaded_train_vectors = np.memmap(train_path, dtype=dtype, mode="r", shape=shape)
+            else:
+                raise ValueError(
+                    f"Unsupported memmap backend '{backend}' in metadata cache ({meta_path})"
+                )
+
+            if loaded_train_vectors.dtype != dtype:
+                raise ValueError(
+                    "Invalid metadata cache: train dtype mismatch "
+                    f"(expected {dtype}, got {loaded_train_vectors.dtype})"
+                )
+            if shape and tuple(loaded_train_vectors.shape) != tuple(shape):
+                raise ValueError(
+                    "Invalid metadata cache: train shape mismatch "
+                    f"(expected {tuple(shape)}, got {tuple(loaded_train_vectors.shape)})"
+                )
+
             self._train_memmap_path = train_path
-            self.train_vectors = np.memmap(train_path, dtype=dtype, mode="r", shape=shape)
+            self.train_vectors = loaded_train_vectors
             self._train_cache_format = "memmap"
         elif fmt == "numpy":
-            self.train_vectors = np.load(train_path, allow_pickle=False)
+            loaded_train_vectors = np.load(train_path, allow_pickle=False)
+            if loaded_train_vectors.dtype != dtype:
+                raise ValueError(
+                    "Invalid metadata cache: train dtype mismatch "
+                    f"(expected {dtype}, got {loaded_train_vectors.dtype})"
+                )
+            if shape and tuple(loaded_train_vectors.shape) != tuple(shape):
+                raise ValueError(
+                    "Invalid metadata cache: train shape mismatch "
+                    f"(expected {tuple(shape)}, got {tuple(loaded_train_vectors.shape)})"
+                )
+            self.train_vectors = loaded_train_vectors
             self._train_memmap_path = train_path
             self._train_cache_format = "numpy"
         else:
@@ -957,6 +1021,25 @@ class Dataset:
                     "Dimensional mismatch between passages and queries: "
                     f"{train_vectors.shape[1]} vs {test_vectors.shape[1]}"
                 )
+
+            base_limit_raw = self.options.get("base_limit")
+            base_limit = int(base_limit_raw) if base_limit_raw is not None else 0
+            query_limit_raw = self.options.get("query_limit")
+            query_limit = int(query_limit_raw) if query_limit_raw is not None else 0
+            if base_limit < 0:
+                base_limit = 0
+            if query_limit < 0:
+                query_limit = 0
+
+            if base_limit > 0:
+                train_vectors = train_vectors[:base_limit]
+            if query_limit > 0:
+                test_vectors = test_vectors[:query_limit]
+
+            if train_vectors.shape[0] == 0:
+                raise ValueError("No passage vectors available after applying base_limit.")
+            if test_vectors.shape[0] == 0:
+                raise ValueError("No query vectors available after applying query_limit.")
 
             self.train_vectors = train_vectors
             self.test_vectors = test_vectors

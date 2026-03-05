@@ -115,3 +115,25 @@ Keep this file updated whenever you start/complete work on any item above or add
   - Log points to `src/benchmark/evaluation.py:248`.
 - **Impact:** Non-fatal. `operations_vs_recall.png` is still written, but axis-bound handling is inconsistent for non-positive lower bounds.
 - **Follow-up:** Clamp x-axis lower bound to a strictly positive epsilon before calling `ax.set_xlim(...)` when the x-axis uses log scale.
+
+---
+
+## 11. MSMARCO memmap metadata loading mismatch causing zero recall for non-Covertree algorithms (in progress, 2026-03-04)
+
+- **Symptom:** In all-algorithm MSMARCO runs that reuse only the persisted `covertree_v2_2` index, `covertree_v2_2` reported perfect recall while on-the-fly algorithms (`exact`, HNSW, IVF/PQ/SQ8, LSH) collapsed to near `0.0`.
+- **Root cause:** `Dataset._load_memmap_cache` treated `train.format == "memmap"` as raw binary (`np.memmap(...)`) even when the cached train path pointed to a `.npy` file (for preembedded MSMARCO). This can misread data due to `.npy` headers and produce numerically invalid vectors.
+- **Fix implemented (code):**
+  - `src/benchmark/dataset.py`
+    - Added one-time MSMARCO cache-key version token to force clean rebuild (`_cache_key_version` default).
+    - Added `memmap_backend` metadata (`npy` vs `raw`) when saving cache metadata.
+    - Updated metadata loader to use `np.load(..., mmap_mode='r')` for `.npy` memmap entries and keep raw `np.memmap(...)` for true raw buffers.
+    - Added dtype/shape consistency checks at load-time.
+  - `tests/test_dataset_msmarco_preembedded_limits.py`
+    - Added roundtrip test for `.npy` memmap cache metadata.
+    - Added legacy metadata compatibility test (missing `memmap_backend`).
+    - Added raw memmap backend test.
+- **Validation status:** local patch complete; PACE run/test pending due transient SSH timeouts to `login-ice.pace.gatech.edu`.
+- **Next steps when PACE is reachable:**
+  1. Sync updated files to `/home/hice1/pli396/PycharmProjects/vectordb-retrieval`.
+  2. Run targeted tests in `$HOME/scratch/vector-db-venv`.
+  3. Run one MSMARCO sanity benchmark to confirm non-Covertree recalls recover from `0.0`.

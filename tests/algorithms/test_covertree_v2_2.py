@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 from src.algorithms.covertree_v2_2 import CoverTreeV2_2
 
@@ -54,3 +55,66 @@ def test_covertree_v2_2_records_distance_operations() -> None:
 
     tree._compute_distance_batch_to_1(query, vectors[:2])
     np.testing.assert_allclose(tree.operation_counter["ndis"], 7)
+
+
+def test_covertree_v2_2_persistence_roundtrip(tmp_path) -> None:
+    rng = np.random.default_rng(2026)
+    vectors = rng.standard_normal((96, 8)).astype(np.float32)
+    queries = rng.standard_normal((5, 8)).astype(np.float32)
+    artifact_dir = tmp_path / "covertree_artifact"
+
+    original = CoverTreeV2_2(name="covertree_v2_2_original", dimension=8, metric="l2")
+    original.build_index(vectors)
+    original_results = [original.search(query, k=7) for query in queries]
+
+    save_info = original.save_index(
+        str(artifact_dir),
+        context={
+            "dataset_fingerprint": "fp-123",
+            "build_metrics": {"build_time_s": 12.34},
+        },
+    )
+    assert (artifact_dir / "WRITE_COMPLETE").exists()
+    assert save_info["build_time_s"] == pytest.approx(12.34)
+
+    restored = CoverTreeV2_2(name="covertree_v2_2_restored", dimension=8, metric="l2")
+    load_info = restored.load_index(str(artifact_dir), context={"dataset_fingerprint": "fp-123"})
+    assert load_info["build_time_s"] == pytest.approx(12.34)
+
+    for query, (exp_distances, exp_indices) in zip(queries, original_results):
+        got_distances, got_indices = restored.search(query, k=7)
+        np.testing.assert_array_equal(got_indices, exp_indices)
+        np.testing.assert_allclose(got_distances, exp_distances, rtol=0.0, atol=1e-7)
+
+
+def test_covertree_v2_2_persistence_rejects_mismatch(tmp_path) -> None:
+    rng = np.random.default_rng(2027)
+    vectors = rng.standard_normal((48, 6)).astype(np.float32)
+    artifact_dir = tmp_path / "covertree_artifact"
+
+    tree = CoverTreeV2_2(name="covertree_v2_2_persist", dimension=6, metric="l2")
+    tree.build_index(vectors)
+    tree.save_index(str(artifact_dir), context={"dataset_fingerprint": "fp-good"})
+
+    wrong_metric = CoverTreeV2_2(name="covertree_v2_2_wrong_metric", dimension=6, metric="cosine")
+    with pytest.raises(ValueError, match="Metric mismatch"):
+        wrong_metric.load_index(str(artifact_dir), context={"dataset_fingerprint": "fp-good"})
+
+    wrong_fp = CoverTreeV2_2(name="covertree_v2_2_wrong_fp", dimension=6, metric="l2")
+    with pytest.raises(ValueError, match="Dataset fingerprint mismatch"):
+        wrong_fp.load_index(str(artifact_dir), context={"dataset_fingerprint": "fp-bad"})
+
+
+def test_covertree_v2_2_persistence_requires_complete_artifact(tmp_path) -> None:
+    rng = np.random.default_rng(2028)
+    vectors = rng.standard_normal((32, 5)).astype(np.float32)
+    artifact_dir = tmp_path / "covertree_artifact"
+
+    tree = CoverTreeV2_2(name="covertree_v2_2_incomplete", dimension=5, metric="l2")
+    tree.build_index(vectors)
+    tree.save_index(str(artifact_dir))
+
+    (artifact_dir / "WRITE_COMPLETE").unlink()
+    restored = CoverTreeV2_2(name="covertree_v2_2_restore", dimension=5, metric="l2")
+    with pytest.raises(FileNotFoundError, match="WRITE_COMPLETE"):
+        restored.load_index(str(artifact_dir))

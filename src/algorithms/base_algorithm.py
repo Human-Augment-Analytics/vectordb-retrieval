@@ -95,5 +95,29 @@ class BaseAlgorithm(ABC):
     def get_operations(self):
         return dict(self.operation_counter)
 
+    def save_index(
+        self,
+        artifact_dir: str,
+        context: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Persist an already-built index to disk.
+
+        Algorithms that support persistence should override this method.
+        """
+        raise NotImplementedError(f"{self.__class__.__name__} does not support index persistence")
+
+    def load_index(
+        self,
+        artifact_dir: str,
+        context: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Load a previously persisted index from disk.
+
+        Algorithms that support persistence should override this method.
+        """
+        raise NotImplementedError(f"{self.__class__.__name__} does not support index persistence")
+
     def __str__(self) -> str:
         return f"{self.name} (dimension={self.dimension}, parameters={self.config})"

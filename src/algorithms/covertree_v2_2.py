@@ -1,8 +1,14 @@
 from __future__ import annotations
 
 import heapq
+import json
+import shutil
+import tempfile
+from collections import deque
 from dataclasses import dataclass, field
-from typing import Iterable, List, Optional, Sequence, Tuple
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 import numpy as np
 
@@ -39,6 +45,7 @@ class CoverTreeV2_2(BaseAlgorithm):
         self._working_vectors: Optional[np.ndarray] = None
 
         self.config.update({"metric": self.metric_name})
+        self._persistence_schema_version = 1
 
     # ------------------------------------------------------------------
     # Public API
@@ -90,6 +97,189 @@ class CoverTreeV2_2(BaseAlgorithm):
             index_results[row, :limit] = indices[:limit]
 
         return distance_results, index_results
+
+    def save_index(
+        self,
+        artifact_dir: str,
+        context: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        if not self.index_built or self.root is None or self._working_vectors is None:
+            raise RuntimeError("Cannot persist CoverTreeV2_2 before build_index has completed.")
+
+        context = context or {}
+        target_dir = Path(artifact_dir)
+        target_dir.parent.mkdir(parents=True, exist_ok=True)
+
+        force_rebuild = bool(context.get("force_rebuild", False))
+        if target_dir.exists():
+            if not force_rebuild:
+                raise FileExistsError(
+                    f"Artifact directory already exists: {target_dir}. "
+                    "Set persistence.force_rebuild=true to overwrite."
+                )
+            shutil.rmtree(target_dir)
+
+        temp_dir_path = tempfile.mkdtemp(prefix=f".{target_dir.name}.tmp.", dir=str(target_dir.parent))
+        temp_dir = Path(temp_dir_path)
+
+        try:
+            node_indices, node_levels, child_offsets, child_ids = self._serialize_tree()
+
+            vectors_path = temp_dir / "vectors.npy"
+            node_indices_path = temp_dir / "tree_indices.npy"
+            node_levels_path = temp_dir / "tree_levels.npy"
+            child_offsets_path = temp_dir / "tree_child_offsets.npy"
+            child_ids_path = temp_dir / "tree_children.npy"
+
+            np.save(vectors_path, self._working_vectors, allow_pickle=False)
+            np.save(node_indices_path, node_indices, allow_pickle=False)
+            np.save(node_levels_path, node_levels, allow_pickle=False)
+            np.save(child_offsets_path, child_offsets, allow_pickle=False)
+            np.save(child_ids_path, child_ids, allow_pickle=False)
+
+            build_metrics = context.get("build_metrics", {})
+            manifest = {
+                "schema_version": self._persistence_schema_version,
+                "algorithm_type": self.__class__.__name__,
+                "algorithm_name": self.name,
+                "metric": self.metric_name,
+                "dimension": int(self.dimension),
+                "vector_count": int(self._working_vectors.shape[0]),
+                "node_count": int(node_indices.shape[0]),
+                "max_level": int(self.max_level),
+                "root_node_id": 0,
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "dataset_fingerprint": context.get("dataset_fingerprint"),
+                "dataset_fingerprint_payload": context.get("dataset_fingerprint_payload"),
+                "config_hash": context.get("config_hash"),
+                "build_metrics": build_metrics,
+                "files": {
+                    "vectors": vectors_path.name,
+                    "tree_indices": node_indices_path.name,
+                    "tree_levels": node_levels_path.name,
+                    "tree_child_offsets": child_offsets_path.name,
+                    "tree_children": child_ids_path.name,
+                },
+            }
+
+            manifest_path = temp_dir / "manifest.json"
+            build_metrics_path = temp_dir / "build_metrics.json"
+            manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+            build_metrics_path.write_text(json.dumps(build_metrics, indent=2), encoding="utf-8")
+
+            # Last file written: sentinel marks a complete artifact.
+            (temp_dir / "WRITE_COMPLETE").write_text("ok\n", encoding="utf-8")
+
+            temp_dir.rename(target_dir)
+        except Exception:
+            shutil.rmtree(temp_dir, ignore_errors=True)
+            raise
+
+        return {
+            "artifact_dir": str(target_dir),
+            "manifest_path": str(target_dir / "manifest.json"),
+            "build_time_s": float(build_metrics.get("build_time_s", 0.0) or 0.0),
+        }
+
+    def load_index(
+        self,
+        artifact_dir: str,
+        context: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        context = context or {}
+        artifact_path = Path(artifact_dir)
+
+        if not artifact_path.is_dir():
+            raise FileNotFoundError(f"Persisted CoverTreeV2_2 artifact directory not found: {artifact_path}")
+        if not (artifact_path / "WRITE_COMPLETE").is_file():
+            raise FileNotFoundError(
+                f"Artifact is incomplete or corrupted (missing WRITE_COMPLETE): {artifact_path}"
+            )
+
+        manifest_path = artifact_path / "manifest.json"
+        if not manifest_path.is_file():
+            raise FileNotFoundError(f"Missing manifest.json in artifact directory: {artifact_path}")
+
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        self._validate_manifest(manifest, context=context, artifact_dir=str(artifact_path))
+
+        files = manifest.get("files", {})
+        vectors = np.load(artifact_path / files["vectors"], allow_pickle=False)
+        node_indices = np.load(artifact_path / files["tree_indices"], allow_pickle=False)
+        node_levels = np.load(artifact_path / files["tree_levels"], allow_pickle=False)
+        child_offsets = np.load(artifact_path / files["tree_child_offsets"], allow_pickle=False)
+        child_ids = np.load(artifact_path / files["tree_children"], allow_pickle=False)
+
+        if vectors.ndim != 2:
+            raise ValueError(f"Invalid vectors shape in persisted artifact: {vectors.shape}")
+        if vectors.shape[1] != self.dimension:
+            raise ValueError(
+                f"Persisted index dimension mismatch: expected {self.dimension}, found {vectors.shape[1]}"
+            )
+        if node_indices.ndim != 1 or node_levels.ndim != 1:
+            raise ValueError("Persisted tree metadata must be 1-dimensional arrays.")
+        if node_indices.shape[0] != node_levels.shape[0]:
+            raise ValueError("Persisted tree index/level arrays have different lengths.")
+        if child_offsets.ndim != 1 or child_offsets.shape[0] != node_indices.shape[0] + 1:
+            raise ValueError("Persisted child offset array has invalid shape.")
+        if child_ids.ndim != 1:
+            raise ValueError("Persisted child list must be a 1-dimensional array.")
+
+        node_count = int(node_indices.shape[0])
+        nodes: List[_CoverTreeV2Node] = []
+        for i in range(node_count):
+            point_idx = int(node_indices[i])
+            if point_idx < 0 or point_idx >= vectors.shape[0]:
+                raise ValueError(
+                    f"Persisted node points at invalid vector index {point_idx} for node {i} "
+                    f"(vector_count={vectors.shape[0]})"
+                )
+            level = int(node_levels[i])
+            nodes.append(
+                _CoverTreeV2Node(
+                    index=point_idx,
+                    level=level,
+                    vector=vectors[point_idx],
+                    children=[],
+                )
+            )
+
+        for i in range(node_count):
+            start = int(child_offsets[i])
+            end = int(child_offsets[i + 1])
+            if start < 0 or end < start or end > child_ids.shape[0]:
+                raise ValueError(f"Invalid child offset range [{start}, {end}) for node {i}")
+            children = []
+            for child_id in child_ids[start:end]:
+                child_pos = int(child_id)
+                if child_pos < 0 or child_pos >= node_count:
+                    raise ValueError(f"Invalid child node id {child_pos} in persisted tree.")
+                children.append(nodes[child_pos])
+            nodes[i].children = children
+
+        root_id = int(manifest.get("root_node_id", 0))
+        if node_count == 0:
+            self.root = None
+            self.max_level = 0
+        else:
+            if root_id < 0 or root_id >= node_count:
+                raise ValueError(f"Invalid root node id {root_id} in persisted manifest.")
+            self.root = nodes[root_id]
+            self.max_level = int(manifest.get("max_level", max(node_levels.tolist(), default=0)))
+
+        self._working_vectors = np.ascontiguousarray(vectors, dtype=np.float32)
+        self.vectors = self._working_vectors
+        self.metadata = None
+        self.index_built = True
+
+        build_metrics = manifest.get("build_metrics", {})
+        return {
+            "artifact_dir": str(artifact_path),
+            "manifest_path": str(manifest_path),
+            "build_time_s": float(build_metrics.get("build_time_s", 0.0) or 0.0),
+            "dataset_fingerprint": manifest.get("dataset_fingerprint"),
+            "config_hash": manifest.get("config_hash"),
+        }
 
     # ------------------------------------------------------------------
     # Tree construction helpers
@@ -330,6 +520,98 @@ class CoverTreeV2_2(BaseAlgorithm):
             return np.array(
                 [self._metric_fn(query, vec) for vec in vectors],
                 dtype=np.float32,
+            )
+
+    def _serialize_tree(self) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        assert self.root is not None
+
+        nodes: List[_CoverTreeV2Node] = []
+        node_ids: Dict[int, int] = {}
+        queue: deque[_CoverTreeV2Node] = deque([self.root])
+        node_ids[id(self.root)] = 0
+        nodes.append(self.root)
+
+        while queue:
+            node = queue.popleft()
+            for child in node.children:
+                child_key = id(child)
+                if child_key in node_ids:
+                    continue
+                node_ids[child_key] = len(nodes)
+                nodes.append(child)
+                queue.append(child)
+
+        node_count = len(nodes)
+        node_indices = np.empty(node_count, dtype=np.int64)
+        node_levels = np.empty(node_count, dtype=np.int32)
+        child_offsets = np.zeros(node_count + 1, dtype=np.int64)
+        flat_children: List[int] = []
+
+        for i, node in enumerate(nodes):
+            node_indices[i] = int(node.index)
+            node_levels[i] = int(node.level)
+            for child in node.children:
+                child_id = node_ids[id(child)]
+                flat_children.append(child_id)
+            child_offsets[i + 1] = len(flat_children)
+
+        child_ids = np.asarray(flat_children, dtype=np.int64)
+        return node_indices, node_levels, child_offsets, child_ids
+
+    def _validate_manifest(
+        self,
+        manifest: Dict[str, Any],
+        context: Dict[str, Any],
+        artifact_dir: str,
+    ) -> None:
+        schema_version = int(manifest.get("schema_version", -1))
+        if schema_version != self._persistence_schema_version:
+            raise ValueError(
+                f"Unsupported CoverTreeV2_2 persistence schema version {schema_version} "
+                f"(expected {self._persistence_schema_version})."
+            )
+
+        algorithm_type = manifest.get("algorithm_type")
+        if algorithm_type != self.__class__.__name__:
+            raise ValueError(
+                f"Persisted artifact at {artifact_dir} was built for {algorithm_type}, "
+                f"not {self.__class__.__name__}."
+            )
+
+        persisted_metric = str(manifest.get("metric", "")).lower()
+        if persisted_metric != self.metric_name:
+            raise ValueError(
+                f"Metric mismatch for persisted index at {artifact_dir}: "
+                f"expected '{self.metric_name}', found '{persisted_metric}'."
+            )
+
+        persisted_dimension = int(manifest.get("dimension", -1))
+        if persisted_dimension != self.dimension:
+            raise ValueError(
+                f"Dimension mismatch for persisted index at {artifact_dir}: "
+                f"expected {self.dimension}, found {persisted_dimension}."
+            )
+
+        expected_fingerprint = context.get("dataset_fingerprint")
+        artifact_fingerprint = manifest.get("dataset_fingerprint")
+        if expected_fingerprint:
+            if artifact_fingerprint is None:
+                raise ValueError(
+                    f"Persisted artifact at {artifact_dir} does not include dataset_fingerprint; "
+                    "cannot validate compatibility."
+                )
+            if str(expected_fingerprint) != str(artifact_fingerprint):
+                raise ValueError(
+                    f"Dataset fingerprint mismatch for persisted index at {artifact_dir}. "
+                    f"Expected {expected_fingerprint}, found {artifact_fingerprint}."
+                )
+
+        expected_config_hash = context.get("config_hash")
+        artifact_config_hash = manifest.get("config_hash")
+        if expected_config_hash and artifact_config_hash and str(expected_config_hash) != str(artifact_config_hash):
+            raise ValueError(
+                f"Config hash mismatch for persisted index at {artifact_dir}. "
+                f"Expected {expected_config_hash}, found {artifact_config_hash}."
             )
 
     def _metric_fn(self, a: np.ndarray, b: np.ndarray) -> float:

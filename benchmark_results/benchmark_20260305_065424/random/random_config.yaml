@@ -1,0 +1,26 @@
+algorithms:
+  exact:
+    indexer:
+      metric: l2
+      type: BruteForceIndexer
+    metric: l2
+    searcher:
+      metric: l2
+      type: LinearSearcher
+    type: Composite
+data_dir: /tmp/codex_benchmark_data
+dataset: random
+dataset_options:
+  dimensions: 16
+  ground_truth_k: 10
+  seed: 9
+  test_size: 32
+  train_size: 256
+force_download: false
+metric: l2
+n_queries: 16
+output_prefix: random_20260305_065424
+query_batch_size: 0
+repeat: 1
+seed: 42
+topk: 5

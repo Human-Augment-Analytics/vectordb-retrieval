@@ -1,0 +1,43 @@
+{
+  "algorithm": "exact",
+  "parameters": {
+    "metric": "cosine",
+    "indexer": {
+      "name": "BruteForceIndexer",
+      "type": "BruteForceIndexer",
+      "metric": "cosine"
+    },
+    "searcher": {
+      "name": "LinearSearcher",
+      "type": "LinearSearcher",
+      "metric": "cosine"
+    }
+  },
+  "dataset": "msmarco",
+  "n_train": 100000,
+  "n_test": 70,
+  "dimensions": 384,
+  "topk": 20,
+  "build_time_s": 0.838414192199707,
+  "index_memory_mb": 146.484375,
+  "qps": 192.18139330902707,
+  "mean_query_time_ms": 5.203417369297574,
+  "total_query_time_s": 0.36423921585083013,
+  "index_load_time_s": 0.0,
+  "index_source": "built",
+  "persistence_mode": null,
+  "persist_dir": null,
+  "dataset_fingerprint": null,
+  "config_hash": null,
+  "timestamp": "2026-03-03T12:29:16.165644",
+  "recall@1": 0.0,
+  "precision@1": 0.0,
+  "recall@10": 0.0,
+  "precision@10": 0.0,
+  "map@10": 0.0,
+  "mean_query_time": 5.203417369297574,
+  "median_query_time": 5.203417369297573,
+  "min_query_time": 5.203417369297573,
+  "max_query_time": 5.203417369297573,
+  "recall": 0.0
+}

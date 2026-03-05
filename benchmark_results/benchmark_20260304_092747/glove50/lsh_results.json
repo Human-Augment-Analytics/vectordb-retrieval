@@ -1,0 +1,54 @@
+{
+  "algorithm": "lsh",
+  "parameters": {
+    "metric": "l2",
+    "indexer": {
+      "name": "LSHIndexer",
+      "type": "LSHIndexer",
+      "metric": "l2",
+      "params": {
+        "num_tables": 12,
+        "hash_size": 4,
+        "bucket_width": 20.0,
+        "seed": 42
+      }
+    },
+    "searcher": {
+      "name": "LSHSearcher",
+      "type": "LSHSearcher",
+      "metric": "l2",
+      "params": {
+        "candidate_multiplier": 64.0,
+        "max_candidates": null,
+        "fallback_to_bruteforce": false
+      }
+    }
+  },
+  "dataset": "glove50",
+  "n_train": 20000,
+  "n_test": 256,
+  "dimensions": 50,
+  "topk": 20,
+  "build_time_s": 0.38335204124450684,
+  "index_memory_mb": 6.7177276611328125,
+  "qps": 87.45092115128722,
+  "mean_query_time_ms": 11.43498532474041,
+  "total_query_time_s": 2.927356243133545,
+  "index_load_time_s": 0.0,
+  "index_source": "built",
+  "persistence_mode": null,
+  "persist_dir": null,
+  "dataset_fingerprint": null,
+  "config_hash": null,
+  "timestamp": "2026-03-04T09:39:06.979403",
+  "recall@1": 0.61328125,
+  "precision@1": 1.0,
+  "recall@10": 0.5074218749999999,
+  "precision@10": 1.0,
+  "map@10": 0.05000000000000001,
+  "mean_query_time": 11.43498532474041,
+  "median_query_time": 11.43498532474041,
+  "min_query_time": 9.47568193078041,
+  "max_query_time": 13.394288718700409,
+  "recall": 0.5074218749999999
+}

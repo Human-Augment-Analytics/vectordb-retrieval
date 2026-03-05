@@ -1,0 +1,391 @@
+{
+  "exact": {
+    "algorithm": "exact",
+    "parameters": {
+      "metric": "cosine",
+      "indexer": {
+        "name": "BruteForceIndexer",
+        "type": "BruteForceIndexer",
+        "metric": "cosine"
+      },
+      "searcher": {
+        "name": "LinearSearcher",
+        "type": "LinearSearcher",
+        "metric": "cosine"
+      }
+    },
+    "dataset": "msmarco",
+    "n_train": 100000,
+    "n_test": 70,
+    "dimensions": 384,
+    "topk": 20,
+    "build_time_s": 0.8069491386413574,
+    "index_memory_mb": 146.484375,
+    "qps": 455.3842908614886,
+    "mean_query_time_ms": 2.1959475108555386,
+    "total_query_time_s": 0.1537163257598877,
+    "index_load_time_s": 0.0,
+    "index_source": "built",
+    "persistence_mode": null,
+    "persist_dir": null,
+    "dataset_fingerprint": null,
+    "config_hash": null,
+    "timestamp": "2026-03-03T14:17:27.295489",
+    "recall@1": 0.0,
+    "precision@1": 0.0,
+    "recall@10": 0.0,
+    "precision@10": 0.0,
+    "map@10": 0.0,
+    "mean_query_time": 2.1959475108555377,
+    "median_query_time": 2.1959475108555386,
+    "min_query_time": 2.1959475108555386,
+    "max_query_time": 2.1959475108555386,
+    "recall": 0.0
+  },
+  "hnsw": {
+    "algorithm": "hnsw",
+    "parameters": {
+      "metric": "cosine",
+      "indexer": {
+        "name": "HNSWIndexer",
+        "type": "HNSWIndexer",
+        "metric": "cosine",
+        "params": {
+          "M": 16,
+          "efConstruction": 200,
+          "efSearch": 100
+        }
+      },
+      "searcher": {
+        "name": "FaissSearcher",
+        "type": "FaissSearcher",
+        "metric": "cosine",
+        "params": {
+          "nprobe": 32
+        }
+      }
+    },
+    "dataset": "msmarco",
+    "n_train": 100000,
+    "n_test": 70,
+    "dimensions": 384,
+    "topk": 20,
+    "build_time_s": 12.757060050964355,
+    "index_memory_mb": 158.69140625,
+    "qps": 1843.0135902827913,
+    "mean_query_time_ms": 0.5425895963396344,
+    "total_query_time_s": 0.037981271743774414,
+    "index_load_time_s": 0.0,
+    "index_source": "built",
+    "persistence_mode": null,
+    "persist_dir": null,
+    "dataset_fingerprint": null,
+    "config_hash": null,
+    "timestamp": "2026-03-03T14:17:40.091025",
+    "recall@1": 0.0,
+    "precision@1": 0.0,
+    "recall@10": 0.0,
+    "precision@10": 0.0,
+    "map@10": 0.0,
+    "mean_query_time": 0.5425895963396343,
+    "median_query_time": 0.5425895963396344,
+    "min_query_time": 0.5425895963396344,
+    "max_query_time": 0.5425895963396344,
+    "recall": 0.0
+  },
+  "ivf_flat": {
+    "algorithm": "ivf_flat",
+    "parameters": {
+      "metric": "cosine",
+      "indexer": {
+        "name": "FaissIVFIndexer",
+        "type": "FaissIVFIndexer",
+        "metric": "cosine",
+        "params": {
+          "nprobe": 10,
+          "index_type": "IVF100,Flat",
+          "index_key": "IVF100,Flat"
+        }
+      },
+      "searcher": {
+        "name": "FaissSearcher",
+        "type": "FaissSearcher",
+        "metric": "cosine",
+        "params": {
+          "nprobe": 32
+        }
+      }
+    },
+    "dataset": "msmarco",
+    "n_train": 100000,
+    "n_test": 70,
+    "dimensions": 384,
+    "topk": 20,
+    "build_time_s": 0.6858863830566406,
+    "index_memory_mb": 146.484375,
+    "qps": 1580.005058577248,
+    "mean_query_time_ms": 0.6329093660627093,
+    "total_query_time_s": 0.04430365562438965,
+    "index_load_time_s": 0.0,
+    "index_source": "built",
+    "persistence_mode": null,
+    "persist_dir": null,
+    "dataset_fingerprint": null,
+    "config_hash": null,
+    "timestamp": "2026-03-03T14:17:40.821955",
+    "recall@1": 0.0,
+    "precision@1": 0.0,
+    "recall@10": 0.0,
+    "precision@10": 0.0014285714285714286,
+    "map@10": 7.142857142857143e-06,
+    "mean_query_time": 0.6329093660627093,
+    "median_query_time": 0.6329093660627093,
+    "min_query_time": 0.6329093660627093,
+    "max_query_time": 0.6329093660627093,
+    "recall": 0.0
+  },
+  "ivf_pq": {
+    "algorithm": "ivf_pq",
+    "parameters": {
+      "metric": "cosine",
+      "indexer": {
+        "name": "FaissFactoryIndexer",
+        "type": "FaissFactoryIndexer",
+        "metric": "cosine",
+        "params": {
+          "nprobe": 48,
+          "index_key": "IVF256,PQ64"
+        }
+      },
+      "searcher": {
+        "name": "FaissSearcher",
+        "type": "FaissSearcher",
+        "metric": "cosine",
+        "params": {
+          "nprobe": 48
+        }
+      }
+    },
+    "dataset": "msmarco",
+    "n_train": 100000,
+    "n_test": 70,
+    "dimensions": 384,
+    "topk": 20,
+    "build_time_s": 15.621838092803955,
+    "index_memory_mb": 6.103515625,
+    "qps": 916.558798738801,
+    "mean_query_time_ms": 1.0910374777657645,
+    "total_query_time_s": 0.07637262344360352,
+    "index_load_time_s": 0.0,
+    "index_source": "built",
+    "persistence_mode": null,
+    "persist_dir": null,
+    "dataset_fingerprint": null,
+    "config_hash": null,
+    "timestamp": "2026-03-03T14:17:56.520690",
+    "recall@1": 0.0,
+    "precision@1": 0.0,
+    "recall@10": 0.0,
+    "precision@10": 0.0,
+    "map@10": 0.0,
+    "mean_query_time": 1.091037477765764,
+    "median_query_time": 1.0910374777657645,
+    "min_query_time": 1.0910374777657645,
+    "max_query_time": 1.0910374777657645,
+    "recall": 0.0
+  },
+  "ivf_sq8": {
+    "algorithm": "ivf_sq8",
+    "parameters": {
+      "metric": "cosine",
+      "indexer": {
+        "name": "FaissFactoryIndexer",
+        "type": "FaissFactoryIndexer",
+        "metric": "cosine",
+        "params": {
+          "nprobe": 48,
+          "index_key": "IVF256,SQ8"
+        }
+      },
+      "searcher": {
+        "name": "FaissSearcher",
+        "type": "FaissSearcher",
+        "metric": "cosine",
+        "params": {
+          "nprobe": 48
+        }
+      }
+    },
+    "dataset": "msmarco",
+    "n_train": 100000,
+    "n_test": 70,
+    "dimensions": 384,
+    "topk": 20,
+    "build_time_s": 2.8493268489837646,
+    "index_memory_mb": 36.62109375,
+    "qps": 12092.80777626756,
+    "mean_query_time_ms": 0.08269378117152623,
+    "total_query_time_s": 0.005788564682006836,
+    "index_load_time_s": 0.0,
+    "index_source": "built",
+    "persistence_mode": null,
+    "persist_dir": null,
+    "dataset_fingerprint": null,
+    "config_hash": null,
+    "timestamp": "2026-03-03T14:17:59.376759",
+    "recall@1": 0.0,
+    "precision@1": 0.0,
+    "recall@10": 0.0,
+    "precision@10": 0.0014285714285714286,
+    "map@10": 7.142857142857143e-06,
+    "mean_query_time": 0.0826937811715262,
+    "median_query_time": 0.08269378117152623,
+    "min_query_time": 0.08269378117152623,
+    "max_query_time": 0.08269378117152623,
+    "recall": 0.0
+  },
+  "pq": {
+    "algorithm": "pq",
+    "parameters": {
+      "metric": "cosine",
+      "indexer": {
+        "name": "FaissFactoryIndexer",
+        "type": "FaissFactoryIndexer",
+        "metric": "cosine",
+        "params": {
+          "index_key": "PQ64"
+        }
+      },
+      "searcher": {
+        "name": "FaissSearcher",
+        "type": "FaissSearcher",
+        "metric": "cosine",
+        "params": {
+          "nprobe": 48
+        }
+      }
+    },
+    "dataset": "msmarco",
+    "n_train": 100000,
+    "n_test": 70,
+    "dimensions": 384,
+    "topk": 20,
+    "build_time_s": 13.271079540252686,
+    "index_memory_mb": 6.103515625,
+    "qps": 6684.910746812385,
+    "mean_query_time_ms": 0.14959062848772325,
+    "total_query_time_s": 0.010471343994140627,
+    "index_load_time_s": 0.0,
+    "index_source": "built",
+    "persistence_mode": null,
+    "persist_dir": null,
+    "dataset_fingerprint": null,
+    "config_hash": null,
+    "timestamp": "2026-03-03T14:18:12.658828",
+    "recall@1": 0.0,
+    "precision@1": 0.0,
+    "recall@10": 0.0,
+    "precision@10": 0.0014285714285714286,
+    "map@10": 2.3809523809523807e-05,
+    "mean_query_time": 0.14959062848772325,
+    "median_query_time": 0.14959062848772323,
+    "min_query_time": 0.14959062848772323,
+    "max_query_time": 0.14959062848772323,
+    "recall": 0.0
+  },
+  "covertree_v2_2": {
+    "algorithm": "covertree_v2_2",
+    "parameters": {
+      "persistence": {
+        "enabled": true,
+        "mode": "retrieve_only",
+        "artifact_dir": "/storage/ice-shared/cs8903onl/vectordb-retrieval/indexes/covertree_v2_2/msmarco_cosine_base50000_q200_gt200",
+        "path_policy": "fixed",
+        "force_rebuild": false,
+        "fail_if_missing": true
+      },
+      "metric": "cosine"
+    },
+    "dataset": "msmarco",
+    "n_train": 100000,
+    "n_test": 70,
+    "dimensions": 384,
+    "topk": 20,
+    "build_time_s": 9104.632672548294,
+    "index_memory_mb": 149.53616333007812,
+    "qps": 7.6997852146935175,
+    "mean_query_time_ms": 129.87375259399414,
+    "total_query_time_s": 9.09116268157959,
+    "index_load_time_s": 0.5938165187835693,
+    "index_source": "loaded",
+    "persistence_mode": "retrieve_only",
+    "persist_dir": "/storage/ice-shared/cs8903onl/vectordb-retrieval/indexes/covertree_v2_2/msmarco_cosine_base50000_q200_gt200",
+    "dataset_fingerprint": "3c1ce6aba3b05feb14d8638f2339588c8b2e87c509b5f82a8ac25220da069380",
+    "config_hash": "2fb4ecea38519605915b184e64e4391a3f2bf2080a210a5f63c6ecede1310f57",
+    "timestamp": "2026-03-03T14:18:22.358587",
+    "recall@1": 1.0,
+    "precision@1": 1.0,
+    "recall@10": 1.0,
+    "precision@10": 1.0,
+    "map@10": 0.04999999999999998,
+    "mean_query_time": 129.87375259399414,
+    "median_query_time": 129.87375259399414,
+    "min_query_time": 129.87375259399414,
+    "max_query_time": 129.87375259399414,
+    "recall": 1.0
+  },
+  "lsh": {
+    "algorithm": "lsh",
+    "parameters": {
+      "metric": "cosine",
+      "indexer": {
+        "name": "LSHIndexer",
+        "type": "LSHIndexer",
+        "metric": "cosine",
+        "params": {
+          "num_tables": 12,
+          "hash_size": 12,
+          "bucket_width": 4.0,
+          "seed": 42
+        }
+      },
+      "searcher": {
+        "name": "LSHSearcher",
+        "type": "LSHSearcher",
+        "metric": "cosine",
+        "params": {
+          "candidate_multiplier": 32.0,
+          "max_candidates": null,
+          "fallback_to_bruteforce": false
+        }
+      }
+    },
+    "dataset": "msmarco",
+    "n_train": 100000,
+    "n_test": 70,
+    "dimensions": 384,
+    "topk": 20,
+    "build_time_s": 2.3683876991271973,
+    "index_memory_mb": 166.15512084960938,
+    "qps": 3186.849743294727,
+    "mean_query_time_ms": 0.3137895039149694,
+    "total_query_time_s": 0.02196526527404786,
+    "index_load_time_s": 0.0,
+    "index_source": "built",
+    "persistence_mode": null,
+    "persist_dir": null,
+    "dataset_fingerprint": null,
+    "config_hash": null,
+    "timestamp": "2026-03-03T14:18:24.760826",
+    "recall@1": 0.0,
+    "precision@1": 0.0,
+    "recall@10": 0.0,
+    "precision@10": 0.0,
+    "map@10": 0.0,
+    "mean_query_time": 0.3137895039149694,
+    "median_query_time": 0.3137895039149693,
+    "min_query_time": 0.3137895039149693,
+    "max_query_time": 0.3137895039149693,
+    "recall": 0.0
+  }
+}

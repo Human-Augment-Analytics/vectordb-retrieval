@@ -1,0 +1,44 @@
+{
+  "random": {
+    "exact": {
+      "algorithm": "exact",
+      "parameters": {
+        "metric": "l2",
+        "indexer": {
+          "name": "BruteForceIndexer",
+          "type": "BruteForceIndexer",
+          "metric": "l2"
+        },
+        "searcher": {
+          "name": "LinearSearcher",
+          "type": "LinearSearcher",
+          "metric": "l2"
+        }
+      },
+      "dataset": "random",
+      "n_train": 256,
+      "n_test": 16,
+      "dimensions": 16,
+      "topk": 5,
+      "build_time_s": 1.0728836059570312e-05,
+      "index_memory_mb": 0.015625,
+      "qps": 29576.40546496254,
+      "mean_query_time_ms": 0.03381073474884033,
+      "total_query_time_s": 0.0005409717559814453,
+      "index_load_time_s": 0.0,
+      "index_source": "built",
+      "persistence_mode": null,
+      "persist_dir": null,
+      "dataset_fingerprint": null,
+      "config_hash": null,
+      "timestamp": "2026-03-05T06:54:24.221238",
+      "recall@1": 1.0,
+      "precision@1": 1.0,
+      "mean_query_time": 0.03381073474884033,
+      "median_query_time": 0.03381073474884033,
+      "min_query_time": 0.03381073474884033,
+      "max_query_time": 0.03381073474884033,
+      "recall": 1.0
+    }
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "algorithm": "pq",
+  "parameters": {
+    "metric": "l2",
+    "indexer": {
+      "name": "FaissFactoryIndexer",
+      "type": "FaissFactoryIndexer",
+      "metric": "l2",
+      "params": {
+        "index_key": "PQ50"
+      }
+    },
+    "searcher": {
+      "name": "FaissSearcher",
+      "type": "FaissSearcher",
+      "metric": "l2",
+      "params": {
+        "nprobe": 24
+      }
+    }
+  },
+  "dataset": "glove50",
+  "n_train": 20000,
+  "n_test": 256,
+  "dimensions": 50,
+  "topk": 20,
+  "build_time_s": 10.890849351882935,
+  "index_memory_mb": 0.95367431640625,
+  "qps": 25195.15273247765,
+  "mean_query_time_ms": 0.03969017416238785,
+  "total_query_time_s": 0.010160684585571289,
+  "index_load_time_s": 0.0,
+  "index_source": "built",
+  "persistence_mode": null,
+  "persist_dir": null,
+  "dataset_fingerprint": null,
+  "config_hash": null,
+  "timestamp": "2026-03-03T14:13:54.630283",
+  "recall@1": 0.984375,
+  "precision@1": 1.0,
+  "recall@10": 0.9820312500000001,
+  "precision@10": 1.0,
+  "map@10": 0.05000000000000001,
+  "mean_query_time": 0.03969017416238785,
+  "median_query_time": 0.03969017416238785,
+  "min_query_time": 0.03837421536445618,
+  "max_query_time": 0.04100613296031952,
+  "recall": 0.9820312500000001
+}

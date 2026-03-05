@@ -1,0 +1,54 @@
+{
+  "algorithm": "lsh",
+  "parameters": {
+    "metric": "cosine",
+    "indexer": {
+      "name": "LSHIndexer",
+      "type": "LSHIndexer",
+      "metric": "cosine",
+      "params": {
+        "num_tables": 12,
+        "hash_size": 12,
+        "bucket_width": 4.0,
+        "seed": 42
+      }
+    },
+    "searcher": {
+      "name": "LSHSearcher",
+      "type": "LSHSearcher",
+      "metric": "cosine",
+      "params": {
+        "candidate_multiplier": 32.0,
+        "max_candidates": null,
+        "fallback_to_bruteforce": false
+      }
+    }
+  },
+  "dataset": "msmarco",
+  "n_train": 50000,
+  "n_test": 70,
+  "dimensions": 384,
+  "topk": 20,
+  "build_time_s": 1.1902663707733154,
+  "index_memory_mb": 85.79574584960938,
+  "qps": 4042.646985927902,
+  "mean_query_time_ms": 0.2473626817975727,
+  "total_query_time_s": 0.01731538772583009,
+  "index_load_time_s": 0.0,
+  "index_source": "built",
+  "persistence_mode": null,
+  "persist_dir": null,
+  "dataset_fingerprint": null,
+  "config_hash": null,
+  "timestamp": "2026-03-03T07:00:19.232760",
+  "recall@1": 0.0,
+  "precision@1": 0.0,
+  "recall@10": 0.0,
+  "precision@10": 0.002857142857142857,
+  "map@10": 1.6865079365079364e-05,
+  "mean_query_time": 0.2473626817975727,
+  "median_query_time": 0.24736268179757254,
+  "min_query_time": 0.24736268179757254,
+  "max_query_time": 0.24736268179757254,
+  "recall": 0.0
+}

@@ -1,12 +1,22 @@
 from __future__ import annotations
 
 import heapq
+import os
 from dataclasses import dataclass, field
 from typing import Iterable, List, Optional, Sequence, Tuple
 
 import numpy as np
 
 from .base_algorithm import BaseAlgorithm
+
+_disable_cython = os.environ.get("COVERTREE_DISABLE_CYTHON", "").strip().lower() in {"1", "true", "yes"}
+if _disable_cython:
+    _covertree_cython = None
+else:
+    try:
+        from . import _covertree_cython as _covertree_cython
+    except ImportError:  # pragma: no cover - exercised when extension is absent
+        _covertree_cython = None
 
 
 @dataclass
@@ -24,7 +34,7 @@ class CoverTreeV2_2(BaseAlgorithm):
     Optimized Cover Tree variant (V2.2) based on CoverTreeV2.
     
     Optimizations & Changes:
-    1. Vectorized distance calculations using NumPy.
+    1. Optional Cython-accelerated distance kernels with NumPy fallback.
     2. Implements Exact k-NN search (100% recall) using dynamic pruning with a priority queue.
        This replaces the previous 1-NN heuristic and brute-force fallback.
     3. Merged search and ranking steps to avoid redundant distance computations.
@@ -37,6 +47,7 @@ class CoverTreeV2_2(BaseAlgorithm):
         self.max_level = 0
         self._vectors: Optional[np.ndarray] = None
         self._working_vectors: Optional[np.ndarray] = None
+        self._use_cython_kernels = _covertree_cython is not None
 
         self.config.update({"metric": self.metric_name})
 
@@ -146,37 +157,59 @@ class CoverTreeV2_2(BaseAlgorithm):
     def _insert(self, idx: int, queue: Iterable[_CoverTreeV2Node], level: int) -> bool:
         assert self._working_vectors is not None
         point_vector = self._working_vectors[idx]
-        distance_threshold = 2.0 ** level
-        queue = list(queue)
+        current_queue = list(queue)
+        current_level = level
 
-        children: List[_CoverTreeV2Node] = []
-        for node in queue:
-            children.extend(node.children)
+        # Maintain a path for iterative backtracking: when insertion at a deeper
+        # level fails, we retry attachment at each ancestor frontier.
+        path: List[Tuple[List[_CoverTreeV2Node], int]] = []
 
-        # Optimization: Vectorized check for children
-        if children:
-            child_vectors = np.stack([c.vector for c in children])
+        # Descend while there are child frontiers that satisfy cover constraints.
+        while True:
+            distance_threshold = 2.0 ** current_level
+            children: List[_CoverTreeV2Node] = []
+            for node in current_queue:
+                children.extend(node.children)
+
+            if not children:
+                break
+
+            child_indices = np.fromiter(
+                (child.index for child in children),
+                dtype=np.int64,
+                count=len(children),
+            )
+            child_vectors = self._working_vectors[child_indices]
             dists = self._compute_distance_batch_to_1(point_vector, child_vectors)
-            filtered = [child for child, d in zip(children, dists) if d <= distance_threshold]
-        else:
-            filtered = []
+            keep_positions = np.flatnonzero(dists <= distance_threshold)
+            if keep_positions.size == 0:
+                break
 
-        if filtered and self._insert(idx, filtered, level - 1):
-            return True
+            path.append((current_queue, current_level))
+            current_queue = [children[i] for i in keep_positions]
+            current_level -= 1
 
-        # Optimization: Vectorized check for queue nodes
-        if queue:
-            node_vectors = np.stack([n.vector for n in queue])
-            dists_nodes = self._compute_distance_batch_to_1(point_vector, node_vectors)
-            
-            # Find first node that satisfies the condition
-            for i, d in enumerate(dists_nodes):
-                if d <= distance_threshold:
-                    new_node = self._make_node(idx, level=level - 1)
-                    queue[i].children.append(new_node)
+        # Try attaching at current frontier; if not possible, backtrack upwards.
+        while True:
+            distance_threshold = 2.0 ** current_level
+            if current_queue:
+                queue_indices = np.fromiter(
+                    (node.index for node in current_queue),
+                    dtype=np.int64,
+                    count=len(current_queue),
+                )
+                node_vectors = self._working_vectors[queue_indices]
+                dists_nodes = self._compute_distance_batch_to_1(point_vector, node_vectors)
+                attach_positions = np.flatnonzero(dists_nodes <= distance_threshold)
+                if attach_positions.size > 0:
+                    parent_idx = int(attach_positions[0])
+                    new_node = self._make_node(idx, level=current_level - 1)
+                    current_queue[parent_idx].children.append(new_node)
                     return True
 
-        return False
+            if not path:
+                return False
+            current_queue, current_level = path.pop()
 
     # ------------------------------------------------------------------
     # Exact k-NN Search Logic
@@ -220,7 +253,11 @@ class CoverTreeV2_2(BaseAlgorithm):
         current_nodes: List[_CoverTreeV2Node] = [self.root]
         
         # Add root to candidates immediately
-        root_dist = float(self._compute_distance_batch_to_1(query, np.array([self.root.vector]))[0])
+        root_dist = float(
+            self._compute_distance_batch_to_1(
+                query, self._working_vectors[np.array([self.root.index], dtype=np.int64)]
+            )[0]
+        )
         update_heap(root_dist, self.root.index)
         
         level = self.max_level
@@ -235,7 +272,12 @@ class CoverTreeV2_2(BaseAlgorithm):
                 break
                 
             # 2. Compute distances to all children efficiently
-            child_vectors = np.stack([c.vector for c in all_children])
+            child_indices = np.fromiter(
+                (child.index for child in all_children),
+                dtype=np.int64,
+                count=len(all_children),
+            )
+            child_vectors = self._working_vectors[child_indices]
             child_distances = self._compute_distance_batch_to_1(query, child_vectors)
             
             # 3. Determine current pruning bound before heap updates.
@@ -315,16 +357,32 @@ class CoverTreeV2_2(BaseAlgorithm):
         vectors: (N, D)
         query: (D,)
         """
+        if vectors.dtype != np.float32:
+            vectors = vectors.astype(np.float32, copy=False)
+        if query.dtype != np.float32:
+            query = query.astype(np.float32, copy=False)
+
+        if not vectors.flags.c_contiguous:
+            vectors = np.ascontiguousarray(vectors)
+        if not query.flags.c_contiguous:
+            query = np.ascontiguousarray(query)
+
         if self.metric_name in ("l2", "euclidean"):
-            diff = vectors - query
             self.record_operation("ndis", float(len(vectors)))
+            if self._use_cython_kernels:
+                return _covertree_cython.l2_distances_to_query(query, vectors)
+            diff = vectors - query
             return np.linalg.norm(diff, axis=1)
         elif self.metric_name == "cosine":
             # vectors and query are assumed normalized
             self.record_operation("ndis", float(len(vectors)))
+            if self._use_cython_kernels:
+                return _covertree_cython.cosine_distances_to_query(query, vectors)
             return 1.0 - np.dot(vectors, query)
         elif self.metric_name in ("dot", "ip", "inner_product"):
             self.record_operation("ndis", float(len(vectors)))
+            if self._use_cython_kernels:
+                return _covertree_cython.negative_dot_to_query(query, vectors)
             return -np.dot(vectors, query)
         else:
             return np.array(

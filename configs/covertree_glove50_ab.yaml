@@ -1,0 +1,21 @@
+data_dir: /storage/ice-shared/cs8903onl/vectordb-retrieval/datasets
+output_dir: benchmark_results
+output_prefix: covertree_glove50_ab
+seed: 42
+query_batch_size: 0
+
+algorithms:
+  covertree_v2_2:
+    type: CoverTreeV2_2
+    metric: cosine
+
+datasets:
+  - name: glove50
+    metric: cosine
+    n_queries: 200
+    topk: 20
+    dataset_options:
+      test_size: 256
+      train_limit: 20000
+      ground_truth_k: 200
+      seed: 11

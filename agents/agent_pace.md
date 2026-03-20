@@ -37,7 +37,86 @@ This file is the PACE-only execution guide. Use it when `pwd` contains `hice1`.
 - On timeout/failure: tune `#SBATCH -t`, CPU/memory, or narrow algorithms.
 - For MSMARCO or similarly heavy datasets, prefer narrower suites or longer walltime.
 
-## 7) Documentation Automation (Required)
+## 7) Persisted Covertree MSMARCO Runbook
+- Use this flow when MSMARCO Covertree build time is too large for a single end-to-end job.
+- The current design persists only `covertree_v2_2`; other algorithms still build in the active job.
+- The current fixed shared artifact path is:
+  - `/storage/ice-shared/cs8903onl/vectordb-retrieval/indexes/covertree_v2_2/msmarco_cosine_base50000_q200_gt200`
+- The folder name is only a human label. Real compatibility is enforced by the persisted manifest, `dataset_fingerprint`, and `config_hash`.
+
+### Build The Persisted MSMARCO Covertree Index
+- Config:
+  - `configs/benchmark_all_covertree_v2_2_build.yaml`
+- Job script:
+  - `slurm_jobs/codex_covertree_v2_2_msmarco_build.sbatch`
+- Submit:
+  - `sbatch slurm_jobs/codex_covertree_v2_2_msmarco_build.sbatch`
+- Behavior:
+  - runs `covertree_v2_2` on MSMARCO with `persistence.mode=build_only`
+  - writes the persisted artifact to shared storage
+  - skips retrieval/evaluation for that run
+  - overwrites the target artifact when `force_rebuild: true`
+
+### Retrieve Using The Persisted MSMARCO Covertree Index
+- Config:
+  - `configs/benchmark_all_covertree_v2_2_retrieve.yaml`
+- Job script:
+  - `slurm_jobs/codex_covertree_v2_2_msmarco_retrieve.sbatch`
+- Submit:
+  - `sbatch slurm_jobs/codex_covertree_v2_2_msmarco_retrieve.sbatch`
+- Behavior:
+  - runs `covertree_v2_2` on MSMARCO with `persistence.mode=retrieve_only`
+  - loads the existing artifact from shared storage
+  - hard-fails if the artifact is missing because `fail_if_missing: true`
+  - reports `index_source=loaded` and carries `build_time_s` from the persisted manifest
+
+### Run Full All-Algorithm Comparison While Reusing Covertree
+- Config:
+  - `configs/benchmark_all_datasets_msm100k_covertree_reuse.yaml`
+- Job script:
+  - `slurm_jobs/codex_all_datasets_msm100k_reuse_ct.sbatch`
+- Submit:
+  - `sbatch slurm_jobs/codex_all_datasets_msm100k_reuse_ct.sbatch`
+- Behavior:
+  - runs the full benchmark suite
+  - loads the pre-persisted MSMARCO Covertree index
+  - builds all non-Covertree algorithms in the active job
+  - keeps MSMARCO at the same configured size used by the persisted Covertree artifact
+
+### Optional Dependency Chaining
+- Use SLURM dependency chaining if you want the retrieve job to start only after the build job succeeds.
+- Example:
+```bash
+build_id=$(sbatch slurm_jobs/codex_covertree_v2_2_msmarco_build.sbatch | awk '{print $4}')
+sbatch --dependency=afterok:${build_id} slurm_jobs/codex_covertree_v2_2_msmarco_retrieve.sbatch
+```
+- `afterok` means the second job runs only if the first job exits successfully. This avoids loading a partial or failed build.
+
+### Validate The Persisted Artifact
+- Expected files under the artifact directory:
+  - `manifest.json`
+  - `build_metrics.json`
+  - `vectors.npy`
+  - `tree_indices.npy`
+  - `tree_levels.npy`
+  - `tree_child_offsets.npy`
+  - `tree_children.npy`
+  - `WRITE_COMPLETE`
+- If `WRITE_COMPLETE` is missing, treat the artifact as invalid and rebuild.
+- If retrieval fails with fingerprint/config mismatch, rebuild the artifact with the current config instead of forcing reuse.
+
+### Output Expectations
+- Benchmark outputs land under `benchmark_results/<timestamp>/`.
+- Standard outputs now include:
+  - `benchmark_summary.md`
+  - `one-page-summary.md`
+  - `qps_recall_summary.md`
+  - `all_results.json`
+  - per-dataset result files
+  - `qps_recall_<dataset>.svg`
+- Use `one-page-summary.md` as the primary quick-read deliverable after a completed run.
+
+## 8) Documentation Automation (Required)
 Whenever work is meaningful, create/update docs under `methodology/`.
 
 Trigger examples:

@@ -115,3 +115,37 @@ Keep this file updated whenever you start/complete work on any item above or add
   - Log points to `src/benchmark/evaluation.py:248`.
 - **Impact:** Non-fatal. `operations_vs_recall.png` is still written, but axis-bound handling is inconsistent for non-positive lower bounds.
 - **Follow-up:** Clamp x-axis lower bound to a strictly positive epsilon before calling `ax.set_xlim(...)` when the x-axis uses log scale.
+
+---
+
+## 11. MSMARCO memmap metadata loading mismatch causing zero recall for non-Covertree algorithms (resolved on 2026-03-05)
+
+- **Symptom:** In all-algorithm MSMARCO runs that reuse only the persisted `covertree_v2_2` index, `covertree_v2_2` reported perfect recall while on-the-fly algorithms (`exact`, HNSW, IVF/PQ/SQ8, LSH) collapsed to near `0.0`.
+- **Root cause:** `Dataset._load_memmap_cache` treated `train.format == "memmap"` as raw binary (`np.memmap(...)`) even when the cached train path pointed to a `.npy` file (for preembedded MSMARCO). This can misread data due to `.npy` headers and produce numerically invalid vectors.
+- **Fix implemented (code):**
+  - `src/benchmark/dataset.py`
+    - Added one-time MSMARCO cache-key version token to force clean rebuild (`_cache_key_version` default).
+    - Added `memmap_backend` metadata (`npy` vs `raw`) when saving cache metadata.
+    - Updated metadata loader to use `np.load(..., mmap_mode='r')` for `.npy` memmap entries and keep raw `np.memmap(...)` for true raw buffers.
+    - Added dtype/shape consistency checks at load-time.
+  - `tests/test_dataset_msmarco_preembedded_limits.py`
+    - Added roundtrip test for `.npy` memmap cache metadata.
+    - Added legacy metadata compatibility test (missing `memmap_backend`).
+    - Added raw memmap backend test.
+- **PACE validation:**
+  1. Synced the patch to `/home/hice1/pli396/PycharmProjects/vectordb-retrieval`.
+  2. Passed targeted tests:
+     - `tests/test_dataset_msmarco_preembedded_limits.py` (`4 passed`)
+     - `tests/test_experiment_runner_persistence.py` (`2 passed`)
+     - `tests/algorithms/test_covertree_v2_2.py` (`6 passed`)
+  3. Completed build-only Covertree job `4183296` and full all-algorithm MSMARCO reuse job `4183297`.
+  4. Verified that non-Covertree MSMARCO results recovered from `0.0` recall in `benchmark_results/benchmark_20260304_092747/`:
+     - `exact` recall@10 `1.0000`
+     - `hnsw` recall@10 `0.9857`
+     - `ivf_flat` recall@10 `0.9529`
+     - `ivf_pq` recall@10 `0.6986`
+     - `ivf_sq8` recall@10 `0.9471`
+     - `pq` recall@10 `0.7757`
+     - `lsh` recall@10 `0.1014`
+     - `covertree_v2_2` recall@10 `1.0000`
+- **Follow-up:** No blocker remains for the memmap-loading bug itself. If MSMARCO embedding sources or cache format change again, rebuild the cache rather than reusing old artifacts blindly.

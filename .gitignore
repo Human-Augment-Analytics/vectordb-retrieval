@@ -51,3 +51,4 @@ figures/!/data/
 singlerun.sbatch
 
 !/data/msmarco_pre_embeded/msmacro_pre_embeded_README.md
+methodology/change_log_*.md

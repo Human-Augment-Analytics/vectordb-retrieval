@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import copy
+import hashlib
 import json
 import logging
 import os
 import sys
 import time
 from datetime import datetime
+from pathlib import Path
 from typing import Dict, Any, Optional, Tuple, List
 
 import numpy as np
@@ -93,7 +96,8 @@ class ExperimentRunner:
                 name, algorithm, train_vectors, test_queries
             )
             self.results[name] = metrics
-            algorithm_outputs[name] = (indices, query_times)
+            if indices is not None and query_times is not None:
+                algorithm_outputs[name] = (indices, query_times)
 
         evaluator: Optional[Evaluator] = None
         if ground_truth is not None:
@@ -148,20 +152,223 @@ class ExperimentRunner:
         self.logger.info(f"Using {target}/{n_available} queries for evaluation")
         return queries_subset, ground_truth_subset
 
+    def _stable_hash(self, payload: Dict[str, Any]) -> str:
+        serialized = json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str)
+        return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
+
+    def _algorithm_config(self, name: str) -> Dict[str, Any]:
+        raw = self.config.algorithms.get(name, {})
+        return copy.deepcopy(raw) if isinstance(raw, dict) else {}
+
+    def _extract_persistence_config(self, algorithm_cfg: Dict[str, Any]) -> Dict[str, Any]:
+        raw = algorithm_cfg.get("persistence", {})
+        if not isinstance(raw, dict):
+            return {}
+
+        cfg = copy.deepcopy(raw)
+        mode = str(cfg.get("mode", "build_and_retrieve")).strip().lower()
+        if mode not in {"build_only", "retrieve_only", "build_and_retrieve"}:
+            raise ValueError(f"Unsupported persistence mode '{mode}'")
+        cfg["mode"] = mode
+
+        path_policy = str(cfg.get("path_policy", "fixed")).strip().lower()
+        if path_policy not in {"fixed", "versioned"}:
+            raise ValueError(f"Unsupported persistence path_policy '{path_policy}'")
+        cfg["path_policy"] = path_policy
+
+        cfg["enabled"] = bool(cfg.get("enabled", False))
+        cfg["force_rebuild"] = bool(cfg.get("force_rebuild", False))
+        cfg["fail_if_missing"] = bool(cfg.get("fail_if_missing", True))
+        return cfg
+
+    def _build_dataset_fingerprint_payload(
+        self,
+        name: str,
+        algorithm: BaseAlgorithm,
+        algorithm_cfg: Dict[str, Any],
+        train_vectors: np.ndarray,
+    ) -> Dict[str, Any]:
+        dataset_options = self.config.dataset_options if isinstance(self.config.dataset_options, dict) else {}
+        selected_dataset_options: Dict[str, Any] = {}
+        for key in (
+            "embedded_dataset_dir",
+            "passage_embeddings_path",
+            "query_embeddings_path",
+            "base_limit",
+            "query_limit",
+            "ground_truth_k",
+            "use_preembedded",
+            "use_memmap_cache",
+        ):
+            if key in dataset_options:
+                selected_dataset_options[key] = dataset_options[key]
+
+        metric = algorithm_cfg.get("metric")
+        if metric is None:
+            metric = getattr(algorithm, "metric_name", None) or getattr(algorithm, "metric", None)
+
+        payload: Dict[str, Any] = {
+            "dataset": self.config.dataset,
+            "algorithm_name": name,
+            "algorithm_type": algorithm.__class__.__name__,
+            "metric": metric,
+            "dimension": int(train_vectors.shape[1]),
+            "train_count": int(train_vectors.shape[0]),
+            "dataset_options": selected_dataset_options,
+        }
+
+        passage_embeddings_path: Optional[Path] = None
+        if selected_dataset_options.get("passage_embeddings_path"):
+            passage_embeddings_path = Path(selected_dataset_options["passage_embeddings_path"])
+        elif selected_dataset_options.get("embedded_dataset_dir"):
+            passage_embeddings_path = Path(selected_dataset_options["embedded_dataset_dir"]) / "passage_embeddings.npy"
+
+        if passage_embeddings_path is not None:
+            if passage_embeddings_path.exists():
+                stat = passage_embeddings_path.stat()
+                payload["passage_embeddings_file"] = {
+                    "path": str(passage_embeddings_path.resolve()),
+                    "size_bytes": int(stat.st_size),
+                    "mtime": int(stat.st_mtime),
+                }
+            else:
+                payload["passage_embeddings_file"] = {
+                    "path": str(passage_embeddings_path),
+                    "missing": True,
+                }
+
+        return payload
+
+    def _resolve_persist_dir(
+        self,
+        persistence_cfg: Dict[str, Any],
+        dataset_fingerprint: str,
+    ) -> Optional[str]:
+        artifact_dir = persistence_cfg.get("artifact_dir")
+        if not artifact_dir:
+            return None
+
+        base = Path(str(artifact_dir))
+        path_policy = persistence_cfg.get("path_policy", "fixed")
+        if path_policy == "versioned":
+            version_tag = persistence_cfg.get("version_tag")
+            suffix = str(version_tag).strip() if version_tag else dataset_fingerprint
+            return str(base / suffix)
+        return str(base)
+
     def _run_single_algorithm(
         self,
         name: str,
         algorithm: BaseAlgorithm,
         train_vectors: np.ndarray,
         test_queries: np.ndarray,
-    ) -> Tuple[Dict[str, Any], np.ndarray, np.ndarray]:
+    ) -> Tuple[Dict[str, Any], Optional[np.ndarray], Optional[np.ndarray]]:
         """Train the algorithm, execute queries, and collect core metrics."""
-        # Build phase
-        build_start = time.time()
-        algorithm.build_index(train_vectors)
-        build_time = time.time() - build_start
+        algorithm_cfg = self._algorithm_config(name)
+        persistence_cfg = self._extract_persistence_config(algorithm_cfg)
+        persistence_enabled = persistence_cfg.get("enabled", False)
+        persistence_mode = persistence_cfg.get("mode", "build_and_retrieve")
+        persistence_force_rebuild = persistence_cfg.get("force_rebuild", False)
+        persistence_fail_if_missing = persistence_cfg.get("fail_if_missing", True)
+
+        dataset_fingerprint_payload = self._build_dataset_fingerprint_payload(
+            name,
+            algorithm,
+            algorithm_cfg,
+            train_vectors,
+        )
+        dataset_fingerprint = self._stable_hash(dataset_fingerprint_payload)
+
+        hash_algorithm_cfg = copy.deepcopy(algorithm_cfg)
+        if isinstance(hash_algorithm_cfg.get("persistence"), dict):
+            hash_algorithm_cfg.pop("persistence", None)
+
+        config_hash_payload = {
+            "dataset": self.config.dataset,
+            "dataset_options": self.config.dataset_options,
+            "algorithm_name": name,
+            "algorithm_config": hash_algorithm_cfg,
+            "topk": self.config.topk,
+            "n_queries": self.config.n_queries,
+            "query_batch_size": self.config.query_batch_size,
+        }
+        config_hash = self._stable_hash(config_hash_payload)
+        persist_dir = self._resolve_persist_dir(persistence_cfg, dataset_fingerprint)
+        persistence_context: Dict[str, Any] = {
+            "dataset_fingerprint": dataset_fingerprint,
+            "dataset_fingerprint_payload": dataset_fingerprint_payload,
+            "config_hash": config_hash,
+            "force_rebuild": persistence_force_rebuild,
+        }
+
+        build_time = 0.0
+        index_load_time_s = 0.0
+        index_source = "built"
+
+        if persistence_enabled and persistence_mode == "retrieve_only":
+            if not persist_dir:
+                raise ValueError(
+                    f"Algorithm '{name}' has persistence enabled but no persistence.artifact_dir configured."
+                )
+            if not Path(persist_dir).is_dir():
+                if persistence_fail_if_missing:
+                    raise FileNotFoundError(
+                        f"Missing persisted index for '{name}' at {persist_dir}. "
+                        "Run build_only (or build_and_retrieve) first to create the artifact."
+                    )
+                build_start = time.time()
+                algorithm.build_index(train_vectors)
+                build_time = time.time() - build_start
+            else:
+                load_start = time.time()
+                load_info = algorithm.load_index(persist_dir, context=persistence_context)
+                index_load_time_s = time.time() - load_start
+                index_source = "loaded"
+                build_time = float(load_info.get("build_time_s", 0.0) or 0.0)
+        else:
+            build_start = time.time()
+            algorithm.build_index(train_vectors)
+            build_time = time.time() - build_start
+
+            if persistence_enabled and persistence_mode in {"build_only", "build_and_retrieve"}:
+                if not persist_dir:
+                    raise ValueError(
+                        f"Algorithm '{name}' has persistence enabled but no persistence.artifact_dir configured."
+                    )
+                persistence_context["build_metrics"] = {
+                    "build_time_s": float(build_time),
+                    "n_train": int(train_vectors.shape[0]),
+                    "dimensions": int(train_vectors.shape[1]),
+                    "timestamp": datetime.now().isoformat(),
+                }
+                algorithm.save_index(persist_dir, context=persistence_context)
 
         memory_usage_mb = self._estimate_memory_usage(algorithm, train_vectors)
+
+        if persistence_enabled and persistence_mode == "build_only":
+            metrics: Dict[str, Any] = {
+                "algorithm": name,
+                "parameters": algorithm.get_parameters(),
+                "dataset": self.config.dataset,
+                "n_train": int(train_vectors.shape[0]),
+                "n_test": int(len(test_queries)),
+                "dimensions": int(train_vectors.shape[1]),
+                "topk": self.config.topk,
+                "build_time_s": float(build_time),
+                "index_memory_mb": float(memory_usage_mb),
+                "qps": 0.0,
+                "mean_query_time_ms": 0.0,
+                "total_query_time_s": 0.0,
+                "index_load_time_s": float(index_load_time_s),
+                "index_source": index_source,
+                "persistence_mode": persistence_mode,
+                "persist_dir": persist_dir,
+                "dataset_fingerprint": dataset_fingerprint,
+                "config_hash": config_hash,
+                "status": "build_only",
+                "timestamp": datetime.now().isoformat(),
+            }
+            return metrics, None, None
 
         # Search phase
         k = self.config.topk
@@ -269,6 +476,12 @@ class ExperimentRunner:
             "qps": float(qps),
             "mean_query_time_ms": float(mean_query_time_ms),
             "total_query_time_s": float(total_query_time),
+            "index_load_time_s": float(index_load_time_s),
+            "index_source": index_source,
+            "persistence_mode": persistence_mode if persistence_enabled else None,
+            "persist_dir": persist_dir if persistence_enabled else None,
+            "dataset_fingerprint": dataset_fingerprint if persistence_enabled else None,
+            "config_hash": config_hash if persistence_enabled else None,
             "timestamp": datetime.now().isoformat(),
         }
 

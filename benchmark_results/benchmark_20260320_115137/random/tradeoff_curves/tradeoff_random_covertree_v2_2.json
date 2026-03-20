@@ -1,0 +1,26 @@
+{
+  "dataset": "random",
+  "base_algorithm": "covertree_v2_2",
+  "x_metric": "qps",
+  "y_metric": "recall",
+  "mermaid_quadrant_chart_file": "tradeoff_random_covertree_v2_2_quadrant.mmd",
+  "mermaid_quadrant_chart": "quadrantChart\n    title \"covertree_v2_2 Tradeoff (random)\"\n    x-axis \"Lower QPS\" --> \"Higher QPS\"\n    y-axis \"Lower Recall\" --> \"Higher Recall\"\n    quadrant-1 \"Fast + Accurate\"\n    quadrant-2 \"Slow + Accurate\"\n    quadrant-3 \"Slow + Less Accurate\"\n    quadrant-4 \"Fast + Less Accurate\"\n    %% Point key uses variant IDs from the tables below; '_pareto' marks Pareto points.\n    base_pareto: [0.500, 0.500]",
+  "points": [
+    {
+      "variant_id": "base",
+      "algorithm_name": "covertree_v2_2",
+      "qps": 47.5103554115802,
+      "recall": 1.0,
+      "params": {}
+    }
+  ],
+  "pareto_frontier_points": [
+    {
+      "variant_id": "base",
+      "algorithm_name": "covertree_v2_2",
+      "qps": 47.5103554115802,
+      "recall": 1.0,
+      "params": {}
+    }
+  ]
+}

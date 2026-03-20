@@ -1,0 +1,98 @@
+{
+  "dataset": "random",
+  "base_algorithm": "ivf_flat",
+  "x_metric": "qps",
+  "y_metric": "recall",
+  "points": [
+    {
+      "variant_id": "p10",
+      "algorithm_name": "ivf_flat__p10",
+      "qps": 64683.24240963855,
+      "recall": 1.0,
+      "params": {
+        "searcher.nprobe": 96
+      }
+    },
+    {
+      "variant_id": "p09",
+      "algorithm_name": "ivf_flat__p09",
+      "qps": 91242.50713800135,
+      "recall": 0.9566406250000001,
+      "params": {
+        "searcher.nprobe": 64
+      }
+    },
+    {
+      "variant_id": "p08",
+      "algorithm_name": "ivf_flat__p08",
+      "qps": 108612.36334209994,
+      "recall": 0.8878906250000002,
+      "params": {
+        "searcher.nprobe": 48
+      }
+    },
+    {
+      "variant_id": "p01",
+      "algorithm_name": "ivf_flat__p01",
+      "qps": 108909.81073131149,
+      "recall": 0.127734375,
+      "params": {
+        "searcher.nprobe": 2
+      }
+    },
+    {
+      "variant_id": "p07",
+      "algorithm_name": "ivf_flat__p07",
+      "qps": 151231.24281690142,
+      "recall": 0.7546875000000001,
+      "params": {
+        "searcher.nprobe": 32
+      }
+    },
+    {
+      "variant_id": "p06",
+      "algorithm_name": "ivf_flat__p06",
+      "qps": 178629.48328065214,
+      "recall": 0.662109375,
+      "params": {
+        "searcher.nprobe": 24
+      }
+    },
+    {
+      "variant_id": "p05",
+      "algorithm_name": "ivf_flat__p05",
+      "qps": 216349.34998992545,
+      "recall": 0.5421874999999999,
+      "params": {
+        "searcher.nprobe": 16
+      }
+    },
+    {
+      "variant_id": "p04",
+      "algorithm_name": "ivf_flat__p04",
+      "qps": 230466.1566859841,
+      "recall": 0.45585937499999996,
+      "params": {
+        "searcher.nprobe": 12
+      }
+    },
+    {
+      "variant_id": "p03",
+      "algorithm_name": "ivf_flat__p03",
+      "qps": 269920.01608848665,
+      "recall": 0.3546875,
+      "params": {
+        "searcher.nprobe": 8
+      }
+    },
+    {
+      "variant_id": "p02",
+      "algorithm_name": "ivf_flat__p02",
+      "qps": 284887.7219421597,
+      "recall": 0.22031250000000002,
+      "params": {
+        "searcher.nprobe": 4
+      }
+    }
+  ]
+}

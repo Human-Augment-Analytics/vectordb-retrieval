@@ -274,3 +274,85 @@ class Evaluator:
         else:
             plt.tight_layout()
             plt.show()
+
+
+def plot_recall_qps_tradeoff_curve(
+    points: List[Dict[str, Any]],
+    algorithm_name: str,
+    output_file: Optional[str] = None,
+    title_suffix: Optional[str] = None,
+    recall_label: str = "Recall",
+) -> None:
+    """
+    Plot a per-algorithm Recall-vs-QPS tradeoff curve.
+
+    Args:
+        points: List of points containing `qps`, `recall`, and optional `variant_id`
+        algorithm_name: Base algorithm name for title/legend
+        output_file: Optional output file path
+        title_suffix: Optional dataset/context suffix
+        recall_label: Y-axis label (for example recall@10)
+    """
+    valid_points: List[Dict[str, Any]] = []
+    for point in points:
+        try:
+            qps = float(point.get("qps"))
+            recall = float(point.get("recall"))
+        except (TypeError, ValueError):
+            continue
+        if not np.isfinite(qps) or not np.isfinite(recall) or qps <= 0:
+            continue
+        variant_id = str(point.get("variant_id", "base"))
+        valid_points.append(
+            {
+                "qps": qps,
+                "recall": recall,
+                "variant_id": variant_id,
+            }
+        )
+
+    if not valid_points:
+        print("No valid Recall-vs-QPS points available for tradeoff curve.")
+        return
+
+    sorted_points = sorted(valid_points, key=lambda item: (item["qps"], item["variant_id"]))
+    x_values = [item["qps"] for item in sorted_points]
+    y_values = [item["recall"] for item in sorted_points]
+    labels = [item["variant_id"] for item in sorted_points]
+
+    fig, ax = plt.subplots(figsize=(9, 5.4))
+    ax.plot(x_values, y_values, marker="o", linewidth=1.5, markersize=5.5)
+
+    for idx, label in enumerate(labels):
+        ax.annotate(
+            label,
+            (x_values[idx], y_values[idx]),
+            fontsize=8,
+            xytext=(5, 4),
+            textcoords="offset points",
+        )
+
+    ax.set_xscale("log")
+    ax.set_xlabel("QPS (log scale)")
+    ax.set_ylabel(recall_label)
+    title = f"Tradeoff Curve — {algorithm_name}"
+    if title_suffix:
+        title = f"{title} — {title_suffix}"
+    ax.set_title(title)
+    ax.grid(True, linestyle="--", alpha=0.7)
+    ax.set_ylim(0.0, 1.05)
+
+    x_min = min(x_values)
+    x_max = max(x_values)
+    if x_max > x_min:
+        ax.set_xlim(max(x_min * 0.8, 1e-6), x_max * 1.2)
+    else:
+        ax.set_xlim(max(x_min * 0.5, 1e-6), x_max * 2.0)
+
+    if output_file:
+        plt.tight_layout()
+        plt.savefig(output_file, dpi=300, bbox_inches="tight")
+        plt.close(fig)
+    else:
+        plt.tight_layout()
+        plt.show()

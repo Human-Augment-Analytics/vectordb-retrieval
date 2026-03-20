@@ -1,0 +1,680 @@
+algorithms:
+  covertree_v2_2:
+    metric: l2
+    type: CoverTreeV2_2
+  exact:
+    indexer:
+      metric: l2
+      type: BruteForceIndexer
+    metric: l2
+    searcher:
+      metric: l2
+      type: LinearSearcher
+    type: Composite
+  hnsw__p01:
+    indexer:
+      M: 16
+      efConstruction: 200
+      efSearch: 16
+      metric: l2
+      type: HNSWIndexer
+    metric: l2
+    searcher:
+      metric: l2
+      nprobe: 10
+      type: FaissSearcher
+    type: Composite
+  hnsw__p02:
+    indexer:
+      M: 16
+      efConstruction: 200
+      efSearch: 24
+      metric: l2
+      type: HNSWIndexer
+    metric: l2
+    searcher:
+      metric: l2
+      nprobe: 10
+      type: FaissSearcher
+    type: Composite
+  hnsw__p03:
+    indexer:
+      M: 16
+      efConstruction: 200
+      efSearch: 32
+      metric: l2
+      type: HNSWIndexer
+    metric: l2
+    searcher:
+      metric: l2
+      nprobe: 10
+      type: FaissSearcher
+    type: Composite
+  hnsw__p04:
+    indexer:
+      M: 16
+      efConstruction: 200
+      efSearch: 48
+      metric: l2
+      type: HNSWIndexer
+    metric: l2
+    searcher:
+      metric: l2
+      nprobe: 10
+      type: FaissSearcher
+    type: Composite
+  hnsw__p05:
+    indexer:
+      M: 16
+      efConstruction: 200
+      efSearch: 64
+      metric: l2
+      type: HNSWIndexer
+    metric: l2
+    searcher:
+      metric: l2
+      nprobe: 10
+      type: FaissSearcher
+    type: Composite
+  hnsw__p06:
+    indexer:
+      M: 16
+      efConstruction: 200
+      efSearch: 80
+      metric: l2
+      type: HNSWIndexer
+    metric: l2
+    searcher:
+      metric: l2
+      nprobe: 10
+      type: FaissSearcher
+    type: Composite
+  hnsw__p07:
+    indexer:
+      M: 16
+      efConstruction: 200
+      efSearch: 100
+      metric: l2
+      type: HNSWIndexer
+    metric: l2
+    searcher:
+      metric: l2
+      nprobe: 10
+      type: FaissSearcher
+    type: Composite
+  hnsw__p08:
+    indexer:
+      M: 16
+      efConstruction: 200
+      efSearch: 128
+      metric: l2
+      type: HNSWIndexer
+    metric: l2
+    searcher:
+      metric: l2
+      nprobe: 10
+      type: FaissSearcher
+    type: Composite
+  hnsw__p09:
+    indexer:
+      M: 16
+      efConstruction: 200
+      efSearch: 160
+      metric: l2
+      type: HNSWIndexer
+    metric: l2
+    searcher:
+      metric: l2
+      nprobe: 10
+      type: FaissSearcher
+    type: Composite
+  hnsw__p10:
+    indexer:
+      M: 16
+      efConstruction: 200
+      efSearch: 200
+      metric: l2
+      type: HNSWIndexer
+    metric: l2
+    searcher:
+      metric: l2
+      nprobe: 10
+      type: FaissSearcher
+    type: Composite
+  ivf_flat__p01:
+    indexer:
+      index_type: IVF100,Flat
+      metric: l2
+      nprobe: 10
+      type: FaissIVFIndexer
+    metric: l2
+    searcher:
+      metric: l2
+      nprobe: 2
+      type: FaissSearcher
+    type: Composite
+  ivf_flat__p02:
+    indexer:
+      index_type: IVF100,Flat
+      metric: l2
+      nprobe: 10
+      type: FaissIVFIndexer
+    metric: l2
+    searcher:
+      metric: l2
+      nprobe: 4
+      type: FaissSearcher
+    type: Composite
+  ivf_flat__p03:
+    indexer:
+      index_type: IVF100,Flat
+      metric: l2
+      nprobe: 10
+      type: FaissIVFIndexer
+    metric: l2
+    searcher:
+      metric: l2
+      nprobe: 8
+      type: FaissSearcher
+    type: Composite
+  ivf_flat__p04:
+    indexer:
+      index_type: IVF100,Flat
+      metric: l2
+      nprobe: 10
+      type: FaissIVFIndexer
+    metric: l2
+    searcher:
+      metric: l2
+      nprobe: 12
+      type: FaissSearcher
+    type: Composite
+  ivf_flat__p05:
+    indexer:
+      index_type: IVF100,Flat
+      metric: l2
+      nprobe: 10
+      type: FaissIVFIndexer
+    metric: l2
+    searcher:
+      metric: l2
+      nprobe: 16
+      type: FaissSearcher
+    type: Composite
+  ivf_flat__p06:
+    indexer:
+      index_type: IVF100,Flat
+      metric: l2
+      nprobe: 10
+      type: FaissIVFIndexer
+    metric: l2
+    searcher:
+      metric: l2
+      nprobe: 24
+      type: FaissSearcher
+    type: Composite
+  ivf_flat__p07:
+    indexer:
+      index_type: IVF100,Flat
+      metric: l2
+      nprobe: 10
+      type: FaissIVFIndexer
+    metric: l2
+    searcher:
+      metric: l2
+      nprobe: 32
+      type: FaissSearcher
+    type: Composite
+  ivf_flat__p08:
+    indexer:
+      index_type: IVF100,Flat
+      metric: l2
+      nprobe: 10
+      type: FaissIVFIndexer
+    metric: l2
+    searcher:
+      metric: l2
+      nprobe: 48
+      type: FaissSearcher
+    type: Composite
+  ivf_flat__p09:
+    indexer:
+      index_type: IVF100,Flat
+      metric: l2
+      nprobe: 10
+      type: FaissIVFIndexer
+    metric: l2
+    searcher:
+      metric: l2
+      nprobe: 64
+      type: FaissSearcher
+    type: Composite
+  ivf_flat__p10:
+    indexer:
+      index_type: IVF100,Flat
+      metric: l2
+      nprobe: 10
+      type: FaissIVFIndexer
+    metric: l2
+    searcher:
+      metric: l2
+      nprobe: 96
+      type: FaissSearcher
+    type: Composite
+  ivf_pq__p01:
+    indexer:
+      index_key: IVF256,PQ64
+      metric: l2
+      nprobe: 24
+      type: FaissFactoryIndexer
+    metric: l2
+    searcher:
+      metric: l2
+      nprobe: 4
+      type: FaissSearcher
+    type: Composite
+  ivf_pq__p02:
+    indexer:
+      index_key: IVF256,PQ64
+      metric: l2
+      nprobe: 24
+      type: FaissFactoryIndexer
+    metric: l2
+    searcher:
+      metric: l2
+      nprobe: 8
+      type: FaissSearcher
+    type: Composite
+  ivf_pq__p03:
+    indexer:
+      index_key: IVF256,PQ64
+      metric: l2
+      nprobe: 24
+      type: FaissFactoryIndexer
+    metric: l2
+    searcher:
+      metric: l2
+      nprobe: 12
+      type: FaissSearcher
+    type: Composite
+  ivf_pq__p04:
+    indexer:
+      index_key: IVF256,PQ64
+      metric: l2
+      nprobe: 24
+      type: FaissFactoryIndexer
+    metric: l2
+    searcher:
+      metric: l2
+      nprobe: 16
+      type: FaissSearcher
+    type: Composite
+  ivf_pq__p05:
+    indexer:
+      index_key: IVF256,PQ64
+      metric: l2
+      nprobe: 24
+      type: FaissFactoryIndexer
+    metric: l2
+    searcher:
+      metric: l2
+      nprobe: 24
+      type: FaissSearcher
+    type: Composite
+  ivf_pq__p06:
+    indexer:
+      index_key: IVF256,PQ64
+      metric: l2
+      nprobe: 24
+      type: FaissFactoryIndexer
+    metric: l2
+    searcher:
+      metric: l2
+      nprobe: 32
+      type: FaissSearcher
+    type: Composite
+  ivf_pq__p07:
+    indexer:
+      index_key: IVF256,PQ64
+      metric: l2
+      nprobe: 24
+      type: FaissFactoryIndexer
+    metric: l2
+    searcher:
+      metric: l2
+      nprobe: 48
+      type: FaissSearcher
+    type: Composite
+  ivf_pq__p08:
+    indexer:
+      index_key: IVF256,PQ64
+      metric: l2
+      nprobe: 24
+      type: FaissFactoryIndexer
+    metric: l2
+    searcher:
+      metric: l2
+      nprobe: 64
+      type: FaissSearcher
+    type: Composite
+  ivf_pq__p09:
+    indexer:
+      index_key: IVF256,PQ64
+      metric: l2
+      nprobe: 24
+      type: FaissFactoryIndexer
+    metric: l2
+    searcher:
+      metric: l2
+      nprobe: 96
+      type: FaissSearcher
+    type: Composite
+  ivf_pq__p10:
+    indexer:
+      index_key: IVF256,PQ64
+      metric: l2
+      nprobe: 24
+      type: FaissFactoryIndexer
+    metric: l2
+    searcher:
+      metric: l2
+      nprobe: 128
+      type: FaissSearcher
+    type: Composite
+  ivf_sq8__p01:
+    indexer:
+      index_key: IVF256,SQ8
+      metric: l2
+      nprobe: 24
+      type: FaissFactoryIndexer
+    metric: l2
+    searcher:
+      metric: l2
+      nprobe: 4
+      type: FaissSearcher
+    type: Composite
+  ivf_sq8__p02:
+    indexer:
+      index_key: IVF256,SQ8
+      metric: l2
+      nprobe: 24
+      type: FaissFactoryIndexer
+    metric: l2
+    searcher:
+      metric: l2
+      nprobe: 8
+      type: FaissSearcher
+    type: Composite
+  ivf_sq8__p03:
+    indexer:
+      index_key: IVF256,SQ8
+      metric: l2
+      nprobe: 24
+      type: FaissFactoryIndexer
+    metric: l2
+    searcher:
+      metric: l2
+      nprobe: 12
+      type: FaissSearcher
+    type: Composite
+  ivf_sq8__p04:
+    indexer:
+      index_key: IVF256,SQ8
+      metric: l2
+      nprobe: 24
+      type: FaissFactoryIndexer
+    metric: l2
+    searcher:
+      metric: l2
+      nprobe: 16
+      type: FaissSearcher
+    type: Composite
+  ivf_sq8__p05:
+    indexer:
+      index_key: IVF256,SQ8
+      metric: l2
+      nprobe: 24
+      type: FaissFactoryIndexer
+    metric: l2
+    searcher:
+      metric: l2
+      nprobe: 24
+      type: FaissSearcher
+    type: Composite
+  ivf_sq8__p06:
+    indexer:
+      index_key: IVF256,SQ8
+      metric: l2
+      nprobe: 24
+      type: FaissFactoryIndexer
+    metric: l2
+    searcher:
+      metric: l2
+      nprobe: 32
+      type: FaissSearcher
+    type: Composite
+  ivf_sq8__p07:
+    indexer:
+      index_key: IVF256,SQ8
+      metric: l2
+      nprobe: 24
+      type: FaissFactoryIndexer
+    metric: l2
+    searcher:
+      metric: l2
+      nprobe: 48
+      type: FaissSearcher
+    type: Composite
+  ivf_sq8__p08:
+    indexer:
+      index_key: IVF256,SQ8
+      metric: l2
+      nprobe: 24
+      type: FaissFactoryIndexer
+    metric: l2
+    searcher:
+      metric: l2
+      nprobe: 64
+      type: FaissSearcher
+    type: Composite
+  ivf_sq8__p09:
+    indexer:
+      index_key: IVF256,SQ8
+      metric: l2
+      nprobe: 24
+      type: FaissFactoryIndexer
+    metric: l2
+    searcher:
+      metric: l2
+      nprobe: 96
+      type: FaissSearcher
+    type: Composite
+  ivf_sq8__p10:
+    indexer:
+      index_key: IVF256,SQ8
+      metric: l2
+      nprobe: 24
+      type: FaissFactoryIndexer
+    metric: l2
+    searcher:
+      metric: l2
+      nprobe: 128
+      type: FaissSearcher
+    type: Composite
+  lsh__p01:
+    indexer:
+      bucket_width: 20.0
+      hash_size: 4
+      metric: l2
+      num_tables: 12
+      seed: 42
+      type: LSHIndexer
+    metric: l2
+    searcher:
+      candidate_multiplier: 16.0
+      fallback_to_bruteforce: false
+      metric: l2
+      type: LSHSearcher
+    type: Composite
+  lsh__p02:
+    indexer:
+      bucket_width: 20.0
+      hash_size: 4
+      metric: l2
+      num_tables: 12
+      seed: 42
+      type: LSHIndexer
+    metric: l2
+    searcher:
+      candidate_multiplier: 24.0
+      fallback_to_bruteforce: false
+      metric: l2
+      type: LSHSearcher
+    type: Composite
+  lsh__p03:
+    indexer:
+      bucket_width: 20.0
+      hash_size: 4
+      metric: l2
+      num_tables: 12
+      seed: 42
+      type: LSHIndexer
+    metric: l2
+    searcher:
+      candidate_multiplier: 32.0
+      fallback_to_bruteforce: false
+      metric: l2
+      type: LSHSearcher
+    type: Composite
+  lsh__p04:
+    indexer:
+      bucket_width: 20.0
+      hash_size: 4
+      metric: l2
+      num_tables: 12
+      seed: 42
+      type: LSHIndexer
+    metric: l2
+    searcher:
+      candidate_multiplier: 48.0
+      fallback_to_bruteforce: false
+      metric: l2
+      type: LSHSearcher
+    type: Composite
+  lsh__p05:
+    indexer:
+      bucket_width: 20.0
+      hash_size: 4
+      metric: l2
+      num_tables: 12
+      seed: 42
+      type: LSHIndexer
+    metric: l2
+    searcher:
+      candidate_multiplier: 64.0
+      fallback_to_bruteforce: false
+      metric: l2
+      type: LSHSearcher
+    type: Composite
+  lsh__p06:
+    indexer:
+      bucket_width: 20.0
+      hash_size: 4
+      metric: l2
+      num_tables: 12
+      seed: 42
+      type: LSHIndexer
+    metric: l2
+    searcher:
+      candidate_multiplier: 96.0
+      fallback_to_bruteforce: false
+      metric: l2
+      type: LSHSearcher
+    type: Composite
+  lsh__p07:
+    indexer:
+      bucket_width: 20.0
+      hash_size: 4
+      metric: l2
+      num_tables: 12
+      seed: 42
+      type: LSHIndexer
+    metric: l2
+    searcher:
+      candidate_multiplier: 128.0
+      fallback_to_bruteforce: false
+      metric: l2
+      type: LSHSearcher
+    type: Composite
+  lsh__p08:
+    indexer:
+      bucket_width: 20.0
+      hash_size: 4
+      metric: l2
+      num_tables: 12
+      seed: 42
+      type: LSHIndexer
+    metric: l2
+    searcher:
+      candidate_multiplier: 160.0
+      fallback_to_bruteforce: false
+      metric: l2
+      type: LSHSearcher
+    type: Composite
+  lsh__p09:
+    indexer:
+      bucket_width: 20.0
+      hash_size: 4
+      metric: l2
+      num_tables: 12
+      seed: 42
+      type: LSHIndexer
+    metric: l2
+    searcher:
+      candidate_multiplier: 192.0
+      fallback_to_bruteforce: false
+      metric: l2
+      type: LSHSearcher
+    type: Composite
+  lsh__p10:
+    indexer:
+      bucket_width: 20.0
+      hash_size: 4
+      metric: l2
+      num_tables: 12
+      seed: 42
+      type: LSHIndexer
+    metric: l2
+    searcher:
+      candidate_multiplier: 256.0
+      fallback_to_bruteforce: false
+      metric: l2
+      type: LSHSearcher
+    type: Composite
+  pq:
+    indexer:
+      index_key: PQ64
+      metric: l2
+      type: FaissFactoryIndexer
+    metric: l2
+    searcher:
+      metric: l2
+      nprobe: 24
+      type: FaissSearcher
+    type: Composite
+data_dir: /storage/ice-shared/cs8903onl/vectordb-retrieval/datasets
+dataset: random
+dataset_options:
+  dimensions: 64
+  ground_truth_k: 200
+  seed: 7
+  test_size: 512
+  train_size: 20000
+force_download: false
+metric: l2
+n_queries: 256
+output_prefix: random_20260319_102154
+query_batch_size: 128
+repeat: 2
+seed: 42
+topk: 20

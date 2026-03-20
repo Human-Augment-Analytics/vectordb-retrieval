@@ -1,0 +1,183 @@
+{
+  "dataset": "random",
+  "base_algorithm": "ivf_sq8",
+  "x_metric": "qps",
+  "y_metric": "recall",
+  "mermaid_quadrant_chart_file": "tradeoff_random_ivf_sq8_quadrant.mmd",
+  "mermaid_quadrant_chart": "quadrantChart\n    title \"ivf_sq8 Tradeoff (random)\"\n    x-axis \"Lower QPS\" --> \"Higher QPS\"\n    y-axis \"Lower Recall\" --> \"Higher Recall\"\n    quadrant-1 \"Fast + Accurate\"\n    quadrant-2 \"Slow + Accurate\"\n    quadrant-3 \"Slow + Less Accurate\"\n    quadrant-4 \"Fast + Less Accurate\"\n    %% Point key uses variant IDs from the tables below; '_pareto' marks Pareto points.\n    p01: [0.001, 0.001]\n    p02_pareto: [0.999, 0.123]\n    p03_pareto: [0.897, 0.239]\n    p04_pareto: [0.828, 0.313]\n    p05_pareto: [0.666, 0.448]\n    p06_pareto: [0.522, 0.535]\n    p07_pareto: [0.366, 0.682]\n    p08_pareto: [0.272, 0.794]\n    p09_pareto: [0.164, 0.925]\n    p10_pareto: [0.109, 0.999]",
+  "points": [
+    {
+      "variant_id": "p01",
+      "algorithm_name": "ivf_sq8__p01",
+      "qps": 45769.04620630861,
+      "recall": 0.171875,
+      "params": {
+        "searcher.nprobe": 4
+      }
+    },
+    {
+      "variant_id": "p10",
+      "algorithm_name": "ivf_sq8__p10",
+      "qps": 92190.42019404138,
+      "recall": 0.9242187500000001,
+      "params": {
+        "searcher.nprobe": 128
+      }
+    },
+    {
+      "variant_id": "p09",
+      "algorithm_name": "ivf_sq8__p09",
+      "qps": 115443.69680679496,
+      "recall": 0.8679687500000001,
+      "params": {
+        "searcher.nprobe": 96
+      }
+    },
+    {
+      "variant_id": "p08",
+      "algorithm_name": "ivf_sq8__p08",
+      "qps": 161416.38965724595,
+      "recall": 0.769140625,
+      "params": {
+        "searcher.nprobe": 64
+      }
+    },
+    {
+      "variant_id": "p07",
+      "algorithm_name": "ivf_sq8__p07",
+      "qps": 201490.30287108276,
+      "recall": 0.684765625,
+      "params": {
+        "searcher.nprobe": 48
+      }
+    },
+    {
+      "variant_id": "p06",
+      "algorithm_name": "ivf_sq8__p06",
+      "qps": 267699.2829718275,
+      "recall": 0.57421875,
+      "params": {
+        "searcher.nprobe": 32
+      }
+    },
+    {
+      "variant_id": "p05",
+      "algorithm_name": "ivf_sq8__p05",
+      "qps": 328864.26462480857,
+      "recall": 0.5089843749999999,
+      "params": {
+        "searcher.nprobe": 24
+      }
+    },
+    {
+      "variant_id": "p04",
+      "algorithm_name": "ivf_sq8__p04",
+      "qps": 398124.51761216164,
+      "recall": 0.40703124999999996,
+      "params": {
+        "searcher.nprobe": 16
+      }
+    },
+    {
+      "variant_id": "p03",
+      "algorithm_name": "ivf_sq8__p03",
+      "qps": 427274.9001193792,
+      "recall": 0.3515625,
+      "params": {
+        "searcher.nprobe": 12
+      }
+    },
+    {
+      "variant_id": "p02",
+      "algorithm_name": "ivf_sq8__p02",
+      "qps": 471146.03949100483,
+      "recall": 0.2640625,
+      "params": {
+        "searcher.nprobe": 8
+      }
+    }
+  ],
+  "pareto_frontier_points": [
+    {
+      "variant_id": "p10",
+      "algorithm_name": "ivf_sq8__p10",
+      "qps": 92190.42019404138,
+      "recall": 0.9242187500000001,
+      "params": {
+        "searcher.nprobe": 128
+      }
+    },
+    {
+      "variant_id": "p09",
+      "algorithm_name": "ivf_sq8__p09",
+      "qps": 115443.69680679496,
+      "recall": 0.8679687500000001,
+      "params": {
+        "searcher.nprobe": 96
+      }
+    },
+    {
+      "variant_id": "p08",
+      "algorithm_name": "ivf_sq8__p08",
+      "qps": 161416.38965724595,
+      "recall": 0.769140625,
+      "params": {
+        "searcher.nprobe": 64
+      }
+    },
+    {
+      "variant_id": "p07",
+      "algorithm_name": "ivf_sq8__p07",
+      "qps": 201490.30287108276,
+      "recall": 0.684765625,
+      "params": {
+        "searcher.nprobe": 48
+      }
+    },
+    {
+      "variant_id": "p06",
+      "algorithm_name": "ivf_sq8__p06",
+      "qps": 267699.2829718275,
+      "recall": 0.57421875,
+      "params": {
+        "searcher.nprobe": 32
+      }
+    },
+    {
+      "variant_id": "p05",
+      "algorithm_name": "ivf_sq8__p05",
+      "qps": 328864.26462480857,
+      "recall": 0.5089843749999999,
+      "params": {
+        "searcher.nprobe": 24
+      }
+    },
+    {
+      "variant_id": "p04",
+      "algorithm_name": "ivf_sq8__p04",
+      "qps": 398124.51761216164,
+      "recall": 0.40703124999999996,
+      "params": {
+        "searcher.nprobe": 16
+      }
+    },
+    {
+      "variant_id": "p03",
+      "algorithm_name": "ivf_sq8__p03",
+      "qps": 427274.9001193792,
+      "recall": 0.3515625,
+      "params": {
+        "searcher.nprobe": 12
+      }
+    },
+    {
+      "variant_id": "p02",
+      "algorithm_name": "ivf_sq8__p02",
+      "qps": 471146.03949100483,
+      "recall": 0.2640625,
+      "params": {
+        "searcher.nprobe": 8
+      }
+    }
+  ]
+}

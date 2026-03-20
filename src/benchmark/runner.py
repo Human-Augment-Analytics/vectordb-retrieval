@@ -6,6 +6,7 @@ import math
 import time
 import datetime
 import copy
+import itertools
 import yaml
 from pathlib import Path
 from typing import Dict, Any, Tuple, Optional, List
@@ -13,6 +14,7 @@ from typing import Dict, Any, Tuple, Optional, List
 from ..experiments.config import ExperimentConfig
 from ..experiments.experiment_runner import ExperimentRunner
 from ..algorithms import get_algorithm_instance
+from .evaluation import plot_recall_qps_tradeoff_curve
 
 class BenchmarkRunner:
     """
@@ -52,6 +54,7 @@ class BenchmarkRunner:
 
         # Store all results
         self.all_results = {}
+        self.dataset_tradeoff_configs: Dict[str, Dict[str, Any]] = {}
 
     def _setup_logging(self) -> logging.Logger:
         """
@@ -104,6 +107,8 @@ class BenchmarkRunner:
                 dataset_options.get('dataset_options') or dataset_options.get('options') or {}
             )
             dataset_data_dir = dataset_options.get('data_dir', self.config.get('data_dir', 'data'))
+            tradeoff_cfg = self._resolve_tradeoff_curves_config(dataset_options)
+            self.dataset_tradeoff_configs[dataset_name] = copy.deepcopy(tradeoff_cfg)
 
             # Apply dataset-specific overrides while keeping base algorithm definitions intact.
             base_algorithms = copy.deepcopy(self.config.get('algorithms', {}))
@@ -129,6 +134,12 @@ class BenchmarkRunner:
                         merged_override['metric'] = dataset_metric
                     self._resolve_modular_components(merged_override)
                     algorithms_for_dataset[alg_name] = merged_override
+
+            algorithms_for_dataset, tradeoff_metadata = self._expand_tradeoff_algorithms(
+                dataset_name=dataset_name,
+                algorithms_for_dataset=algorithms_for_dataset,
+                tradeoff_cfg=tradeoff_cfg,
+            )
 
             experiment_kwargs = dict(
                 dataset=dataset_name,
@@ -164,6 +175,7 @@ class BenchmarkRunner:
 
             # Create experiment runner
             runner = ExperimentRunner(experiment_config, output_dir=dataset_output_dir)
+            runner.algorithm_result_overrides = copy.deepcopy(tradeoff_metadata)
 
             try:
                 # Load dataset
@@ -228,6 +240,237 @@ class BenchmarkRunner:
             else:
                 result[key] = copy.deepcopy(value)
         return result
+
+    def _resolve_tradeoff_curves_config(self, dataset_options: Dict[str, Any]) -> Dict[str, Any]:
+        raw_global = self.config.get("tradeoff_curves", {}) or {}
+        raw_dataset = dataset_options.get("tradeoff_curves", {}) or {}
+
+        if not isinstance(raw_global, dict):
+            raise ValueError("Top-level tradeoff_curves must be a dictionary when provided.")
+        if not isinstance(raw_dataset, dict):
+            raise ValueError("Dataset-level tradeoff_curves must be a dictionary when provided.")
+
+        merged = self._deep_merge_dict(raw_global, raw_dataset)
+
+        enabled = bool(merged.get("enabled", False))
+        raw_max_points = merged.get("max_points_per_algorithm", 12)
+        try:
+            max_points = int(raw_max_points)
+        except (TypeError, ValueError):
+            raise ValueError(
+                f"tradeoff_curves.max_points_per_algorithm must be a positive integer, got {raw_max_points!r}"
+            )
+        if max_points < 1:
+            raise ValueError("tradeoff_curves.max_points_per_algorithm must be >= 1")
+
+        if not enabled:
+            return {
+                "enabled": False,
+                "max_points_per_algorithm": max_points,
+                "algorithms": {},
+            }
+
+        raw_algorithms = merged.get("algorithms", {}) or {}
+        if not isinstance(raw_algorithms, dict):
+            raise ValueError("tradeoff_curves.algorithms must be a dictionary when enabled=true")
+
+        normalized_algorithms: Dict[str, Dict[str, Any]] = {}
+        for algorithm_name, spec in raw_algorithms.items():
+            if not isinstance(spec, dict):
+                raise ValueError(
+                    f"tradeoff_curves.algorithms.{algorithm_name} must be a dictionary with a 'grid' key"
+                )
+            raw_grid = spec.get("grid", {}) or {}
+            if not isinstance(raw_grid, dict):
+                raise ValueError(
+                    f"tradeoff_curves.algorithms.{algorithm_name}.grid must be a dictionary of dot-path -> values"
+                )
+
+            normalized_grid: Dict[str, List[Any]] = {}
+            for raw_path, raw_values in raw_grid.items():
+                path = str(raw_path).strip()
+                if not path:
+                    raise ValueError(
+                        f"tradeoff_curves.algorithms.{algorithm_name}.grid contains an empty path key"
+                    )
+                if not isinstance(raw_values, (list, tuple)):
+                    raise ValueError(
+                        f"tradeoff_curves grid for '{algorithm_name}' path '{path}' must be a list/tuple"
+                    )
+                values = list(raw_values)
+                if not values:
+                    raise ValueError(
+                        f"tradeoff_curves grid for '{algorithm_name}' path '{path}' cannot be empty"
+                    )
+                normalized_grid[path] = values
+
+            normalized_algorithms[str(algorithm_name)] = {"grid": normalized_grid}
+
+        return {
+            "enabled": enabled,
+            "max_points_per_algorithm": max_points,
+            "algorithms": normalized_algorithms,
+        }
+
+    def _set_tradeoff_grid_value(
+        self,
+        config: Dict[str, Any],
+        path: str,
+        value: Any,
+        dataset_name: str,
+        algorithm_name: str,
+    ) -> None:
+        parts = [segment.strip() for segment in path.split(".") if segment.strip()]
+        if not parts:
+            raise ValueError(
+                f"Invalid tradeoff grid path '{path}' for algorithm '{algorithm_name}' on dataset '{dataset_name}'"
+            )
+
+        cursor: Any = config
+        for segment in parts[:-1]:
+            if not isinstance(cursor, dict):
+                raise ValueError(
+                    f"Invalid tradeoff grid path '{path}' for algorithm '{algorithm_name}' on dataset "
+                    f"'{dataset_name}': segment '{segment}' is not a mapping"
+                )
+            if segment not in cursor:
+                raise ValueError(
+                    f"Invalid tradeoff grid path '{path}' for algorithm '{algorithm_name}' on dataset "
+                    f"'{dataset_name}': missing segment '{segment}'"
+                )
+            cursor = cursor[segment]
+
+        if not isinstance(cursor, dict):
+            raise ValueError(
+                f"Invalid tradeoff grid path '{path}' for algorithm '{algorithm_name}' on dataset "
+                f"'{dataset_name}': parent is not a mapping"
+            )
+
+        leaf = parts[-1]
+        if leaf not in cursor:
+            raise ValueError(
+                f"Invalid tradeoff grid path '{path}' for algorithm '{algorithm_name}' on dataset "
+                f"'{dataset_name}': missing leaf '{leaf}'"
+            )
+
+        cursor[leaf] = copy.deepcopy(value)
+
+    @staticmethod
+    def _downsample_tradeoff_variants(points: List[Dict[str, Any]], limit: int) -> List[Dict[str, Any]]:
+        if len(points) <= limit:
+            return points
+        if limit <= 1:
+            return [points[0]]
+
+        total = len(points)
+        chosen: List[int] = []
+        seen = set()
+
+        for position in range(limit):
+            raw_idx = int(round(position * (total - 1) / (limit - 1)))
+            raw_idx = max(0, min(raw_idx, total - 1))
+
+            candidate = raw_idx
+            while candidate in seen and candidate < total - 1:
+                candidate += 1
+            while candidate in seen and candidate > 0:
+                candidate -= 1
+            if candidate in seen:
+                continue
+
+            seen.add(candidate)
+            chosen.append(candidate)
+
+        if len(chosen) < limit:
+            for idx in range(total):
+                if idx in seen:
+                    continue
+                seen.add(idx)
+                chosen.append(idx)
+                if len(chosen) == limit:
+                    break
+
+        chosen.sort()
+        return [points[idx] for idx in chosen]
+
+    def _expand_tradeoff_algorithms(
+        self,
+        dataset_name: str,
+        algorithms_for_dataset: Dict[str, Dict[str, Any]],
+        tradeoff_cfg: Dict[str, Any],
+    ) -> Tuple[Dict[str, Dict[str, Any]], Dict[str, Dict[str, Any]]]:
+        if not tradeoff_cfg.get("enabled", False):
+            return algorithms_for_dataset, {}
+
+        sweep_algorithms = tradeoff_cfg.get("algorithms", {})
+        max_points = int(tradeoff_cfg.get("max_points_per_algorithm", 12))
+        expanded: Dict[str, Dict[str, Any]] = {}
+        metadata: Dict[str, Dict[str, Any]] = {}
+
+        for configured_name in sweep_algorithms.keys():
+            if configured_name not in algorithms_for_dataset:
+                raise ValueError(
+                    f"tradeoff_curves configured unknown algorithm '{configured_name}' for dataset '{dataset_name}'"
+                )
+
+        for algorithm_name, algorithm_cfg in algorithms_for_dataset.items():
+            sweep_spec = sweep_algorithms.get(algorithm_name, {})
+            grid = {}
+            if isinstance(sweep_spec, dict):
+                grid = sweep_spec.get("grid", {}) or {}
+
+            if not grid:
+                expanded[algorithm_name] = copy.deepcopy(algorithm_cfg)
+                metadata[algorithm_name] = {
+                    "base_algorithm": algorithm_name,
+                    "tradeoff_variant_id": "base",
+                    "tradeoff_params": {},
+                    "is_tradeoff_variant": False,
+                }
+                continue
+
+            grid_paths = list(grid.keys())
+            grid_values = [list(grid[path]) for path in grid_paths]
+            variant_points: List[Dict[str, Any]] = []
+
+            for combo_values in itertools.product(*grid_values):
+                variant_cfg = copy.deepcopy(algorithm_cfg)
+                params: Dict[str, Any] = {}
+                for path, combo_value in zip(grid_paths, combo_values):
+                    self._set_tradeoff_grid_value(
+                        variant_cfg,
+                        path=path,
+                        value=combo_value,
+                        dataset_name=dataset_name,
+                        algorithm_name=algorithm_name,
+                    )
+                    params[path] = copy.deepcopy(combo_value)
+                variant_points.append({"config": variant_cfg, "params": params})
+
+            original_count = len(variant_points)
+            variant_points = self._downsample_tradeoff_variants(variant_points, max_points)
+            if len(variant_points) < original_count:
+                self.logger.info(
+                    "Downsampled tradeoff variants for %s on %s: %d -> %d",
+                    algorithm_name,
+                    dataset_name,
+                    original_count,
+                    len(variant_points),
+                )
+
+            width = max(2, len(str(len(variant_points))))
+            for index, variant in enumerate(variant_points, start=1):
+                variant_id = f"p{index:0{width}d}"
+                variant_name = f"{algorithm_name}__{variant_id}"
+                expanded[variant_name] = variant["config"]
+                metadata[variant_name] = {
+                    "base_algorithm": algorithm_name,
+                    "tradeoff_variant_id": variant_id,
+                    "tradeoff_params": variant["params"],
+                    "is_tradeoff_variant": True,
+                }
+
+        return expanded, metadata
 
     def _materialize_component(
         self,
@@ -345,6 +588,115 @@ class BenchmarkRunner:
         if len(rendered) > 120:
             rendered = f"{rendered[:117]}..."
         return rendered
+
+    def _format_tradeoff_params(self, params: Dict[str, Any]) -> str:
+        if not isinstance(params, dict) or not params:
+            return "baseline"
+        fragments: List[str] = []
+        for key in sorted(params.keys()):
+            fragments.append(f"{key}={self._format_value(params[key])}")
+        return ", ".join(fragments)
+
+    @staticmethod
+    def _compute_tradeoff_pareto_frontier_points(points: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        if not points:
+            return []
+
+        epsilon = 1e-12
+        frontier: List[Dict[str, Any]] = []
+
+        for idx, point in enumerate(points):
+            point_qps = float(point["qps"])
+            point_recall = float(point["recall"])
+            dominated = False
+
+            for other_idx, other in enumerate(points):
+                if idx == other_idx:
+                    continue
+
+                other_qps = float(other["qps"])
+                other_recall = float(other["recall"])
+                if (
+                    other_qps >= point_qps - epsilon
+                    and other_recall >= point_recall - epsilon
+                    and (
+                        other_qps > point_qps + epsilon
+                        or other_recall > point_recall + epsilon
+                    )
+                ):
+                    dominated = True
+                    break
+
+            if not dominated:
+                frontier.append(copy.deepcopy(point))
+
+        frontier.sort(
+            key=lambda item: (
+                float(item["qps"]),
+                -float(item["recall"]),
+                str(item.get("variant_id", "")),
+                str(item.get("algorithm_name", "")),
+            )
+        )
+        return frontier
+
+    def _build_tradeoff_mermaid_quadrant_chart(
+        self,
+        dataset_name: str,
+        algorithm_name: str,
+        points: List[Dict[str, Any]],
+        pareto_points: List[Dict[str, Any]],
+    ) -> str:
+        if not points:
+            return ""
+
+        qps_values = [float(point["qps"]) for point in points]
+        recall_values = [float(point["recall"]) for point in points]
+        qps_min, qps_max = min(qps_values), max(qps_values)
+        recall_min, recall_max = min(recall_values), max(recall_values)
+        qps_span = qps_max - qps_min
+        recall_span = recall_max - recall_min
+        pareto_ids = {str(point["variant_id"]) for point in pareto_points}
+
+        lines: List[str] = [
+            "quadrantChart",
+            f'    title "{algorithm_name} Tradeoff ({dataset_name})"',
+            '    x-axis "Lower QPS" --> "Higher QPS"',
+            '    y-axis "Lower Recall" --> "Higher Recall"',
+            '    quadrant-1 "Fast + Accurate"',
+            '    quadrant-2 "Slow + Accurate"',
+            '    quadrant-3 "Slow + Less Accurate"',
+            '    quadrant-4 "Fast + Less Accurate"',
+            "    %% Point key uses variant IDs from the tables below; '_pareto' marks Pareto points.",
+        ]
+
+        ordered_points = sorted(
+            points,
+            key=lambda item: (
+                item["variant_id"] != "base",
+                str(item["variant_id"]),
+            ),
+        )
+        mermaid_epsilon = 0.001
+        for point in ordered_points:
+            qps = float(point["qps"])
+            recall = float(point["recall"])
+            x = 0.5 if qps_span <= 1e-12 else (qps - qps_min) / qps_span
+            y = 0.5 if recall_span <= 1e-12 else (recall - recall_min) / recall_span
+            x = min(1.0 - mermaid_epsilon, max(mermaid_epsilon, x))
+            y = min(1.0 - mermaid_epsilon, max(mermaid_epsilon, y))
+            variant_id = str(point["variant_id"])
+            point_key = "".join(
+                ch if ch.isalnum() or ch in {"_", "-"} else "_"
+                for ch in variant_id.lower()
+            ).strip("_")
+            if not point_key:
+                point_key = "point"
+            if variant_id in pareto_ids:
+                point_key += "_pareto"
+            lines.append(f"    {point_key}: [{x:.3f}, {y:.3f}]")
+
+        return "\n".join(lines)
 
     def _extract_recall_metric(self, alg_results: Dict[str, Any]) -> Tuple[Optional[float], str]:
         """Resolve the recall value and source key for a result row."""
@@ -520,21 +872,178 @@ class BenchmarkRunner:
         lines.append("</svg>")
         output_path.write_text("\n".join(lines), encoding="utf-8")
 
+    def _generate_tradeoff_curve_artifacts(
+        self,
+        dataset_name: str,
+        dataset_results: Dict[str, Any],
+        recall_label: str,
+    ) -> List[Dict[str, Any]]:
+        cfg = self.dataset_tradeoff_configs.get(dataset_name, {})
+        if not isinstance(cfg, dict) or not cfg.get("enabled", False):
+            return []
+
+        grouped_points: Dict[str, List[Dict[str, Any]]] = {}
+
+        for algorithm_name, metrics in dataset_results.items():
+            if not isinstance(metrics, dict):
+                continue
+
+            status = str(metrics.get("status", "ok")).lower()
+            if status == "build_only":
+                continue
+
+            recall_value, _ = self._extract_recall_metric(metrics)
+            qps = self._safe_float(metrics.get("qps"))
+            if recall_value is None or qps is None or qps <= 0:
+                continue
+
+            base_algorithm = str(metrics.get("base_algorithm") or algorithm_name)
+            variant_id = str(metrics.get("tradeoff_variant_id") or "base")
+            params = metrics.get("tradeoff_params")
+            if not isinstance(params, dict):
+                params = {}
+
+            grouped_points.setdefault(base_algorithm, []).append(
+                {
+                    "algorithm_name": algorithm_name,
+                    "variant_id": variant_id,
+                    "qps": float(qps),
+                    "recall": float(recall_value),
+                    "params": copy.deepcopy(params),
+                }
+            )
+
+        if not grouped_points:
+            return []
+
+        curves_dir = Path(self.output_dir) / dataset_name / "tradeoff_curves"
+        curves_dir.mkdir(parents=True, exist_ok=True)
+
+        dataset_slug = self._sanitize_slug(dataset_name)
+        artifacts: List[Dict[str, Any]] = []
+
+        for base_algorithm, points in sorted(grouped_points.items(), key=lambda item: item[0]):
+            sorted_points = sorted(
+                points,
+                key=lambda item: (item["qps"], item["variant_id"], item["algorithm_name"]),
+            )
+            pareto_points = self._compute_tradeoff_pareto_frontier_points(sorted_points)
+            sorted_variant_rows = sorted(
+                sorted_points,
+                key=lambda item: (
+                    item["variant_id"] != "base",
+                    item["variant_id"],
+                ),
+            )
+            algo_slug = self._sanitize_slug(base_algorithm)
+            svg_name = f"tradeoff_{dataset_slug}_{algo_slug}_recall_qps.svg"
+            json_name = f"tradeoff_{dataset_slug}_{algo_slug}.json"
+            mermaid_name = f"tradeoff_{dataset_slug}_{algo_slug}_quadrant.mmd"
+            svg_path = curves_dir / svg_name
+            json_path = curves_dir / json_name
+            mermaid_path = curves_dir / mermaid_name
+
+            plot_recall_qps_tradeoff_curve(
+                points=sorted_points,
+                algorithm_name=base_algorithm,
+                output_file=str(svg_path),
+                title_suffix=dataset_name,
+                recall_label=recall_label,
+            )
+            mermaid_chart = self._build_tradeoff_mermaid_quadrant_chart(
+                dataset_name=dataset_name,
+                algorithm_name=base_algorithm,
+                points=sorted_points,
+                pareto_points=pareto_points,
+            )
+            mermaid_path.write_text(f"{mermaid_chart}\n", encoding="utf-8")
+
+            payload = {
+                "dataset": dataset_name,
+                "base_algorithm": base_algorithm,
+                "x_metric": "qps",
+                "y_metric": recall_label,
+                "mermaid_quadrant_chart_file": mermaid_name,
+                "mermaid_quadrant_chart": mermaid_chart,
+                "points": [
+                    {
+                        "variant_id": point["variant_id"],
+                        "algorithm_name": point["algorithm_name"],
+                        "qps": point["qps"],
+                        "recall": point["recall"],
+                        "params": point["params"],
+                    }
+                    for point in sorted_points
+                ],
+                "pareto_frontier_points": [
+                    {
+                        "variant_id": point["variant_id"],
+                        "algorithm_name": point["algorithm_name"],
+                        "qps": point["qps"],
+                        "recall": point["recall"],
+                        "params": point["params"],
+                    }
+                    for point in pareto_points
+                ],
+            }
+            json_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+            svg_rel = f"./{svg_path.relative_to(self.output_dir).as_posix()}"
+            json_rel = f"./{json_path.relative_to(self.output_dir).as_posix()}"
+            mermaid_rel = f"./{mermaid_path.relative_to(self.output_dir).as_posix()}"
+            artifacts.append(
+                {
+                    "algorithm": base_algorithm,
+                    "svg_rel_path": svg_rel,
+                    "json_rel_path": json_rel,
+                    "mermaid_rel_path": mermaid_rel,
+                    "mermaid_chart": mermaid_chart,
+                    "points": len(sorted_points),
+                    "variant_rows": [
+                        {
+                            "variant_id": str(point["variant_id"]),
+                            "qps": float(point["qps"]),
+                            "recall": float(point["recall"]),
+                            "params_text": self._format_tradeoff_params(point["params"]),
+                        }
+                        for point in sorted_variant_rows
+                    ],
+                    "frontier_rows": [
+                        {
+                            "variant_id": str(point["variant_id"]),
+                            "qps": float(point["qps"]),
+                            "recall": float(point["recall"]),
+                            "params_text": self._format_tradeoff_params(point["params"]),
+                        }
+                        for point in pareto_points
+                    ],
+                }
+            )
+
+        return artifacts
+
     def _generate_one_page_summary(self) -> None:
         """Generate a compact one-page summary with QPS-vs-recall plots."""
         summary_path = Path(self.output_dir) / "one-page-summary.md"
         compatibility_path = Path(self.output_dir) / "qps_recall_summary.md"
 
+        toc_entries: List[Tuple[str, str]] = []
+        toc_marker = "__TOC_MARKER__"
         lines: List[str] = []
         lines.append("# One-Page Benchmark Summary (QPS vs Recall)")
         lines.append("")
         lines.append(f"*Generated on: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*")
         lines.append(f"*Run directory: `{self.output_dir}`*")
         lines.append("")
+        lines.append(toc_marker)
+        lines.append("")
 
         takeaway_rows: List[str] = []
 
         for dataset_name, dataset_results in self.all_results.items():
+            dataset_slug = self._sanitize_slug(dataset_name)
+            toc_entries.append((f"Dataset: {dataset_name}", f"#dataset-{dataset_slug}"))
+            lines.append(f'<a id="dataset-{dataset_slug}"></a>')
             lines.append(f"## Dataset: {dataset_name}")
             lines.append("")
 
@@ -593,6 +1102,67 @@ class BenchmarkRunner:
                 lines.append("_No QPS/recall plot data available for this dataset._")
                 lines.append("")
 
+            tradeoff_artifacts = self._generate_tradeoff_curve_artifacts(
+                dataset_name=dataset_name,
+                dataset_results=dataset_results,
+                recall_label=recall_label,
+            )
+            if tradeoff_artifacts:
+                toc_entries.append(
+                    (f"{dataset_name} / Tradeoff Curves by Algorithm", f"#tradeoff-{dataset_slug}")
+                )
+                lines.append(f'<a id="tradeoff-{dataset_slug}"></a>')
+                lines.append("### Tradeoff Curves by Algorithm")
+                lines.append("")
+                lines.append("_Pareto points are listed under `Pareto Points (Non-dominated Frontier)` for each algorithm._")
+                lines.append("")
+                for artifact in tradeoff_artifacts:
+                    lines.append(
+                        f"#### {self._md_escape(artifact['algorithm'])} "
+                        f"({artifact['points']} points)"
+                    )
+                    lines.append("")
+                    lines.append(
+                        f"![Tradeoff Curve — {artifact['algorithm']}]({artifact['svg_rel_path']})"
+                    )
+                    lines.append("")
+                    lines.append("| Variant | QPS | Recall | Parameters |")
+                    lines.append("|---|---:|---:|---|")
+                    for row in artifact.get("variant_rows", []):
+                        lines.append(
+                            f"| {self._md_escape(str(row['variant_id']))} | "
+                            f"{float(row['qps']):.2f} | {float(row['recall']):.4f} | "
+                            f"{self._md_escape(str(row['params_text']))} |"
+                        )
+                    lines.append("")
+                    frontier_rows = artifact.get("frontier_rows", [])
+                    if frontier_rows:
+                        lines.append("##### Pareto Points (Non-dominated Frontier)")
+                        lines.append("")
+                        lines.append("| Variant | QPS | Recall | Parameters |")
+                        lines.append("|---|---:|---:|---|")
+                        for row in frontier_rows:
+                            lines.append(
+                                f"| {self._md_escape(str(row['variant_id']))} | "
+                                f"{float(row['qps']):.2f} | {float(row['recall']):.4f} | "
+                                f"{self._md_escape(str(row['params_text']))} |"
+                            )
+                        lines.append("")
+                    mermaid_chart = str(artifact.get("mermaid_chart") or "").strip()
+                    if mermaid_chart:
+                        lines.append("##### Mermaid Quadrant Chart")
+                        lines.append("")
+                        lines.append("_Point IDs ending with `_pareto` mark Pareto points._")
+                        lines.append("")
+                        lines.append("```mermaid")
+                        lines.extend(mermaid_chart.splitlines())
+                        lines.append("```")
+                        lines.append("")
+                        lines.append(f"Mermaid source: `{artifact['mermaid_rel_path']}`")
+                        lines.append("")
+                    lines.append(f"Data: `{artifact['json_rel_path']}`")
+                    lines.append("")
+
             lines.append("| Algorithm | Recall | QPS | Mean Query Time (ms) | Build Time (s) | Status |")
             lines.append("|---|---:|---:|---:|---:|---|")
             for row in sorted(
@@ -615,6 +1185,10 @@ class BenchmarkRunner:
 
             algorithms_cfg = config_data.get("algorithms", {}) if isinstance(config_data, dict) else {}
             if isinstance(algorithms_cfg, dict) and algorithms_cfg:
+                toc_entries.append(
+                    (f"{dataset_name} / Algorithm Implementation Details", f"#algo-details-{dataset_slug}")
+                )
+                lines.append(f'<a id="algo-details-{dataset_slug}"></a>')
                 lines.append("### Algorithm Implementation Details")
                 lines.append("")
                 lines.append("| Algorithm | Type | Metric | Indexer | Searcher |")
@@ -632,6 +1206,8 @@ class BenchmarkRunner:
                     )
                 lines.append("")
 
+            toc_entries.append((f"{dataset_name} / Dataset Details", f"#dataset-details-{dataset_slug}"))
+            lines.append(f'<a id="dataset-details-{dataset_slug}"></a>')
             lines.append("### Dataset Details")
             lines.append("")
             if config_path is not None:
@@ -650,10 +1226,23 @@ class BenchmarkRunner:
             lines.append("")
 
         if takeaway_rows:
+            toc_entries.append(("Brief Takeaways", "#brief-takeaways"))
             lines.append("## Brief Takeaways")
             lines.append("")
             lines.extend(takeaway_rows)
             lines.append("")
+
+        toc_lines: List[str] = ["## Table of Contents", ""]
+        for title, anchor in toc_entries:
+            toc_lines.append(f"- [{self._md_escape(title)}]({anchor})")
+        toc_lines.append("")
+
+        try:
+            toc_index = lines.index(toc_marker)
+        except ValueError:
+            toc_index = -1
+        if toc_index >= 0:
+            lines = lines[:toc_index] + toc_lines + lines[toc_index + 1:]
 
         content = "\n".join(lines).rstrip() + "\n"
         summary_path.write_text(content, encoding="utf-8")

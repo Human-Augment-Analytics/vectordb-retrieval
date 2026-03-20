@@ -1,0 +1,127 @@
+{
+  "dataset": "random",
+  "base_algorithm": "ivf_flat",
+  "x_metric": "qps",
+  "y_metric": "recall",
+  "points": [
+    {
+      "variant_id": "p09",
+      "algorithm_name": "ivf_flat__p09",
+      "qps": 47042.35811610077,
+      "recall": 0.9566406250000001,
+      "params": {
+        "searcher.nprobe": 64
+      }
+    },
+    {
+      "variant_id": "p01",
+      "algorithm_name": "ivf_flat__p01",
+      "qps": 61709.300229885055,
+      "recall": 0.127734375,
+      "params": {
+        "searcher.nprobe": 2
+      }
+    },
+    {
+      "variant_id": "p06",
+      "algorithm_name": "ivf_flat__p06",
+      "qps": 61980.017547910415,
+      "recall": 0.662109375,
+      "params": {
+        "searcher.nprobe": 24
+      }
+    },
+    {
+      "variant_id": "p03",
+      "algorithm_name": "ivf_flat__p03",
+      "qps": 63542.53899869807,
+      "recall": 0.3546875,
+      "params": {
+        "searcher.nprobe": 8
+      }
+    },
+    {
+      "variant_id": "p07",
+      "algorithm_name": "ivf_flat__p07",
+      "qps": 68217.39669631512,
+      "recall": 0.7546875000000001,
+      "params": {
+        "searcher.nprobe": 32
+      }
+    },
+    {
+      "variant_id": "p10",
+      "algorithm_name": "ivf_flat__p10",
+      "qps": 68715.07897094586,
+      "recall": 1.0,
+      "params": {
+        "searcher.nprobe": 96
+      }
+    },
+    {
+      "variant_id": "p02",
+      "algorithm_name": "ivf_flat__p02",
+      "qps": 69714.44124139722,
+      "recall": 0.22031250000000002,
+      "params": {
+        "searcher.nprobe": 4
+      }
+    },
+    {
+      "variant_id": "p04",
+      "algorithm_name": "ivf_flat__p04",
+      "qps": 81585.12453460983,
+      "recall": 0.45585937499999996,
+      "params": {
+        "searcher.nprobe": 12
+      }
+    },
+    {
+      "variant_id": "p08",
+      "algorithm_name": "ivf_flat__p08",
+      "qps": 106638.37759459727,
+      "recall": 0.8878906250000002,
+      "params": {
+        "searcher.nprobe": 48
+      }
+    },
+    {
+      "variant_id": "p05",
+      "algorithm_name": "ivf_flat__p05",
+      "qps": 164105.42931377044,
+      "recall": 0.5421874999999999,
+      "params": {
+        "searcher.nprobe": 16
+      }
+    }
+  ],
+  "pareto_frontier_points": [
+    {
+      "variant_id": "p10",
+      "algorithm_name": "ivf_flat__p10",
+      "qps": 68715.07897094586,
+      "recall": 1.0,
+      "params": {
+        "searcher.nprobe": 96
+      }
+    },
+    {
+      "variant_id": "p08",
+      "algorithm_name": "ivf_flat__p08",
+      "qps": 106638.37759459727,
+      "recall": 0.8878906250000002,
+      "params": {
+        "searcher.nprobe": 48
+      }
+    },
+    {
+      "variant_id": "p05",
+      "algorithm_name": "ivf_flat__p05",
+      "qps": 164105.42931377044,
+      "recall": 0.5421874999999999,
+      "params": {
+        "searcher.nprobe": 16
+      }
+    }
+  ]
+}

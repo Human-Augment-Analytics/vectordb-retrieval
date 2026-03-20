@@ -1,0 +1,181 @@
+{
+  "dataset": "msmarco",
+  "base_algorithm": "ivf_flat",
+  "x_metric": "qps",
+  "y_metric": "recall",
+  "points": [
+    {
+      "variant_id": "p10",
+      "algorithm_name": "ivf_flat__p10",
+      "qps": 249.13810133155923,
+      "recall": 1.0,
+      "params": {
+        "searcher.nprobe": 96
+      }
+    },
+    {
+      "variant_id": "p09",
+      "algorithm_name": "ivf_flat__p09",
+      "qps": 363.346335861236,
+      "recall": 0.9857142857142859,
+      "params": {
+        "searcher.nprobe": 64
+      }
+    },
+    {
+      "variant_id": "p08",
+      "algorithm_name": "ivf_flat__p08",
+      "qps": 509.95108937305486,
+      "recall": 0.9771428571428572,
+      "params": {
+        "searcher.nprobe": 48
+      }
+    },
+    {
+      "variant_id": "p07",
+      "algorithm_name": "ivf_flat__p07",
+      "qps": 763.135913497778,
+      "recall": 0.9528571428571431,
+      "params": {
+        "searcher.nprobe": 32
+      }
+    },
+    {
+      "variant_id": "p06",
+      "algorithm_name": "ivf_flat__p06",
+      "qps": 1101.5238931346398,
+      "recall": 0.9385714285714286,
+      "params": {
+        "searcher.nprobe": 24
+      }
+    },
+    {
+      "variant_id": "p01",
+      "algorithm_name": "ivf_flat__p01",
+      "qps": 1595.3990110308102,
+      "recall": 0.5985714285714286,
+      "params": {
+        "searcher.nprobe": 2
+      }
+    },
+    {
+      "variant_id": "p05",
+      "algorithm_name": "ivf_flat__p05",
+      "qps": 1823.825668867755,
+      "recall": 0.9242857142857144,
+      "params": {
+        "searcher.nprobe": 16
+      }
+    },
+    {
+      "variant_id": "p04",
+      "algorithm_name": "ivf_flat__p04",
+      "qps": 2368.65005284261,
+      "recall": 0.9014285714285715,
+      "params": {
+        "searcher.nprobe": 12
+      }
+    },
+    {
+      "variant_id": "p03",
+      "algorithm_name": "ivf_flat__p03",
+      "qps": 4022.321044483719,
+      "recall": 0.86,
+      "params": {
+        "searcher.nprobe": 8
+      }
+    },
+    {
+      "variant_id": "p02",
+      "algorithm_name": "ivf_flat__p02",
+      "qps": 8402.532196210863,
+      "recall": 0.76,
+      "params": {
+        "searcher.nprobe": 4
+      }
+    }
+  ],
+  "pareto_frontier_points": [
+    {
+      "variant_id": "p10",
+      "algorithm_name": "ivf_flat__p10",
+      "qps": 249.13810133155923,
+      "recall": 1.0,
+      "params": {
+        "searcher.nprobe": 96
+      }
+    },
+    {
+      "variant_id": "p09",
+      "algorithm_name": "ivf_flat__p09",
+      "qps": 363.346335861236,
+      "recall": 0.9857142857142859,
+      "params": {
+        "searcher.nprobe": 64
+      }
+    },
+    {
+      "variant_id": "p08",
+      "algorithm_name": "ivf_flat__p08",
+      "qps": 509.95108937305486,
+      "recall": 0.9771428571428572,
+      "params": {
+        "searcher.nprobe": 48
+      }
+    },
+    {
+      "variant_id": "p07",
+      "algorithm_name": "ivf_flat__p07",
+      "qps": 763.135913497778,
+      "recall": 0.9528571428571431,
+      "params": {
+        "searcher.nprobe": 32
+      }
+    },
+    {
+      "variant_id": "p06",
+      "algorithm_name": "ivf_flat__p06",
+      "qps": 1101.5238931346398,
+      "recall": 0.9385714285714286,
+      "params": {
+        "searcher.nprobe": 24
+      }
+    },
+    {
+      "variant_id": "p05",
+      "algorithm_name": "ivf_flat__p05",
+      "qps": 1823.825668867755,
+      "recall": 0.9242857142857144,
+      "params": {
+        "searcher.nprobe": 16
+      }
+    },
+    {
+      "variant_id": "p04",
+      "algorithm_name": "ivf_flat__p04",
+      "qps": 2368.65005284261,
+      "recall": 0.9014285714285715,
+      "params": {
+        "searcher.nprobe": 12
+      }
+    },
+    {
+      "variant_id": "p03",
+      "algorithm_name": "ivf_flat__p03",
+      "qps": 4022.321044483719,
+      "recall": 0.86,
+      "params": {
+        "searcher.nprobe": 8
+      }
+    },
+    {
+      "variant_id": "p02",
+      "algorithm_name": "ivf_flat__p02",
+      "qps": 8402.532196210863,
+      "recall": 0.76,
+      "params": {
+        "searcher.nprobe": 4
+      }
+    }
+  ]
+}

@@ -1,0 +1,57 @@
+{
+  "algorithm": "ivf_flat__p10",
+  "parameters": {
+    "metric": "cosine",
+    "indexer": {
+      "name": "FaissIVFIndexer",
+      "type": "FaissIVFIndexer",
+      "metric": "cosine",
+      "params": {
+        "nprobe": 10,
+        "index_type": "IVF100,Flat",
+        "index_key": "IVF100,Flat"
+      }
+    },
+    "searcher": {
+      "name": "FaissSearcher",
+      "type": "FaissSearcher",
+      "metric": "cosine",
+      "params": {
+        "nprobe": 96
+      }
+    }
+  },
+  "dataset": "msmarco",
+  "n_train": 100000,
+  "n_test": 70,
+  "dimensions": 384,
+  "topk": 20,
+  "build_time_s": 0.7355697154998779,
+  "index_memory_mb": 146.484375,
+  "qps": 249.13810133155923,
+  "mean_query_time_ms": 4.013838086809431,
+  "total_query_time_s": 0.2809686660766602,
+  "index_load_time_s": 0.0,
+  "index_source": "built",
+  "persistence_mode": null,
+  "persist_dir": null,
+  "dataset_fingerprint": null,
+  "config_hash": null,
+  "timestamp": "2026-03-19T10:39:39.673562",
+  "base_algorithm": "ivf_flat",
+  "tradeoff_variant_id": "p10",
+  "tradeoff_params": {
+    "searcher.nprobe": 96
+  },
+  "is_tradeoff_variant": true,
+  "recall@1": 1.0,
+  "precision@1": 1.0,
+  "recall@10": 1.0,
+  "precision@10": 1.0,
+  "map@10": 0.04999999999999998,
+  "mean_query_time": 4.013838086809431,
+  "median_query_time": 4.0138380868094305,
+  "min_query_time": 4.0138380868094305,
+  "max_query_time": 4.0138380868094305,
+  "recall": 1.0
+}

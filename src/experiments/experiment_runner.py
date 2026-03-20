@@ -31,6 +31,7 @@ class ExperimentRunner:
         self.dataset: Optional[Dataset] = None
         self.algorithms: Dict[str, BaseAlgorithm] = {}
         self.results: Dict[str, Dict[str, Any]] = {}
+        self.algorithm_result_overrides: Dict[str, Dict[str, Any]] = {}
         self.experiment_id = datetime.now().strftime("%Y%m%d_%H%M%S")
 
         os.makedirs(self.output_dir, exist_ok=True)
@@ -155,6 +156,13 @@ class ExperimentRunner:
     def _stable_hash(self, payload: Dict[str, Any]) -> str:
         serialized = json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str)
         return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
+
+    def _apply_algorithm_result_overrides(self, name: str, metrics: Dict[str, Any]) -> None:
+        overrides = self.algorithm_result_overrides.get(name)
+        if not isinstance(overrides, dict):
+            return
+        for key, value in overrides.items():
+            metrics[key] = copy.deepcopy(value)
 
     def _algorithm_config(self, name: str) -> Dict[str, Any]:
         raw = self.config.algorithms.get(name, {})
@@ -368,6 +376,7 @@ class ExperimentRunner:
                 "status": "build_only",
                 "timestamp": datetime.now().isoformat(),
             }
+            self._apply_algorithm_result_overrides(name, metrics)
             return metrics, None, None
 
         # Search phase
@@ -484,6 +493,8 @@ class ExperimentRunner:
             "config_hash": config_hash if persistence_enabled else None,
             "timestamp": datetime.now().isoformat(),
         }
+
+        self._apply_algorithm_result_overrides(name, metrics)
 
         return metrics, indices, query_times
 

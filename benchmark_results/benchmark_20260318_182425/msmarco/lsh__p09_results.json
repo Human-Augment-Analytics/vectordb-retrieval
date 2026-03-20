@@ -1,0 +1,60 @@
+{
+  "algorithm": "lsh__p09",
+  "parameters": {
+    "metric": "cosine",
+    "indexer": {
+      "name": "LSHIndexer",
+      "type": "LSHIndexer",
+      "metric": "cosine",
+      "params": {
+        "num_tables": 24,
+        "hash_size": 8,
+        "bucket_width": 4.0,
+        "seed": 42
+      }
+    },
+    "searcher": {
+      "name": "LSHSearcher",
+      "type": "LSHSearcher",
+      "metric": "cosine",
+      "params": {
+        "candidate_multiplier": 192.0,
+        "max_candidates": null,
+        "fallback_to_bruteforce": false
+      }
+    }
+  },
+  "dataset": "msmarco",
+  "n_train": 100000,
+  "n_test": 70,
+  "dimensions": 384,
+  "topk": 20,
+  "build_time_s": 2.7867860794067383,
+  "index_memory_mb": 175.99920654296875,
+  "qps": 179.33616588767356,
+  "mean_query_time_ms": 5.576120104108538,
+  "total_query_time_s": 0.39032840728759766,
+  "index_load_time_s": 0.0,
+  "index_source": "built",
+  "persistence_mode": null,
+  "persist_dir": null,
+  "dataset_fingerprint": null,
+  "config_hash": null,
+  "timestamp": "2026-03-18T18:46:59.184965",
+  "base_algorithm": "lsh",
+  "tradeoff_variant_id": "p09",
+  "tradeoff_params": {
+    "searcher.candidate_multiplier": 192.0
+  },
+  "is_tradeoff_variant": true,
+  "recall@1": 0.6142857142857143,
+  "precision@1": 1.0,
+  "recall@10": 0.38142857142857145,
+  "precision@10": 1.0,
+  "map@10": 0.04999999999999998,
+  "mean_query_time": 5.576120104108536,
+  "median_query_time": 5.576120104108538,
+  "min_query_time": 5.576120104108538,
+  "max_query_time": 5.576120104108538,
+  "recall": 0.38142857142857145
+}

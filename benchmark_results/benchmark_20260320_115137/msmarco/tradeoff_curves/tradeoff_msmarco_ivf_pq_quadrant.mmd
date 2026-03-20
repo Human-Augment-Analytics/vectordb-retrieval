@@ -1,0 +1,19 @@
+quadrantChart
+    title "ivf_pq Tradeoff (msmarco)"
+    x-axis "Lower QPS" --> "Higher QPS"
+    y-axis "Lower Recall" --> "Higher Recall"
+    quadrant-1 "Fast + Accurate"
+    quadrant-2 "Slow + Accurate"
+    quadrant-3 "Slow + Less Accurate"
+    quadrant-4 "Fast + Less Accurate"
+    %% Point key uses variant IDs from the tables below; '_pareto' marks Pareto points.
+    p01: [0.015, 0.001]
+    p02_pareto: [0.999, 0.416]
+    p03_pareto: [0.845, 0.708]
+    p04_pareto: [0.704, 0.798]
+    p05_pareto: [0.547, 0.910]
+    p06_pareto: [0.450, 0.921]
+    p07: [0.079, 0.955]
+    p08: [0.001, 0.966]
+    p09_pareto: [0.177, 0.999]
+    p10: [0.132, 0.999]

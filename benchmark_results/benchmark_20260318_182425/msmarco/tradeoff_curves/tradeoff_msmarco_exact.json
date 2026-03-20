@@ -1,0 +1,15 @@
+{
+  "dataset": "msmarco",
+  "base_algorithm": "exact",
+  "x_metric": "qps",
+  "y_metric": "recall",
+  "points": [
+    {
+      "variant_id": "base",
+      "algorithm_name": "exact",
+      "qps": 618.763195552343,
+      "recall": 1.0,
+      "params": {}
+    }
+  ]
+}

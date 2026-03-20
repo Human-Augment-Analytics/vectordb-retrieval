@@ -1,0 +1,163 @@
+{
+  "dataset": "glove50",
+  "base_algorithm": "ivf_flat",
+  "x_metric": "qps",
+  "y_metric": "recall",
+  "points": [
+    {
+      "variant_id": "p10",
+      "algorithm_name": "ivf_flat__p10",
+      "qps": 50372.57571777069,
+      "recall": 1.0,
+      "params": {
+        "searcher.nprobe": 96
+      }
+    },
+    {
+      "variant_id": "p09",
+      "algorithm_name": "ivf_flat__p09",
+      "qps": 59559.67517195474,
+      "recall": 1.0,
+      "params": {
+        "searcher.nprobe": 64
+      }
+    },
+    {
+      "variant_id": "p08",
+      "algorithm_name": "ivf_flat__p08",
+      "qps": 64023.72094687258,
+      "recall": 0.9953125,
+      "params": {
+        "searcher.nprobe": 48
+      }
+    },
+    {
+      "variant_id": "p07",
+      "algorithm_name": "ivf_flat__p07",
+      "qps": 75909.63761046306,
+      "recall": 0.983984375,
+      "params": {
+        "searcher.nprobe": 32
+      }
+    },
+    {
+      "variant_id": "p06",
+      "algorithm_name": "ivf_flat__p06",
+      "qps": 79483.44244577689,
+      "recall": 0.9675781250000001,
+      "params": {
+        "searcher.nprobe": 24
+      }
+    },
+    {
+      "variant_id": "p03",
+      "algorithm_name": "ivf_flat__p03",
+      "qps": 84413.66540880503,
+      "recall": 0.83359375,
+      "params": {
+        "searcher.nprobe": 8
+      }
+    },
+    {
+      "variant_id": "p05",
+      "algorithm_name": "ivf_flat__p05",
+      "qps": 85981.88853299167,
+      "recall": 0.93515625,
+      "params": {
+        "searcher.nprobe": 16
+      }
+    },
+    {
+      "variant_id": "p04",
+      "algorithm_name": "ivf_flat__p04",
+      "qps": 87623.78194875144,
+      "recall": 0.8968750000000001,
+      "params": {
+        "searcher.nprobe": 12
+      }
+    },
+    {
+      "variant_id": "p01",
+      "algorithm_name": "ivf_flat__p01",
+      "qps": 95333.55447038978,
+      "recall": 0.5171874999999999,
+      "params": {
+        "searcher.nprobe": 2
+      }
+    },
+    {
+      "variant_id": "p02",
+      "algorithm_name": "ivf_flat__p02",
+      "qps": 96742.21317235786,
+      "recall": 0.6921875000000001,
+      "params": {
+        "searcher.nprobe": 4
+      }
+    }
+  ],
+  "pareto_frontier_points": [
+    {
+      "variant_id": "p09",
+      "algorithm_name": "ivf_flat__p09",
+      "qps": 59559.67517195474,
+      "recall": 1.0,
+      "params": {
+        "searcher.nprobe": 64
+      }
+    },
+    {
+      "variant_id": "p08",
+      "algorithm_name": "ivf_flat__p08",
+      "qps": 64023.72094687258,
+      "recall": 0.9953125,
+      "params": {
+        "searcher.nprobe": 48
+      }
+    },
+    {
+      "variant_id": "p07",
+      "algorithm_name": "ivf_flat__p07",
+      "qps": 75909.63761046306,
+      "recall": 0.983984375,
+      "params": {
+        "searcher.nprobe": 32
+      }
+    },
+    {
+      "variant_id": "p06",
+      "algorithm_name": "ivf_flat__p06",
+      "qps": 79483.44244577689,
+      "recall": 0.9675781250000001,
+      "params": {
+        "searcher.nprobe": 24
+      }
+    },
+    {
+      "variant_id": "p05",
+      "algorithm_name": "ivf_flat__p05",
+      "qps": 85981.88853299167,
+      "recall": 0.93515625,
+      "params": {
+        "searcher.nprobe": 16
+      }
+    },
+    {
+      "variant_id": "p04",
+      "algorithm_name": "ivf_flat__p04",
+      "qps": 87623.78194875144,
+      "recall": 0.8968750000000001,
+      "params": {
+        "searcher.nprobe": 12
+      }
+    },
+    {
+      "variant_id": "p02",
+      "algorithm_name": "ivf_flat__p02",
+      "qps": 96742.21317235786,
+      "recall": 0.6921875000000001,
+      "params": {
+        "searcher.nprobe": 4
+      }
+    }
+  ]
+}

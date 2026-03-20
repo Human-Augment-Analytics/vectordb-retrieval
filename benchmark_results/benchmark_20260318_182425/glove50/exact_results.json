@@ -1,0 +1,47 @@
+{
+  "algorithm": "exact",
+  "parameters": {
+    "metric": "l2",
+    "indexer": {
+      "name": "BruteForceIndexer",
+      "type": "BruteForceIndexer",
+      "metric": "l2"
+    },
+    "searcher": {
+      "name": "LinearSearcher",
+      "type": "LinearSearcher",
+      "metric": "l2"
+    }
+  },
+  "dataset": "glove50",
+  "n_train": 20000,
+  "n_test": 256,
+  "dimensions": 50,
+  "topk": 20,
+  "build_time_s": 1.7642974853515625e-05,
+  "index_memory_mb": 3.814697265625,
+  "qps": 272.4562287964638,
+  "mean_query_time_ms": 3.6703143268823624,
+  "total_query_time_s": 0.9396004676818848,
+  "index_load_time_s": 0.0,
+  "index_source": "built",
+  "persistence_mode": null,
+  "persist_dir": null,
+  "dataset_fingerprint": null,
+  "config_hash": null,
+  "timestamp": "2026-03-18T18:33:23.255915",
+  "base_algorithm": "exact",
+  "tradeoff_variant_id": "base",
+  "tradeoff_params": {},
+  "is_tradeoff_variant": false,
+  "recall@1": 1.0,
+  "precision@1": 1.0,
+  "recall@10": 1.0,
+  "precision@10": 1.0,
+  "map@10": 0.05000000000000001,
+  "mean_query_time": 3.6703143268823624,
+  "median_query_time": 3.6703143268823624,
+  "min_query_time": 3.6633461713790894,
+  "max_query_time": 3.6772824823856354,
+  "recall": 1.0
+}

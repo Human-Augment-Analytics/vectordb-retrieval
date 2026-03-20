@@ -1,0 +1,183 @@
+{
+  "dataset": "glove50",
+  "base_algorithm": "ivf_flat",
+  "x_metric": "qps",
+  "y_metric": "recall",
+  "mermaid_quadrant_chart_file": "tradeoff_glove50_ivf_flat_quadrant.mmd",
+  "mermaid_quadrant_chart": "quadrantChart\n    title \"ivf_flat Tradeoff (glove50)\"\n    x-axis \"Lower QPS\" --> \"Higher QPS\"\n    y-axis \"Lower Recall\" --> \"Higher Recall\"\n    quadrant-1 \"Fast + Accurate\"\n    quadrant-2 \"Slow + Accurate\"\n    quadrant-3 \"Slow + Less Accurate\"\n    quadrant-4 \"Fast + Less Accurate\"\n    %% Point key uses variant IDs from the tables below; '_pareto' marks Pareto points.\n    p01_pareto: [0.999, 0.001]\n    p02_pareto: [0.874, 0.362]\n    p03_pareto: [0.661, 0.655]\n    p04_pareto: [0.491, 0.786]\n    p05_pareto: [0.418, 0.866]\n    p06_pareto: [0.294, 0.933]\n    p07_pareto: [0.226, 0.967]\n    p08_pareto: [0.083, 0.990]\n    p09_pareto: [0.044, 0.999]\n    p10: [0.001, 0.999]",
+  "points": [
+    {
+      "variant_id": "p10",
+      "algorithm_name": "ivf_flat__p10",
+      "qps": 81344.07757575758,
+      "recall": 1.0,
+      "params": {
+        "searcher.nprobe": 96
+      }
+    },
+    {
+      "variant_id": "p09",
+      "algorithm_name": "ivf_flat__p09",
+      "qps": 98853.0495304732,
+      "recall": 1.0,
+      "params": {
+        "searcher.nprobe": 64
+      }
+    },
+    {
+      "variant_id": "p08",
+      "algorithm_name": "ivf_flat__p08",
+      "qps": 113888.61094611794,
+      "recall": 0.9953125,
+      "params": {
+        "searcher.nprobe": 48
+      }
+    },
+    {
+      "variant_id": "p07",
+      "algorithm_name": "ivf_flat__p07",
+      "qps": 170219.05897273304,
+      "recall": 0.983984375,
+      "params": {
+        "searcher.nprobe": 32
+      }
+    },
+    {
+      "variant_id": "p06",
+      "algorithm_name": "ivf_flat__p06",
+      "qps": 197233.98677443055,
+      "recall": 0.9675781250000001,
+      "params": {
+        "searcher.nprobe": 24
+      }
+    },
+    {
+      "variant_id": "p05",
+      "algorithm_name": "ivf_flat__p05",
+      "qps": 245876.30501488436,
+      "recall": 0.93515625,
+      "params": {
+        "searcher.nprobe": 16
+      }
+    },
+    {
+      "variant_id": "p04",
+      "algorithm_name": "ivf_flat__p04",
+      "qps": 274754.81678607984,
+      "recall": 0.8968750000000001,
+      "params": {
+        "searcher.nprobe": 12
+      }
+    },
+    {
+      "variant_id": "p03",
+      "algorithm_name": "ivf_flat__p03",
+      "qps": 341629.59720012726,
+      "recall": 0.83359375,
+      "params": {
+        "searcher.nprobe": 8
+      }
+    },
+    {
+      "variant_id": "p02",
+      "algorithm_name": "ivf_flat__p02",
+      "qps": 425581.38089575904,
+      "recall": 0.6921875000000001,
+      "params": {
+        "searcher.nprobe": 4
+      }
+    },
+    {
+      "variant_id": "p01",
+      "algorithm_name": "ivf_flat__p01",
+      "qps": 475107.0017699115,
+      "recall": 0.5171874999999999,
+      "params": {
+        "searcher.nprobe": 2
+      }
+    }
+  ],
+  "pareto_frontier_points": [
+    {
+      "variant_id": "p09",
+      "algorithm_name": "ivf_flat__p09",
+      "qps": 98853.0495304732,
+      "recall": 1.0,
+      "params": {
+        "searcher.nprobe": 64
+      }
+    },
+    {
+      "variant_id": "p08",
+      "algorithm_name": "ivf_flat__p08",
+      "qps": 113888.61094611794,
+      "recall": 0.9953125,
+      "params": {
+        "searcher.nprobe": 48
+      }
+    },
+    {
+      "variant_id": "p07",
+      "algorithm_name": "ivf_flat__p07",
+      "qps": 170219.05897273304,
+      "recall": 0.983984375,
+      "params": {
+        "searcher.nprobe": 32
+      }
+    },
+    {
+      "variant_id": "p06",
+      "algorithm_name": "ivf_flat__p06",
+      "qps": 197233.98677443055,
+      "recall": 0.9675781250000001,
+      "params": {
+        "searcher.nprobe": 24
+      }
+    },
+    {
+      "variant_id": "p05",
+      "algorithm_name": "ivf_flat__p05",
+      "qps": 245876.30501488436,
+      "recall": 0.93515625,
+      "params": {
+        "searcher.nprobe": 16
+      }
+    },
+    {
+      "variant_id": "p04",
+      "algorithm_name": "ivf_flat__p04",
+      "qps": 274754.81678607984,
+      "recall": 0.8968750000000001,
+      "params": {
+        "searcher.nprobe": 12
+      }
+    },
+    {
+      "variant_id": "p03",
+      "algorithm_name": "ivf_flat__p03",
+      "qps": 341629.59720012726,
+      "recall": 0.83359375,
+      "params": {
+        "searcher.nprobe": 8
+      }
+    },
+    {
+      "variant_id": "p02",
+      "algorithm_name": "ivf_flat__p02",
+      "qps": 425581.38089575904,
+      "recall": 0.6921875000000001,
+      "params": {
+        "searcher.nprobe": 4
+      }
+    },
+    {
+      "variant_id": "p01",
+      "algorithm_name": "ivf_flat__p01",
+      "qps": 475107.0017699115,
+      "recall": 0.5171874999999999,
+      "params": {
+        "searcher.nprobe": 2
+      }
+    }
+  ]
+}

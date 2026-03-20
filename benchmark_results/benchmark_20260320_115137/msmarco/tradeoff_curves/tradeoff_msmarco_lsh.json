@@ -1,0 +1,183 @@
+{
+  "dataset": "msmarco",
+  "base_algorithm": "lsh",
+  "x_metric": "qps",
+  "y_metric": "recall",
+  "mermaid_quadrant_chart_file": "tradeoff_msmarco_lsh_quadrant.mmd",
+  "mermaid_quadrant_chart": "quadrantChart\n    title \"lsh Tradeoff (msmarco)\"\n    x-axis \"Lower QPS\" --> \"Higher QPS\"\n    y-axis \"Lower Recall\" --> \"Higher Recall\"\n    quadrant-1 \"Fast + Accurate\"\n    quadrant-2 \"Slow + Accurate\"\n    quadrant-3 \"Slow + Less Accurate\"\n    quadrant-4 \"Fast + Less Accurate\"\n    %% Point key uses variant IDs from the tables below; '_pareto' marks Pareto points.\n    p01: [0.227, 0.001]\n    p02_pareto: [0.999, 0.185]\n    p03_pareto: [0.965, 0.274]\n    p04_pareto: [0.890, 0.327]\n    p05_pareto: [0.696, 0.375]\n    p06_pareto: [0.520, 0.500]\n    p07_pareto: [0.379, 0.589]\n    p08_pareto: [0.263, 0.714]\n    p09_pareto: [0.224, 0.810]\n    p10_pareto: [0.001, 0.999]",
+  "points": [
+    {
+      "variant_id": "p10",
+      "algorithm_name": "lsh__p10",
+      "qps": 204.10919516257763,
+      "recall": 0.42714285714285716,
+      "params": {
+        "searcher.candidate_multiplier": 256.0
+      }
+    },
+    {
+      "variant_id": "p09",
+      "algorithm_name": "lsh__p09",
+      "qps": 236.330961716322,
+      "recall": 0.38142857142857145,
+      "params": {
+        "searcher.candidate_multiplier": 192.0
+      }
+    },
+    {
+      "variant_id": "p01",
+      "algorithm_name": "lsh__p01",
+      "qps": 236.7465871063983,
+      "recall": 0.18714285714285714,
+      "params": {
+        "searcher.candidate_multiplier": 16.0
+      }
+    },
+    {
+      "variant_id": "p08",
+      "algorithm_name": "lsh__p08",
+      "qps": 241.9663803355374,
+      "recall": 0.3585714285714286,
+      "params": {
+        "searcher.candidate_multiplier": 160.0
+      }
+    },
+    {
+      "variant_id": "p07",
+      "algorithm_name": "lsh__p07",
+      "qps": 258.62690500876033,
+      "recall": 0.32857142857142857,
+      "params": {
+        "searcher.candidate_multiplier": 128.0
+      }
+    },
+    {
+      "variant_id": "p06",
+      "algorithm_name": "lsh__p06",
+      "qps": 278.95635055235215,
+      "recall": 0.30714285714285716,
+      "params": {
+        "searcher.candidate_multiplier": 96.0
+      }
+    },
+    {
+      "variant_id": "p05",
+      "algorithm_name": "lsh__p05",
+      "qps": 304.324771990634,
+      "recall": 0.27714285714285725,
+      "params": {
+        "searcher.candidate_multiplier": 64.0
+      }
+    },
+    {
+      "variant_id": "p04",
+      "algorithm_name": "lsh__p04",
+      "qps": 332.2100699041166,
+      "recall": 0.26571428571428574,
+      "params": {
+        "searcher.candidate_multiplier": 48.0
+      }
+    },
+    {
+      "variant_id": "p03",
+      "algorithm_name": "lsh__p03",
+      "qps": 343.02821558341424,
+      "recall": 0.25285714285714295,
+      "params": {
+        "searcher.candidate_multiplier": 32.0
+      }
+    },
+    {
+      "variant_id": "p02",
+      "algorithm_name": "lsh__p02",
+      "qps": 348.0539765823288,
+      "recall": 0.23142857142857143,
+      "params": {
+        "searcher.candidate_multiplier": 24.0
+      }
+    }
+  ],
+  "pareto_frontier_points": [
+    {
+      "variant_id": "p10",
+      "algorithm_name": "lsh__p10",
+      "qps": 204.10919516257763,
+      "recall": 0.42714285714285716,
+      "params": {
+        "searcher.candidate_multiplier": 256.0
+      }
+    },
+    {
+      "variant_id": "p09",
+      "algorithm_name": "lsh__p09",
+      "qps": 236.330961716322,
+      "recall": 0.38142857142857145,
+      "params": {
+        "searcher.candidate_multiplier": 192.0
+      }
+    },
+    {
+      "variant_id": "p08",
+      "algorithm_name": "lsh__p08",
+      "qps": 241.9663803355374,
+      "recall": 0.3585714285714286,
+      "params": {
+        "searcher.candidate_multiplier": 160.0
+      }
+    },
+    {
+      "variant_id": "p07",
+      "algorithm_name": "lsh__p07",
+      "qps": 258.62690500876033,
+      "recall": 0.32857142857142857,
+      "params": {
+        "searcher.candidate_multiplier": 128.0
+      }
+    },
+    {
+      "variant_id": "p06",
+      "algorithm_name": "lsh__p06",
+      "qps": 278.95635055235215,
+      "recall": 0.30714285714285716,
+      "params": {
+        "searcher.candidate_multiplier": 96.0
+      }
+    },
+    {
+      "variant_id": "p05",
+      "algorithm_name": "lsh__p05",
+      "qps": 304.324771990634,
+      "recall": 0.27714285714285725,
+      "params": {
+        "searcher.candidate_multiplier": 64.0
+      }
+    },
+    {
+      "variant_id": "p04",
+      "algorithm_name": "lsh__p04",
+      "qps": 332.2100699041166,
+      "recall": 0.26571428571428574,
+      "params": {
+        "searcher.candidate_multiplier": 48.0
+      }
+    },
+    {
+      "variant_id": "p03",
+      "algorithm_name": "lsh__p03",
+      "qps": 343.02821558341424,
+      "recall": 0.25285714285714295,
+      "params": {
+        "searcher.candidate_multiplier": 32.0
+      }
+    },
+    {
+      "variant_id": "p02",
+      "algorithm_name": "lsh__p02",
+      "qps": 348.0539765823288,
+      "recall": 0.23142857142857143,
+      "params": {
+        "searcher.candidate_multiplier": 24.0
+      }
+    }
+  ]
+}

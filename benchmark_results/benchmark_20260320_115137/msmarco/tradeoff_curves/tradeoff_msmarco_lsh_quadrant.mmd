@@ -1,0 +1,19 @@
+quadrantChart
+    title "lsh Tradeoff (msmarco)"
+    x-axis "Lower QPS" --> "Higher QPS"
+    y-axis "Lower Recall" --> "Higher Recall"
+    quadrant-1 "Fast + Accurate"
+    quadrant-2 "Slow + Accurate"
+    quadrant-3 "Slow + Less Accurate"
+    quadrant-4 "Fast + Less Accurate"
+    %% Point key uses variant IDs from the tables below; '_pareto' marks Pareto points.
+    p01: [0.227, 0.001]
+    p02_pareto: [0.999, 0.185]
+    p03_pareto: [0.965, 0.274]
+    p04_pareto: [0.890, 0.327]
+    p05_pareto: [0.696, 0.375]
+    p06_pareto: [0.520, 0.500]
+    p07_pareto: [0.379, 0.589]
+    p08_pareto: [0.263, 0.714]
+    p09_pareto: [0.224, 0.810]
+    p10_pareto: [0.001, 0.999]

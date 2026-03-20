@@ -1,0 +1,56 @@
+{
+  "algorithm": "ivf_pq__p08",
+  "parameters": {
+    "metric": "l2",
+    "indexer": {
+      "name": "FaissFactoryIndexer",
+      "type": "FaissFactoryIndexer",
+      "metric": "l2",
+      "params": {
+        "nprobe": 24,
+        "index_key": "IVF256,PQ50"
+      }
+    },
+    "searcher": {
+      "name": "FaissSearcher",
+      "type": "FaissSearcher",
+      "metric": "l2",
+      "params": {
+        "nprobe": 64
+      }
+    }
+  },
+  "dataset": "glove50",
+  "n_train": 20000,
+  "n_test": 256,
+  "dimensions": 50,
+  "topk": 20,
+  "build_time_s": 11.07586407661438,
+  "index_memory_mb": 0.95367431640625,
+  "qps": 34910.48619826381,
+  "mean_query_time_ms": 0.028644688427448273,
+  "total_query_time_s": 0.007333040237426758,
+  "index_load_time_s": 0.0,
+  "index_source": "built",
+  "persistence_mode": null,
+  "persist_dir": null,
+  "dataset_fingerprint": null,
+  "config_hash": null,
+  "timestamp": "2026-03-19T10:30:32.505631",
+  "base_algorithm": "ivf_pq",
+  "tradeoff_variant_id": "p08",
+  "tradeoff_params": {
+    "searcher.nprobe": 64
+  },
+  "is_tradeoff_variant": true,
+  "recall@1": 0.984375,
+  "precision@1": 1.0,
+  "recall@10": 0.9722656250000001,
+  "precision@10": 1.0,
+  "map@10": 0.05000000000000001,
+  "mean_query_time": 0.028644688427448273,
+  "median_query_time": 0.028644688427448273,
+  "min_query_time": 0.020617619156837463,
+  "max_query_time": 0.03667175769805908,
+  "recall": 0.9722656250000001
+}

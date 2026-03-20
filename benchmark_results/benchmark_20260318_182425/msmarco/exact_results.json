@@ -1,0 +1,47 @@
+{
+  "algorithm": "exact",
+  "parameters": {
+    "metric": "cosine",
+    "indexer": {
+      "name": "BruteForceIndexer",
+      "type": "BruteForceIndexer",
+      "metric": "cosine"
+    },
+    "searcher": {
+      "name": "LinearSearcher",
+      "type": "LinearSearcher",
+      "metric": "cosine"
+    }
+  },
+  "dataset": "msmarco",
+  "n_train": 100000,
+  "n_test": 70,
+  "dimensions": 384,
+  "topk": 20,
+  "build_time_s": 0.9377038478851318,
+  "index_memory_mb": 146.484375,
+  "qps": 618.763195552343,
+  "mean_query_time_ms": 1.6161271503993442,
+  "total_query_time_s": 0.1131289005279541,
+  "index_load_time_s": 0.0,
+  "index_source": "built",
+  "persistence_mode": null,
+  "persist_dir": null,
+  "dataset_fingerprint": null,
+  "config_hash": null,
+  "timestamp": "2026-03-18T18:41:09.061312",
+  "base_algorithm": "exact",
+  "tradeoff_variant_id": "base",
+  "tradeoff_params": {},
+  "is_tradeoff_variant": false,
+  "recall@1": 1.0,
+  "precision@1": 1.0,
+  "recall@10": 1.0,
+  "precision@10": 1.0,
+  "map@10": 0.04999999999999998,
+  "mean_query_time": 1.616127150399344,
+  "median_query_time": 1.6161271503993442,
+  "min_query_time": 1.6161271503993442,
+  "max_query_time": 1.6161271503993442,
+  "recall": 1.0
+}

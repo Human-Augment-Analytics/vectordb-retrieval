@@ -1,0 +1,98 @@
+{
+  "dataset": "msmarco",
+  "base_algorithm": "ivf_sq8",
+  "x_metric": "qps",
+  "y_metric": "recall",
+  "points": [
+    {
+      "variant_id": "p10",
+      "algorithm_name": "ivf_sq8__p10",
+      "qps": 6469.268464657145,
+      "recall": 0.9728571428571428,
+      "params": {
+        "searcher.nprobe": 128
+      }
+    },
+    {
+      "variant_id": "p09",
+      "algorithm_name": "ivf_sq8__p09",
+      "qps": 8199.091848417995,
+      "recall": 0.9671428571428574,
+      "params": {
+        "searcher.nprobe": 96
+      }
+    },
+    {
+      "variant_id": "p08",
+      "algorithm_name": "ivf_sq8__p08",
+      "qps": 11792.163225961922,
+      "recall": 0.9571428571428572,
+      "params": {
+        "searcher.nprobe": 64
+      }
+    },
+    {
+      "variant_id": "p07",
+      "algorithm_name": "ivf_sq8__p07",
+      "qps": 14849.346550677723,
+      "recall": 0.9471428571428573,
+      "params": {
+        "searcher.nprobe": 48
+      }
+    },
+    {
+      "variant_id": "p06",
+      "algorithm_name": "ivf_sq8__p06",
+      "qps": 20642.711101736633,
+      "recall": 0.9271428571428573,
+      "params": {
+        "searcher.nprobe": 32
+      }
+    },
+    {
+      "variant_id": "p05",
+      "algorithm_name": "ivf_sq8__p05",
+      "qps": 25286.476617001117,
+      "recall": 0.9057142857142857,
+      "params": {
+        "searcher.nprobe": 24
+      }
+    },
+    {
+      "variant_id": "p04",
+      "algorithm_name": "ivf_sq8__p04",
+      "qps": 33175.28587570623,
+      "recall": 0.8671428571428571,
+      "params": {
+        "searcher.nprobe": 16
+      }
+    },
+    {
+      "variant_id": "p03",
+      "algorithm_name": "ivf_sq8__p03",
+      "qps": 39951.187916723364,
+      "recall": 0.8471428571428571,
+      "params": {
+        "searcher.nprobe": 12
+      }
+    },
+    {
+      "variant_id": "p02",
+      "algorithm_name": "ivf_sq8__p02",
+      "qps": 51078.8587334725,
+      "recall": 0.7742857142857142,
+      "params": {
+        "searcher.nprobe": 8
+      }
+    },
+    {
+      "variant_id": "p01",
+      "algorithm_name": "ivf_sq8__p01",
+      "qps": 66156.21451104105,
+      "recall": 0.6914285714285714,
+      "params": {
+        "searcher.nprobe": 4
+      }
+    }
+  ]
+}

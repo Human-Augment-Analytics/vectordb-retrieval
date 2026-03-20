@@ -1,0 +1,57 @@
+{
+  "algorithm": "hnsw__p08",
+  "parameters": {
+    "metric": "l2",
+    "indexer": {
+      "name": "HNSWIndexer",
+      "type": "HNSWIndexer",
+      "metric": "l2",
+      "params": {
+        "M": 16,
+        "efConstruction": 200,
+        "efSearch": 128
+      }
+    },
+    "searcher": {
+      "name": "FaissSearcher",
+      "type": "FaissSearcher",
+      "metric": "l2",
+      "params": {
+        "nprobe": 10
+      }
+    }
+  },
+  "dataset": "random",
+  "n_train": 20000,
+  "n_test": 256,
+  "dimensions": 64,
+  "topk": 20,
+  "build_time_s": 0.34610605239868164,
+  "index_memory_mb": 7.32421875,
+  "qps": 127735.16821318107,
+  "mean_query_time_ms": 0.007828697562217712,
+  "total_query_time_s": 0.0020041465759277344,
+  "index_load_time_s": 0.0,
+  "index_source": "built",
+  "persistence_mode": null,
+  "persist_dir": null,
+  "dataset_fingerprint": null,
+  "config_hash": null,
+  "timestamp": "2026-03-18T18:24:29.670486",
+  "base_algorithm": "hnsw",
+  "tradeoff_variant_id": "p08",
+  "tradeoff_params": {
+    "indexer.efSearch": 128
+  },
+  "is_tradeoff_variant": true,
+  "recall@1": 0.9609375,
+  "precision@1": 1.0,
+  "recall@10": 0.9457031250000001,
+  "precision@10": 1.0,
+  "map@10": 0.05000000000000001,
+  "mean_query_time": 0.007828697562217712,
+  "median_query_time": 0.007828697562217712,
+  "min_query_time": 0.007513910531997681,
+  "max_query_time": 0.008143484592437744,
+  "recall": 0.9457031250000001
+}

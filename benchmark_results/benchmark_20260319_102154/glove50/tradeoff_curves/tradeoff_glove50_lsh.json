@@ -1,0 +1,172 @@
+{
+  "dataset": "glove50",
+  "base_algorithm": "lsh",
+  "x_metric": "qps",
+  "y_metric": "recall",
+  "points": [
+    {
+      "variant_id": "p10",
+      "algorithm_name": "lsh__p10",
+      "qps": 114.46893249538417,
+      "recall": 0.8121093750000001,
+      "params": {
+        "searcher.candidate_multiplier": 256.0
+      }
+    },
+    {
+      "variant_id": "p09",
+      "algorithm_name": "lsh__p09",
+      "qps": 118.17389364455686,
+      "recall": 0.75390625,
+      "params": {
+        "searcher.candidate_multiplier": 192.0
+      }
+    },
+    {
+      "variant_id": "p08",
+      "algorithm_name": "lsh__p08",
+      "qps": 118.79351820013532,
+      "recall": 0.70625,
+      "params": {
+        "searcher.candidate_multiplier": 160.0
+      }
+    },
+    {
+      "variant_id": "p07",
+      "algorithm_name": "lsh__p07",
+      "qps": 120.04923246728403,
+      "recall": 0.651953125,
+      "params": {
+        "searcher.candidate_multiplier": 128.0
+      }
+    },
+    {
+      "variant_id": "p06",
+      "algorithm_name": "lsh__p06",
+      "qps": 123.37147822733914,
+      "recall": 0.59296875,
+      "params": {
+        "searcher.candidate_multiplier": 96.0
+      }
+    },
+    {
+      "variant_id": "p05",
+      "algorithm_name": "lsh__p05",
+      "qps": 123.6917602056127,
+      "recall": 0.5074218749999999,
+      "params": {
+        "searcher.candidate_multiplier": 64.0
+      }
+    },
+    {
+      "variant_id": "p01",
+      "algorithm_name": "lsh__p01",
+      "qps": 124.21909975028734,
+      "recall": 0.25234375,
+      "params": {
+        "searcher.candidate_multiplier": 16.0
+      }
+    },
+    {
+      "variant_id": "p03",
+      "algorithm_name": "lsh__p03",
+      "qps": 124.6681044486911,
+      "recall": 0.36054687500000004,
+      "params": {
+        "searcher.candidate_multiplier": 32.0
+      }
+    },
+    {
+      "variant_id": "p04",
+      "algorithm_name": "lsh__p04",
+      "qps": 125.51563489593842,
+      "recall": 0.43984375,
+      "params": {
+        "searcher.candidate_multiplier": 48.0
+      }
+    },
+    {
+      "variant_id": "p02",
+      "algorithm_name": "lsh__p02",
+      "qps": 126.14122097408196,
+      "recall": 0.312109375,
+      "params": {
+        "searcher.candidate_multiplier": 24.0
+      }
+    }
+  ],
+  "pareto_frontier_points": [
+    {
+      "variant_id": "p10",
+      "algorithm_name": "lsh__p10",
+      "qps": 114.46893249538417,
+      "recall": 0.8121093750000001,
+      "params": {
+        "searcher.candidate_multiplier": 256.0
+      }
+    },
+    {
+      "variant_id": "p09",
+      "algorithm_name": "lsh__p09",
+      "qps": 118.17389364455686,
+      "recall": 0.75390625,
+      "params": {
+        "searcher.candidate_multiplier": 192.0
+      }
+    },
+    {
+      "variant_id": "p08",
+      "algorithm_name": "lsh__p08",
+      "qps": 118.79351820013532,
+      "recall": 0.70625,
+      "params": {
+        "searcher.candidate_multiplier": 160.0
+      }
+    },
+    {
+      "variant_id": "p07",
+      "algorithm_name": "lsh__p07",
+      "qps": 120.04923246728403,
+      "recall": 0.651953125,
+      "params": {
+        "searcher.candidate_multiplier": 128.0
+      }
+    },
+    {
+      "variant_id": "p06",
+      "algorithm_name": "lsh__p06",
+      "qps": 123.37147822733914,
+      "recall": 0.59296875,
+      "params": {
+        "searcher.candidate_multiplier": 96.0
+      }
+    },
+    {
+      "variant_id": "p05",
+      "algorithm_name": "lsh__p05",
+      "qps": 123.6917602056127,
+      "recall": 0.5074218749999999,
+      "params": {
+        "searcher.candidate_multiplier": 64.0
+      }
+    },
+    {
+      "variant_id": "p04",
+      "algorithm_name": "lsh__p04",
+      "qps": 125.51563489593842,
+      "recall": 0.43984375,
+      "params": {
+        "searcher.candidate_multiplier": 48.0
+      }
+    },
+    {
+      "variant_id": "p02",
+      "algorithm_name": "lsh__p02",
+      "qps": 126.14122097408196,
+      "recall": 0.312109375,
+      "params": {
+        "searcher.candidate_multiplier": 24.0
+      }
+    }
+  ]
+}

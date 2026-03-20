@@ -1,0 +1,24 @@
+{
+  "dataset": "glove50",
+  "base_algorithm": "pq",
+  "x_metric": "qps",
+  "y_metric": "recall",
+  "points": [
+    {
+      "variant_id": "base",
+      "algorithm_name": "pq",
+      "qps": 25269.27007436694,
+      "recall": 0.9820312500000001,
+      "params": {}
+    }
+  ],
+  "pareto_frontier_points": [
+    {
+      "variant_id": "base",
+      "algorithm_name": "pq",
+      "qps": 25269.27007436694,
+      "recall": 0.9820312500000001,
+      "params": {}
+    }
+  ]
+}

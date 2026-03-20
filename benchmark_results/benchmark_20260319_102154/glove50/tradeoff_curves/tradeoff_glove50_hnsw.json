@@ -1,0 +1,181 @@
+{
+  "dataset": "glove50",
+  "base_algorithm": "hnsw",
+  "x_metric": "qps",
+  "y_metric": "recall",
+  "points": [
+    {
+      "variant_id": "p06",
+      "algorithm_name": "hnsw__p06",
+      "qps": 9935.430305722111,
+      "recall": 0.9640625,
+      "params": {
+        "indexer.efSearch": 80
+      }
+    },
+    {
+      "variant_id": "p10",
+      "algorithm_name": "hnsw__p10",
+      "qps": 115754.83225528245,
+      "recall": 0.991796875,
+      "params": {
+        "indexer.efSearch": 200
+      }
+    },
+    {
+      "variant_id": "p09",
+      "algorithm_name": "hnsw__p09",
+      "qps": 153545.2343772344,
+      "recall": 0.987890625,
+      "params": {
+        "indexer.efSearch": 160
+      }
+    },
+    {
+      "variant_id": "p08",
+      "algorithm_name": "hnsw__p08",
+      "qps": 187226.12449869225,
+      "recall": 0.983203125,
+      "params": {
+        "indexer.efSearch": 128
+      }
+    },
+    {
+      "variant_id": "p07",
+      "algorithm_name": "hnsw__p07",
+      "qps": 215870.89344591877,
+      "recall": 0.9742187500000001,
+      "params": {
+        "indexer.efSearch": 100
+      }
+    },
+    {
+      "variant_id": "p05",
+      "algorithm_name": "hnsw__p05",
+      "qps": 306433.1689497717,
+      "recall": 0.9496093750000001,
+      "params": {
+        "indexer.efSearch": 64
+      }
+    },
+    {
+      "variant_id": "p04",
+      "algorithm_name": "hnsw__p04",
+      "qps": 321865.0551558753,
+      "recall": 0.9324218750000001,
+      "params": {
+        "indexer.efSearch": 48
+      }
+    },
+    {
+      "variant_id": "p03",
+      "algorithm_name": "hnsw__p03",
+      "qps": 439517.7339336881,
+      "recall": 0.883984375,
+      "params": {
+        "indexer.efSearch": 32
+      }
+    },
+    {
+      "variant_id": "p02",
+      "algorithm_name": "hnsw__p02",
+      "qps": 509365.1916508539,
+      "recall": 0.8511718750000001,
+      "params": {
+        "indexer.efSearch": 24
+      }
+    },
+    {
+      "variant_id": "p01",
+      "algorithm_name": "hnsw__p01",
+      "qps": 516967.65719788155,
+      "recall": 0.78515625,
+      "params": {
+        "indexer.efSearch": 16
+      }
+    }
+  ],
+  "pareto_frontier_points": [
+    {
+      "variant_id": "p10",
+      "algorithm_name": "hnsw__p10",
+      "qps": 115754.83225528245,
+      "recall": 0.991796875,
+      "params": {
+        "indexer.efSearch": 200
+      }
+    },
+    {
+      "variant_id": "p09",
+      "algorithm_name": "hnsw__p09",
+      "qps": 153545.2343772344,
+      "recall": 0.987890625,
+      "params": {
+        "indexer.efSearch": 160
+      }
+    },
+    {
+      "variant_id": "p08",
+      "algorithm_name": "hnsw__p08",
+      "qps": 187226.12449869225,
+      "recall": 0.983203125,
+      "params": {
+        "indexer.efSearch": 128
+      }
+    },
+    {
+      "variant_id": "p07",
+      "algorithm_name": "hnsw__p07",
+      "qps": 215870.89344591877,
+      "recall": 0.9742187500000001,
+      "params": {
+        "indexer.efSearch": 100
+      }
+    },
+    {
+      "variant_id": "p05",
+      "algorithm_name": "hnsw__p05",
+      "qps": 306433.1689497717,
+      "recall": 0.9496093750000001,
+      "params": {
+        "indexer.efSearch": 64
+      }
+    },
+    {
+      "variant_id": "p04",
+      "algorithm_name": "hnsw__p04",
+      "qps": 321865.0551558753,
+      "recall": 0.9324218750000001,
+      "params": {
+        "indexer.efSearch": 48
+      }
+    },
+    {
+      "variant_id": "p03",
+      "algorithm_name": "hnsw__p03",
+      "qps": 439517.7339336881,
+      "recall": 0.883984375,
+      "params": {
+        "indexer.efSearch": 32
+      }
+    },
+    {
+      "variant_id": "p02",
+      "algorithm_name": "hnsw__p02",
+      "qps": 509365.1916508539,
+      "recall": 0.8511718750000001,
+      "params": {
+        "indexer.efSearch": 24
+      }
+    },
+    {
+      "variant_id": "p01",
+      "algorithm_name": "hnsw__p01",
+      "qps": 516967.65719788155,
+      "recall": 0.78515625,
+      "params": {
+        "indexer.efSearch": 16
+      }
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "dataset": "glove50",
+  "base_algorithm": "exact",
+  "x_metric": "qps",
+  "y_metric": "recall",
+  "mermaid_quadrant_chart_file": "tradeoff_glove50_exact_quadrant.mmd",
+  "mermaid_quadrant_chart": "quadrantChart\n    title \"exact Tradeoff (glove50)\"\n    x-axis \"Lower QPS\" --> \"Higher QPS\"\n    y-axis \"Lower Recall\" --> \"Higher Recall\"\n    quadrant-1 \"Fast + Accurate\"\n    quadrant-2 \"Slow + Accurate\"\n    quadrant-3 \"Slow + Less Accurate\"\n    quadrant-4 \"Fast + Less Accurate\"\n    %% Point key uses variant IDs from the tables below; '_pareto' marks Pareto points.\n    base_pareto: [0.500, 0.500]",
+  "points": [
+    {
+      "variant_id": "base",
+      "algorithm_name": "exact",
+      "qps": 399.74394748618244,
+      "recall": 1.0,
+      "params": {}
+    }
+  ],
+  "pareto_frontier_points": [
+    {
+      "variant_id": "base",
+      "algorithm_name": "exact",
+      "qps": 399.74394748618244,
+      "recall": 1.0,
+      "params": {}
+    }
+  ]
+}

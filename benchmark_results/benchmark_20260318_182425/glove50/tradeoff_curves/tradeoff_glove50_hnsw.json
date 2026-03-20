@@ -1,0 +1,98 @@
+{
+  "dataset": "glove50",
+  "base_algorithm": "hnsw",
+  "x_metric": "qps",
+  "y_metric": "recall",
+  "points": [
+    {
+      "variant_id": "p10",
+      "algorithm_name": "hnsw__p10",
+      "qps": 127719.97430712501,
+      "recall": 0.991796875,
+      "params": {
+        "indexer.efSearch": 200
+      }
+    },
+    {
+      "variant_id": "p09",
+      "algorithm_name": "hnsw__p09",
+      "qps": 153479.39165237278,
+      "recall": 0.9890625000000001,
+      "params": {
+        "indexer.efSearch": 160
+      }
+    },
+    {
+      "variant_id": "p08",
+      "algorithm_name": "hnsw__p08",
+      "qps": 182299.12122241087,
+      "recall": 0.982421875,
+      "params": {
+        "indexer.efSearch": 128
+      }
+    },
+    {
+      "variant_id": "p07",
+      "algorithm_name": "hnsw__p07",
+      "qps": 215784.12861736334,
+      "recall": 0.97578125,
+      "params": {
+        "indexer.efSearch": 100
+      }
+    },
+    {
+      "variant_id": "p06",
+      "algorithm_name": "hnsw__p06",
+      "qps": 250991.54371201497,
+      "recall": 0.96484375,
+      "params": {
+        "indexer.efSearch": 80
+      }
+    },
+    {
+      "variant_id": "p05",
+      "algorithm_name": "hnsw__p05",
+      "qps": 290435.98160670814,
+      "recall": 0.951171875,
+      "params": {
+        "indexer.efSearch": 64
+      }
+    },
+    {
+      "variant_id": "p04",
+      "algorithm_name": "hnsw__p04",
+      "qps": 339040.6769813704,
+      "recall": 0.9320312500000001,
+      "params": {
+        "indexer.efSearch": 48
+      }
+    },
+    {
+      "variant_id": "p02",
+      "algorithm_name": "hnsw__p02",
+      "qps": 358511.46043405676,
+      "recall": 0.8589843750000001,
+      "params": {
+        "indexer.efSearch": 24
+      }
+    },
+    {
+      "variant_id": "p03",
+      "algorithm_name": "hnsw__p03",
+      "qps": 409512.51868802443,
+      "recall": 0.8914062500000001,
+      "params": {
+        "indexer.efSearch": 32
+      }
+    },
+    {
+      "variant_id": "p01",
+      "algorithm_name": "hnsw__p01",
+      "qps": 466438.6724587315,
+      "recall": 0.786328125,
+      "params": {
+        "indexer.efSearch": 16
+      }
+    }
+  ]
+}

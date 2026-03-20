@@ -1,0 +1,192 @@
+{
+  "dataset": "glove50",
+  "base_algorithm": "hnsw",
+  "x_metric": "qps",
+  "y_metric": "recall",
+  "mermaid_quadrant_chart_file": "tradeoff_glove50_hnsw_quadrant.mmd",
+  "mermaid_quadrant_chart": "quadrantChart\n    title \"hnsw Tradeoff (glove50)\"\n    x-axis \"Lower QPS\" --> \"Higher QPS\"\n    y-axis \"Lower Recall\" --> \"Higher Recall\"\n    quadrant-1 \"Fast + Accurate\"\n    quadrant-2 \"Slow + Accurate\"\n    quadrant-3 \"Slow + Less Accurate\"\n    quadrant-4 \"Fast + Less Accurate\"\n    %% Point key uses variant IDs from the tables below; '_pareto' marks Pareto points.\n    p01_pareto: [0.999, 0.001]\n    p02_pareto: [0.905, 0.322]\n    p03_pareto: [0.752, 0.493]\n    p04_pareto: [0.526, 0.694]\n    p05_pareto: [0.398, 0.793]\n    p06_pareto: [0.312, 0.858]\n    p07_pareto: [0.199, 0.916]\n    p08_pareto: [0.122, 0.951]\n    p09_pareto: [0.056, 0.981]\n    p10_pareto: [0.001, 0.999]",
+  "points": [
+    {
+      "variant_id": "p10",
+      "algorithm_name": "hnsw__p10",
+      "qps": 136817.25586136596,
+      "recall": 0.991796875,
+      "params": {
+        "indexer.efSearch": 200
+      }
+    },
+    {
+      "variant_id": "p09",
+      "algorithm_name": "hnsw__p09",
+      "qps": 166755.9906817829,
+      "recall": 0.987890625,
+      "params": {
+        "indexer.efSearch": 160
+      }
+    },
+    {
+      "variant_id": "p08",
+      "algorithm_name": "hnsw__p08",
+      "qps": 201869.11524722693,
+      "recall": 0.98203125,
+      "params": {
+        "indexer.efSearch": 128
+      }
+    },
+    {
+      "variant_id": "p07",
+      "algorithm_name": "hnsw__p07",
+      "qps": 242873.06582221217,
+      "recall": 0.9750000000000001,
+      "params": {
+        "indexer.efSearch": 100
+      }
+    },
+    {
+      "variant_id": "p06",
+      "algorithm_name": "hnsw__p06",
+      "qps": 303660.01809954754,
+      "recall": 0.9632812500000001,
+      "params": {
+        "indexer.efSearch": 80
+      }
+    },
+    {
+      "variant_id": "p05",
+      "algorithm_name": "hnsw__p05",
+      "qps": 349525.3333333333,
+      "recall": 0.950390625,
+      "params": {
+        "indexer.efSearch": 64
+      }
+    },
+    {
+      "variant_id": "p04",
+      "algorithm_name": "hnsw__p04",
+      "qps": 417961.0058388478,
+      "recall": 0.9304687500000001,
+      "params": {
+        "indexer.efSearch": 48
+      }
+    },
+    {
+      "variant_id": "p03",
+      "algorithm_name": "hnsw__p03",
+      "qps": 538756.5599598595,
+      "recall": 0.890234375,
+      "params": {
+        "indexer.efSearch": 32
+      }
+    },
+    {
+      "variant_id": "p02",
+      "algorithm_name": "hnsw__p02",
+      "qps": 620301.4581166955,
+      "recall": 0.8558593750000001,
+      "params": {
+        "indexer.efSearch": 24
+      }
+    },
+    {
+      "variant_id": "p01",
+      "algorithm_name": "hnsw__p01",
+      "qps": 671088.64,
+      "recall": 0.7914062500000001,
+      "params": {
+        "indexer.efSearch": 16
+      }
+    }
+  ],
+  "pareto_frontier_points": [
+    {
+      "variant_id": "p10",
+      "algorithm_name": "hnsw__p10",
+      "qps": 136817.25586136596,
+      "recall": 0.991796875,
+      "params": {
+        "indexer.efSearch": 200
+      }
+    },
+    {
+      "variant_id": "p09",
+      "algorithm_name": "hnsw__p09",
+      "qps": 166755.9906817829,
+      "recall": 0.987890625,
+      "params": {
+        "indexer.efSearch": 160
+      }
+    },
+    {
+      "variant_id": "p08",
+      "algorithm_name": "hnsw__p08",
+      "qps": 201869.11524722693,
+      "recall": 0.98203125,
+      "params": {
+        "indexer.efSearch": 128
+      }
+    },
+    {
+      "variant_id": "p07",
+      "algorithm_name": "hnsw__p07",
+      "qps": 242873.06582221217,
+      "recall": 0.9750000000000001,
+      "params": {
+        "indexer.efSearch": 100
+      }
+    },
+    {
+      "variant_id": "p06",
+      "algorithm_name": "hnsw__p06",
+      "qps": 303660.01809954754,
+      "recall": 0.9632812500000001,
+      "params": {
+        "indexer.efSearch": 80
+      }
+    },
+    {
+      "variant_id": "p05",
+      "algorithm_name": "hnsw__p05",
+      "qps": 349525.3333333333,
+      "recall": 0.950390625,
+      "params": {
+        "indexer.efSearch": 64
+      }
+    },
+    {
+      "variant_id": "p04",
+      "algorithm_name": "hnsw__p04",
+      "qps": 417961.0058388478,
+      "recall": 0.9304687500000001,
+      "params": {
+        "indexer.efSearch": 48
+      }
+    },
+    {
+      "variant_id": "p03",
+      "algorithm_name": "hnsw__p03",
+      "qps": 538756.5599598595,
+      "recall": 0.890234375,
+      "params": {
+        "indexer.efSearch": 32
+      }
+    },
+    {
+      "variant_id": "p02",
+      "algorithm_name": "hnsw__p02",
+      "qps": 620301.4581166955,
+      "recall": 0.8558593750000001,
+      "params": {
+        "indexer.efSearch": 24
+      }
+    },
+    {
+      "variant_id": "p01",
+      "algorithm_name": "hnsw__p01",
+      "qps": 671088.64,
+      "recall": 0.7914062500000001,
+      "params": {
+        "indexer.efSearch": 16
+      }
+    }
+  ]
+}

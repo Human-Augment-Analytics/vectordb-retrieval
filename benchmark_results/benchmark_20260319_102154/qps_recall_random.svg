@@ -1,0 +1,187 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="460" viewBox="0 0 920 460">
+<style>text{font-family:Arial,sans-serif;fill:#111}.axis{stroke:#111;stroke-width:1.1}.grid{stroke:#999;stroke-dasharray:3 3;opacity:.35}.label{font-size:11px}.title{font-size:14px;font-weight:600}.index{font-size:10px;font-weight:600}</style>
+<rect x="0" y="0" width="100%" height="100%" fill="#fff"/>
+<text class="title" x="78" y="24">QPS vs Recall — random</text>
+<line class="axis" x1="78" y1="400" x2="660" y2="400"/>
+<line class="axis" x1="78" y1="400" x2="78" y2="42"/>
+<line class="grid" x1="137.19" y1="400" x2="137.19" y2="42"/>
+<text class="label" x="137.19" y="418" text-anchor="middle">100</text>
+<line class="grid" x1="279.01" y1="400" x2="279.01" y2="42"/>
+<text class="label" x="279.01" y="418" text-anchor="middle">1,000</text>
+<line class="grid" x1="420.84" y1="400" x2="420.84" y2="42"/>
+<text class="label" x="420.84" y="418" text-anchor="middle">10,000</text>
+<line class="grid" x1="562.66" y1="400" x2="562.66" y2="42"/>
+<text class="label" x="562.66" y="418" text-anchor="middle">100,000</text>
+<line class="grid" x1="78" y1="400.00" x2="660" y2="400.00"/>
+<text class="label" x="68" y="404.00" text-anchor="end">0.08</text>
+<line class="grid" x1="78" y1="310.50" x2="660" y2="310.50"/>
+<text class="label" x="68" y="314.50" text-anchor="end">0.32</text>
+<line class="grid" x1="78" y1="221.00" x2="660" y2="221.00"/>
+<text class="label" x="68" y="225.00" text-anchor="end">0.56</text>
+<line class="grid" x1="78" y1="131.50" x2="660" y2="131.50"/>
+<text class="label" x="68" y="135.50" text-anchor="end">0.81</text>
+<line class="grid" x1="78" y1="42.00" x2="660" y2="42.00"/>
+<text class="label" x="68" y="46.00" text-anchor="end">1.05</text>
+<text class="label" x="369.00" y="442" text-anchor="middle">QPS (log scale)</text>
+<text class="label" x="18" y="221.00" transform="rotate(-90 18 221.00)" text-anchor="middle">recall</text>
+<circle cx="539.55" cy="60.41" r="4.4" fill="#d62728" stroke="#111" stroke-width="0.6"/>
+<text class="index" x="545.55" y="56.41">1</text>
+<circle cx="198.92" cy="60.41" r="4.4" fill="#d62728" stroke="#111" stroke-width="0.6"/>
+<text class="index" x="204.92" y="56.41">2</text>
+<circle cx="91.74" cy="60.41" r="4.4" fill="#d62728" stroke="#111" stroke-width="0.6"/>
+<text class="index" x="97.74" y="56.41">3</text>
+<circle cx="555.24" cy="69.47" r="4.4" fill="#d62728" stroke="#111" stroke-width="0.6"/>
+<text class="index" x="561.24" y="65.47">4</text>
+<circle cx="400.10" cy="72.49" r="4.4" fill="#d62728" stroke="#111" stroke-width="0.6"/>
+<text class="index" x="406.10" y="68.49">5</text>
+<circle cx="566.85" cy="74.65" r="4.4" fill="#d62728" stroke="#111" stroke-width="0.6"/>
+<text class="index" x="572.85" y="70.65">6</text>
+<circle cx="516.21" cy="76.38" r="4.4" fill="#d62728" stroke="#111" stroke-width="0.6"/>
+<text class="index" x="522.21" y="72.38">7</text>
+<circle cx="577.15" cy="79.68" r="4.4" fill="#d62728" stroke="#111" stroke-width="0.6"/>
+<text class="index" x="583.15" y="75.68">8</text>
+<circle cx="543.42" cy="88.31" r="4.4" fill="#d62728" stroke="#111" stroke-width="0.6"/>
+<text class="index" x="549.42" y="84.31">9</text>
+<circle cx="591.39" cy="90.47" r="4.4" fill="#d62728" stroke="#111" stroke-width="0.6"/>
+<text class="index" x="597.39" y="86.47">10</text>
+<circle cx="407.70" cy="92.20" r="4.4" fill="#d62728" stroke="#111" stroke-width="0.6"/>
+<text class="index" x="413.70" y="88.20">11</text>
+<circle cx="566.62" cy="101.69" r="4.4" fill="#d62728" stroke="#111" stroke-width="0.6"/>
+<text class="index" x="572.62" y="97.69">12</text>
+<circle cx="600.01" cy="104.85" r="4.4" fill="#d62728" stroke="#111" stroke-width="0.6"/>
+<text class="index" x="606.01" y="100.85">13</text>
+<circle cx="555.30" cy="109.03" r="4.4" fill="#d62728" stroke="#111" stroke-width="0.6"/>
+<text class="index" x="561.30" y="105.03">14</text>
+<circle cx="452.58" cy="111.47" r="4.4" fill="#d62728" stroke="#111" stroke-width="0.6"/>
+<text class="index" x="458.58" y="107.47">15</text>
+<circle cx="610.08" cy="119.53" r="4.4" fill="#d62728" stroke="#111" stroke-width="0.6"/>
+<text class="index" x="616.08" y="115.53">16</text>
+<circle cx="621.97" cy="141.24" r="4.4" fill="#d62728" stroke="#111" stroke-width="0.6"/>
+<text class="index" x="627.97" y="137.24">17</text>
+<circle cx="569.98" cy="145.42" r="4.4" fill="#d62728" stroke="#111" stroke-width="0.6"/>
+<text class="index" x="575.98" y="141.42">18</text>
+<circle cx="464.21" cy="145.70" r="4.4" fill="#d62728" stroke="#111" stroke-width="0.6"/>
+<text class="index" x="470.21" y="141.70">19</text>
+<circle cx="539.10" cy="150.74" r="4.4" fill="#d62728" stroke="#111" stroke-width="0.6"/>
+<text class="index" x="545.10" y="146.74">20</text>
+<circle cx="578.18" cy="176.48" r="4.4" fill="#d62728" stroke="#111" stroke-width="0.6"/>
+<text class="index" x="584.18" y="172.48">21</text>
+<circle cx="483.26" cy="176.63" r="4.4" fill="#d62728" stroke="#111" stroke-width="0.6"/>
+<text class="index" x="489.26" y="172.63">22</text>
+<circle cx="638.84" cy="177.92" r="4.4" fill="#d62728" stroke="#111" stroke-width="0.6"/>
+<text class="index" x="644.84" y="173.92">23</text>
+<circle cx="533.20" cy="184.83" r="4.4" fill="#d62728" stroke="#111" stroke-width="0.6"/>
+<text class="index" x="539.20" y="180.83">24</text>
+<circle cx="174.73" cy="195.61" r="4.4" fill="#d62728" stroke="#111" stroke-width="0.6"/>
+<text class="index" x="180.73" y="191.61">25</text>
+<circle cx="648.77" cy="206.40" r="4.4" fill="#d62728" stroke="#111" stroke-width="0.6"/>
+<text class="index" x="654.77" y="202.40">26</text>
+<circle cx="589.84" cy="217.19" r="4.4" fill="#d62728" stroke="#111" stroke-width="0.6"/>
+<text class="index" x="595.84" y="213.19">27</text>
+<circle cx="497.94" cy="217.48" r="4.4" fill="#d62728" stroke="#111" stroke-width="0.6"/>
+<text class="index" x="503.94" y="213.48">28</text>
+<circle cx="177.47" cy="225.67" r="4.4" fill="#d62728" stroke="#111" stroke-width="0.6"/>
+<text class="index" x="183.47" y="221.67">29</text>
+<circle cx="593.17" cy="228.98" r="4.4" fill="#d62728" stroke="#111" stroke-width="0.6"/>
+<text class="index" x="599.17" y="224.98">30</text>
+<circle cx="400.50" cy="239.34" r="4.4" fill="#d62728" stroke="#111" stroke-width="0.6"/>
+<text class="index" x="406.50" y="235.34">31</text>
+<circle cx="178.96" cy="240.78" r="4.4" fill="#d62728" stroke="#111" stroke-width="0.6"/>
+<text class="index" x="184.96" y="236.78">32</text>
+<circle cx="594.11" cy="241.21" r="4.4" fill="#d62728" stroke="#111" stroke-width="0.6"/>
+<text class="index" x="600.11" y="237.21">33</text>
+<circle cx="503.67" cy="241.21" r="4.4" fill="#d62728" stroke="#111" stroke-width="0.6"/>
+<text class="index" x="509.67" y="237.21">34</text>
+<circle cx="180.39" cy="259.62" r="4.4" fill="#d62728" stroke="#111" stroke-width="0.6"/>
+<text class="index" x="186.39" y="255.62">35</text>
+<circle cx="550.12" cy="260.77" r="4.4" fill="#d62728" stroke="#111" stroke-width="0.6"/>
+<text class="index" x="556.12" y="256.77">36</text>
+<circle cx="599.38" cy="278.75" r="4.4" fill="#d62728" stroke="#111" stroke-width="0.6"/>
+<text class="index" x="605.38" y="274.75">37</text>
+<circle cx="508.03" cy="278.75" r="4.4" fill="#d62728" stroke="#111" stroke-width="0.6"/>
+<text class="index" x="514.03" y="274.75">38</text>
+<circle cx="181.85" cy="282.78" r="4.4" fill="#d62728" stroke="#111" stroke-width="0.6"/>
+<text class="index" x="187.85" y="278.78">39</text>
+<circle cx="534.73" cy="298.02" r="4.4" fill="#d62728" stroke="#111" stroke-width="0.6"/>
+<text class="index" x="540.73" y="294.02">40</text>
+<circle cx="600.56" cy="299.17" r="4.4" fill="#d62728" stroke="#111" stroke-width="0.6"/>
+<text class="index" x="606.56" y="295.17">41</text>
+<circle cx="482.50" cy="299.17" r="4.4" fill="#d62728" stroke="#111" stroke-width="0.6"/>
+<text class="index" x="488.50" y="295.17">42</text>
+<circle cx="183.35" cy="311.11" r="4.4" fill="#d62728" stroke="#111" stroke-width="0.6"/>
+<text class="index" x="189.35" y="307.11">43</text>
+<circle cx="183.85" cy="330.96" r="4.4" fill="#d62728" stroke="#111" stroke-width="0.6"/>
+<text class="index" x="189.85" y="326.96">44</text>
+<circle cx="599.98" cy="331.39" r="4.4" fill="#d62728" stroke="#111" stroke-width="0.6"/>
+<text class="index" x="605.98" y="327.39">45</text>
+<circle cx="492.36" cy="331.39" r="4.4" fill="#d62728" stroke="#111" stroke-width="0.6"/>
+<text class="index" x="498.36" y="327.39">46</text>
+<circle cx="540.44" cy="347.50" r="4.4" fill="#d62728" stroke="#111" stroke-width="0.6"/>
+<text class="index" x="546.44" y="343.50">47</text>
+<circle cx="184.41" cy="351.82" r="4.4" fill="#d62728" stroke="#111" stroke-width="0.6"/>
+<text class="index" x="190.41" y="347.82">48</text>
+<circle cx="184.91" cy="363.47" r="4.4" fill="#d62728" stroke="#111" stroke-width="0.6"/>
+<text class="index" x="190.91" y="359.47">49</text>
+<circle cx="464.14" cy="365.34" r="4.4" fill="#d62728" stroke="#111" stroke-width="0.6"/>
+<text class="index" x="470.14" y="361.34">50</text>
+<circle cx="368.88" cy="365.34" r="4.4" fill="#d62728" stroke="#111" stroke-width="0.6"/>
+<text class="index" x="374.88" y="361.34">51</text>
+<circle cx="182.59" cy="377.56" r="4.4" fill="#d62728" stroke="#111" stroke-width="0.6"/>
+<text class="index" x="188.59" y="373.56">52</text>
+<circle cx="532.93" cy="381.59" r="4.4" fill="#d62728" stroke="#111" stroke-width="0.6"/>
+<text class="index" x="538.93" y="377.59">53</text>
+<text class="label" x="676" y="50">Labels</text>
+<text class="label" x="676" y="64">1. ivf_flat__p10</text>
+<text class="label" x="676" y="78">2. exact</text>
+<text class="label" x="676" y="92">3. covertree_v2_2</text>
+<text class="label" x="676" y="106">4. hnsw__p10</text>
+<text class="label" x="676" y="120">5. pq</text>
+<text class="label" x="676" y="134">6. hnsw__p09</text>
+<text class="label" x="676" y="148">7. ivf_flat__p09</text>
+<text class="label" x="676" y="162">8. hnsw__p08</text>
+<text class="label" x="676" y="176">9. ivf_sq8__p10</text>
+<text class="label" x="676" y="190">10. hnsw__p07</text>
+<text class="label" x="676" y="204">11. ivf_pq__p10</text>
+<text class="label" x="676" y="218">12. ivf_flat__p08</text>
+<text class="label" x="676" y="232">13. hnsw__p06</text>
+<text class="label" x="676" y="246">14. ivf_sq8__p09</text>
+<text class="label" x="676" y="260">15. ivf_pq__p09</text>
+<text class="label" x="676" y="274">16. hnsw__p05</text>
+<text class="label" x="676" y="288">17. hnsw__p04</text>
+<text class="label" x="676" y="302">18. ivf_sq8__p08</text>
+<text class="label" x="676" y="316">19. ivf_pq__p08</text>
+<text class="label" x="676" y="330">20. ivf_flat__p07</text>
+<text class="label" x="676" y="344">21. ivf_sq8__p07</text>
+<text class="label" x="676" y="358">22. ivf_pq__p07</text>
+<text class="label" x="676" y="372">23. hnsw__p03</text>
+<text class="label" x="676" y="386">24. ivf_flat__p06</text>
+<text class="label" x="676" y="400">25. lsh__p10</text>
+<text class="label" x="676" y="414">26. hnsw__p02</text>
+<text class="label" x="676" y="428">27. ivf_sq8__p06</text>
+<text class="label" x="676" y="442">28. ivf_pq__p06</text>
+<text class="label" x="676" y="456">29. lsh__p09</text>
+<text class="label" x="676" y="470">30. ivf_flat__p05</text>
+<text class="label" x="676" y="484">31. hnsw__p01</text>
+<text class="label" x="676" y="498">32. lsh__p08</text>
+<text class="label" x="676" y="512">33. ivf_sq8__p05</text>
+<text class="label" x="676" y="526">34. ivf_pq__p05</text>
+<text class="label" x="676" y="540">35. lsh__p07</text>
+<text class="label" x="676" y="554">36. ivf_flat__p04</text>
+<text class="label" x="676" y="568">37. ivf_sq8__p04</text>
+<text class="label" x="676" y="582">38. ivf_pq__p04</text>
+<text class="label" x="676" y="596">39. lsh__p06</text>
+<text class="label" x="676" y="610">40. ivf_flat__p03</text>
+<text class="label" x="676" y="624">41. ivf_sq8__p03</text>
+<text class="label" x="676" y="638">42. ivf_pq__p03</text>
+<text class="label" x="676" y="652">43. lsh__p05</text>
+<text class="label" x="676" y="666">44. lsh__p04</text>
+<text class="label" x="676" y="680">45. ivf_sq8__p02</text>
+<text class="label" x="676" y="694">46. ivf_pq__p02</text>
+<text class="label" x="676" y="708">47. ivf_flat__p02</text>
+<text class="label" x="676" y="722">48. lsh__p03</text>
+<text class="label" x="676" y="736">49. lsh__p02</text>
+<text class="label" x="676" y="750">50. ivf_sq8__p01</text>
+<text class="label" x="676" y="764">51. ivf_pq__p01</text>
+<text class="label" x="676" y="778">52. lsh__p01</text>
+<text class="label" x="676" y="792">53. ivf_flat__p01</text>
+</svg>

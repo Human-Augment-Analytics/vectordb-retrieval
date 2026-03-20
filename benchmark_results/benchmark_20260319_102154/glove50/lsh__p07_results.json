@@ -1,0 +1,60 @@
+{
+  "algorithm": "lsh__p07",
+  "parameters": {
+    "metric": "l2",
+    "indexer": {
+      "name": "LSHIndexer",
+      "type": "LSHIndexer",
+      "metric": "l2",
+      "params": {
+        "num_tables": 12,
+        "hash_size": 4,
+        "bucket_width": 20.0,
+        "seed": 42
+      }
+    },
+    "searcher": {
+      "name": "LSHSearcher",
+      "type": "LSHSearcher",
+      "metric": "l2",
+      "params": {
+        "candidate_multiplier": 128.0,
+        "max_candidates": null,
+        "fallback_to_bruteforce": false
+      }
+    }
+  },
+  "dataset": "glove50",
+  "n_train": 20000,
+  "n_test": 256,
+  "dimensions": 50,
+  "topk": 20,
+  "build_time_s": 0.23506546020507812,
+  "index_memory_mb": 6.7177276611328125,
+  "qps": 120.04923246728403,
+  "mean_query_time_ms": 8.329915814101696,
+  "total_query_time_s": 2.132458448410034,
+  "index_load_time_s": 0.0,
+  "index_source": "built",
+  "persistence_mode": null,
+  "persist_dir": null,
+  "dataset_fingerprint": null,
+  "config_hash": null,
+  "timestamp": "2026-03-19T10:35:09.445823",
+  "base_algorithm": "lsh",
+  "tradeoff_variant_id": "p07",
+  "tradeoff_params": {
+    "searcher.candidate_multiplier": 128.0
+  },
+  "is_tradeoff_variant": true,
+  "recall@1": 0.74609375,
+  "precision@1": 1.0,
+  "recall@10": 0.651953125,
+  "precision@10": 1.0,
+  "map@10": 0.05000000000000001,
+  "mean_query_time": 8.329915814101696,
+  "median_query_time": 8.329915814101696,
+  "min_query_time": 8.293095976114273,
+  "max_query_time": 8.366735652089119,
+  "recall": 0.651953125
+}

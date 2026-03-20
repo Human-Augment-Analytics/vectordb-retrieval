@@ -1,0 +1,24 @@
+{
+  "dataset": "random",
+  "base_algorithm": "pq",
+  "x_metric": "qps",
+  "y_metric": "recall",
+  "points": [
+    {
+      "variant_id": "base",
+      "algorithm_name": "pq",
+      "qps": 7141.710059329023,
+      "recall": 0.9671875000000001,
+      "params": {}
+    }
+  ],
+  "pareto_frontier_points": [
+    {
+      "variant_id": "base",
+      "algorithm_name": "pq",
+      "qps": 7141.710059329023,
+      "recall": 0.9671875000000001,
+      "params": {}
+    }
+  ]
+}

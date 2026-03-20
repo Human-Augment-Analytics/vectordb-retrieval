@@ -1,0 +1,145 @@
+{
+  "dataset": "msmarco",
+  "base_algorithm": "hnsw",
+  "x_metric": "qps",
+  "y_metric": "recall",
+  "points": [
+    {
+      "variant_id": "p10",
+      "algorithm_name": "hnsw__p10",
+      "qps": 1489.8324453239968,
+      "recall": 0.9971428571428571,
+      "params": {
+        "indexer.efSearch": 200
+      }
+    },
+    {
+      "variant_id": "p01",
+      "algorithm_name": "hnsw__p01",
+      "qps": 1538.186142763589,
+      "recall": 0.8842857142857142,
+      "params": {
+        "indexer.efSearch": 16
+      }
+    },
+    {
+      "variant_id": "p08",
+      "algorithm_name": "hnsw__p08",
+      "qps": 1665.8512201626124,
+      "recall": 0.9885714285714287,
+      "params": {
+        "indexer.efSearch": 128
+      }
+    },
+    {
+      "variant_id": "p09",
+      "algorithm_name": "hnsw__p09",
+      "qps": 1701.5333437650322,
+      "recall": 0.9942857142857142,
+      "params": {
+        "indexer.efSearch": 160
+      }
+    },
+    {
+      "variant_id": "p07",
+      "algorithm_name": "hnsw__p07",
+      "qps": 1788.7029523217702,
+      "recall": 0.982857142857143,
+      "params": {
+        "indexer.efSearch": 100
+      }
+    },
+    {
+      "variant_id": "p06",
+      "algorithm_name": "hnsw__p06",
+      "qps": 1870.3458468438039,
+      "recall": 0.9814285714285713,
+      "params": {
+        "indexer.efSearch": 80
+      }
+    },
+    {
+      "variant_id": "p03",
+      "algorithm_name": "hnsw__p03",
+      "qps": 2550.6370483628557,
+      "recall": 0.9485714285714286,
+      "params": {
+        "indexer.efSearch": 32
+      }
+    },
+    {
+      "variant_id": "p05",
+      "algorithm_name": "hnsw__p05",
+      "qps": 3636.2894156696657,
+      "recall": 0.9814285714285714,
+      "params": {
+        "indexer.efSearch": 64
+      }
+    },
+    {
+      "variant_id": "p02",
+      "algorithm_name": "hnsw__p02",
+      "qps": 5217.723120668205,
+      "recall": 0.9285714285714286,
+      "params": {
+        "indexer.efSearch": 24
+      }
+    },
+    {
+      "variant_id": "p04",
+      "algorithm_name": "hnsw__p04",
+      "qps": 6150.521199932963,
+      "recall": 0.9599999999999999,
+      "params": {
+        "indexer.efSearch": 48
+      }
+    }
+  ],
+  "pareto_frontier_points": [
+    {
+      "variant_id": "p10",
+      "algorithm_name": "hnsw__p10",
+      "qps": 1489.8324453239968,
+      "recall": 0.9971428571428571,
+      "params": {
+        "indexer.efSearch": 200
+      }
+    },
+    {
+      "variant_id": "p09",
+      "algorithm_name": "hnsw__p09",
+      "qps": 1701.5333437650322,
+      "recall": 0.9942857142857142,
+      "params": {
+        "indexer.efSearch": 160
+      }
+    },
+    {
+      "variant_id": "p07",
+      "algorithm_name": "hnsw__p07",
+      "qps": 1788.7029523217702,
+      "recall": 0.982857142857143,
+      "params": {
+        "indexer.efSearch": 100
+      }
+    },
+    {
+      "variant_id": "p05",
+      "algorithm_name": "hnsw__p05",
+      "qps": 3636.2894156696657,
+      "recall": 0.9814285714285714,
+      "params": {
+        "indexer.efSearch": 64
+      }
+    },
+    {
+      "variant_id": "p04",
+      "algorithm_name": "hnsw__p04",
+      "qps": 6150.521199932963,
+      "recall": 0.9599999999999999,
+      "params": {
+        "indexer.efSearch": 48
+      }
+    }
+  ]
+}

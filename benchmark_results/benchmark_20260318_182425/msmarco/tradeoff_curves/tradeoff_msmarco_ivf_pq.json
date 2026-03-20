@@ -1,0 +1,98 @@
+{
+  "dataset": "msmarco",
+  "base_algorithm": "ivf_pq",
+  "x_metric": "qps",
+  "y_metric": "recall",
+  "points": [
+    {
+      "variant_id": "p03",
+      "algorithm_name": "ivf_pq__p03",
+      "qps": 124.65166041571311,
+      "recall": 0.6699999999999999,
+      "params": {
+        "searcher.nprobe": 12
+      }
+    },
+    {
+      "variant_id": "p01",
+      "algorithm_name": "ivf_pq__p01",
+      "qps": 1115.2606188605853,
+      "recall": 0.5771428571428571,
+      "params": {
+        "searcher.nprobe": 4
+      }
+    },
+    {
+      "variant_id": "p10",
+      "algorithm_name": "ivf_pq__p10",
+      "qps": 4847.865528457971,
+      "recall": 0.7042857142857142,
+      "params": {
+        "searcher.nprobe": 128
+      }
+    },
+    {
+      "variant_id": "p09",
+      "algorithm_name": "ivf_pq__p09",
+      "qps": 16894.026123482367,
+      "recall": 0.7042857142857142,
+      "params": {
+        "searcher.nprobe": 96
+      }
+    },
+    {
+      "variant_id": "p08",
+      "algorithm_name": "ivf_pq__p08",
+      "qps": 22953.73934797904,
+      "recall": 0.6999999999999998,
+      "params": {
+        "searcher.nprobe": 64
+      }
+    },
+    {
+      "variant_id": "p07",
+      "algorithm_name": "ivf_pq__p07",
+      "qps": 26923.546996790476,
+      "recall": 0.6985714285714284,
+      "params": {
+        "searcher.nprobe": 48
+      }
+    },
+    {
+      "variant_id": "p06",
+      "algorithm_name": "ivf_pq__p06",
+      "qps": 34973.35080405003,
+      "recall": 0.6957142857142855,
+      "params": {
+        "searcher.nprobe": 32
+      }
+    },
+    {
+      "variant_id": "p05",
+      "algorithm_name": "ivf_pq__p05",
+      "qps": 40569.473538759165,
+      "recall": 0.69,
+      "params": {
+        "searcher.nprobe": 24
+      }
+    },
+    {
+      "variant_id": "p04",
+      "algorithm_name": "ivf_pq__p04",
+      "qps": 49822.03970812828,
+      "recall": 0.6799999999999998,
+      "params": {
+        "searcher.nprobe": 16
+      }
+    },
+    {
+      "variant_id": "p02",
+      "algorithm_name": "ivf_pq__p02",
+      "qps": 59578.18181818185,
+      "recall": 0.6299999999999999,
+      "params": {
+        "searcher.nprobe": 8
+      }
+    }
+  ]
+}

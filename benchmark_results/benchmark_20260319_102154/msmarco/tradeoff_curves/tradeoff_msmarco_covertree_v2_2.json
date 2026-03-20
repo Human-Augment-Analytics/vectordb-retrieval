@@ -1,0 +1,24 @@
+{
+  "dataset": "msmarco",
+  "base_algorithm": "covertree_v2_2",
+  "x_metric": "qps",
+  "y_metric": "recall",
+  "points": [
+    {
+      "variant_id": "base",
+      "algorithm_name": "covertree_v2_2",
+      "qps": 5.56610986410277,
+      "recall": 1.0,
+      "params": {}
+    }
+  ],
+  "pareto_frontier_points": [
+    {
+      "variant_id": "base",
+      "algorithm_name": "covertree_v2_2",
+      "qps": 5.56610986410277,
+      "recall": 1.0,
+      "params": {}
+    }
+  ]
+}

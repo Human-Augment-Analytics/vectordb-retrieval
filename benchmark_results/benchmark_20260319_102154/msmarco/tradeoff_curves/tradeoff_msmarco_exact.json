@@ -1,0 +1,24 @@
+{
+  "dataset": "msmarco",
+  "base_algorithm": "exact",
+  "x_metric": "qps",
+  "y_metric": "recall",
+  "points": [
+    {
+      "variant_id": "base",
+      "algorithm_name": "exact",
+      "qps": 541.4210766044785,
+      "recall": 1.0,
+      "params": {}
+    }
+  ],
+  "pareto_frontier_points": [
+    {
+      "variant_id": "base",
+      "algorithm_name": "exact",
+      "qps": 541.4210766044785,
+      "recall": 1.0,
+      "params": {}
+    }
+  ]
+}

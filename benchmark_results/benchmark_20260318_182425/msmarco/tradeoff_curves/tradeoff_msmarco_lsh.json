@@ -1,0 +1,98 @@
+{
+  "dataset": "msmarco",
+  "base_algorithm": "lsh",
+  "x_metric": "qps",
+  "y_metric": "recall",
+  "points": [
+    {
+      "variant_id": "p10",
+      "algorithm_name": "lsh__p10",
+      "qps": 158.6398529021619,
+      "recall": 0.42714285714285716,
+      "params": {
+        "searcher.candidate_multiplier": 256.0
+      }
+    },
+    {
+      "variant_id": "p01",
+      "algorithm_name": "lsh__p01",
+      "qps": 162.73788672250873,
+      "recall": 0.18714285714285714,
+      "params": {
+        "searcher.candidate_multiplier": 16.0
+      }
+    },
+    {
+      "variant_id": "p09",
+      "algorithm_name": "lsh__p09",
+      "qps": 179.33616588767356,
+      "recall": 0.38142857142857145,
+      "params": {
+        "searcher.candidate_multiplier": 192.0
+      }
+    },
+    {
+      "variant_id": "p08",
+      "algorithm_name": "lsh__p08",
+      "qps": 189.31025855954604,
+      "recall": 0.3585714285714286,
+      "params": {
+        "searcher.candidate_multiplier": 160.0
+      }
+    },
+    {
+      "variant_id": "p07",
+      "algorithm_name": "lsh__p07",
+      "qps": 205.11376568648885,
+      "recall": 0.32857142857142857,
+      "params": {
+        "searcher.candidate_multiplier": 128.0
+      }
+    },
+    {
+      "variant_id": "p06",
+      "algorithm_name": "lsh__p06",
+      "qps": 217.83063593507245,
+      "recall": 0.30714285714285716,
+      "params": {
+        "searcher.candidate_multiplier": 96.0
+      }
+    },
+    {
+      "variant_id": "p05",
+      "algorithm_name": "lsh__p05",
+      "qps": 238.8600502612723,
+      "recall": 0.27714285714285725,
+      "params": {
+        "searcher.candidate_multiplier": 64.0
+      }
+    },
+    {
+      "variant_id": "p04",
+      "algorithm_name": "lsh__p04",
+      "qps": 251.654501133126,
+      "recall": 0.26571428571428574,
+      "params": {
+        "searcher.candidate_multiplier": 48.0
+      }
+    },
+    {
+      "variant_id": "p03",
+      "algorithm_name": "lsh__p03",
+      "qps": 263.4459404288156,
+      "recall": 0.25285714285714295,
+      "params": {
+        "searcher.candidate_multiplier": 32.0
+      }
+    },
+    {
+      "variant_id": "p02",
+      "algorithm_name": "lsh__p02",
+      "qps": 280.73545484013164,
+      "recall": 0.23142857142857143,
+      "params": {
+        "searcher.candidate_multiplier": 24.0
+      }
+    }
+  ]
+}

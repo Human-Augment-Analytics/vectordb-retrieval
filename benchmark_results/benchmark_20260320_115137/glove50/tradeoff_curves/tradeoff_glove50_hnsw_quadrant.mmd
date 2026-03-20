@@ -1,0 +1,19 @@
+quadrantChart
+    title "hnsw Tradeoff (glove50)"
+    x-axis "Lower QPS" --> "Higher QPS"
+    y-axis "Lower Recall" --> "Higher Recall"
+    quadrant-1 "Fast + Accurate"
+    quadrant-2 "Slow + Accurate"
+    quadrant-3 "Slow + Less Accurate"
+    quadrant-4 "Fast + Less Accurate"
+    %% Point key uses variant IDs from the tables below; '_pareto' marks Pareto points.
+    p01_pareto: [0.999, 0.001]
+    p02_pareto: [0.905, 0.322]
+    p03_pareto: [0.752, 0.493]
+    p04_pareto: [0.526, 0.694]
+    p05_pareto: [0.398, 0.793]
+    p06_pareto: [0.312, 0.858]
+    p07_pareto: [0.199, 0.916]
+    p08_pareto: [0.122, 0.951]
+    p09_pareto: [0.056, 0.981]
+    p10_pareto: [0.001, 0.999]
